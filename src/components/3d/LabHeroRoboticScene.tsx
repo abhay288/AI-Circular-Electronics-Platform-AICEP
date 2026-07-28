@@ -12,7 +12,7 @@ export default function LabHeroRoboticScene() {
 
     // 1. Scene & Studio Setup
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0xf8fafc);
+    scene.background = new THREE.Color(0xeff4fb);
     scene.fog = new THREE.FogExp2(0xf8fafc, 0.02);
 
     const camera = new THREE.PerspectiveCamera(
