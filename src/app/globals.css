@@ -1,0 +1,77 @@
+@import "tailwindcss/base";
+@import "tailwindcss/components";
+@import "tailwindcss/utilities";
+
+:root {
+  --background: #F8FAFC;
+  --bg-secondary: #FFFFFF;
+  --surface: #FFFFFF;
+  --surface-alt: #F1F5F9;
+  --border: #E2E8F0;
+  --primary: #2563EB;
+  --success: #16A34A;
+  --gold: #C9A227;
+  --text: #0F172A;
+  --text-secondary: #475569;
+  --text-muted: #64748B;
+}
+
+body {
+  background-color: var(--background);
+  color: var(--text);
+  font-family: var(--font-inter), sans-serif;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+::selection {
+  background-color: rgba(37, 99, 235, 0.15);
+  color: #0F172A;
+}
+
+/* Light Laboratory Card Utilities */
+.lab-card {
+  background: #FFFFFF;
+  border: 1px solid #E2E8F0;
+  border-radius: 1.25rem;
+  box-shadow: 0 4px 20px -2px rgba(15, 23, 42, 0.05), 0 2px 6px -1px rgba(15, 23, 42, 0.02);
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.lab-card-interactive {
+  background: #FFFFFF;
+  border: 1px solid #E2E8F0;
+  border-radius: 1.25rem;
+  box-shadow: 0 4px 20px -2px rgba(15, 23, 42, 0.05);
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.lab-card-interactive:hover {
+  border-color: #BFDBFE;
+  box-shadow: 0 20px 40px -15px rgba(37, 99, 235, 0.12), 0 0 20px 0 rgba(15, 23, 42, 0.04);
+  transform: translateY(-2px);
+}
+
+/* Floating White Studio Glass Badge */
+.glass-pill {
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid #E2E8F0;
+  box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.08);
+}
+
+/* Custom Minimal Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+::-webkit-scrollbar-track {
+  background: #F8FAFC;
+}
+::-webkit-scrollbar-thumb {
+  background: #CBD5E1;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #94A3B8;
+}
