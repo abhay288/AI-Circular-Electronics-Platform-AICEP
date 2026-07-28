@@ -16,13 +16,13 @@ export default function LabHeroRoboticScene() {
     scene.fog = new THREE.FogExp2(0xf8fafc, 0.02);
 
     const camera = new THREE.PerspectiveCamera(
-      38,
+      36,
       container.clientWidth / container.clientHeight,
       0.1,
       1000
     );
-    camera.position.set(0, 5.5, 9.2);
-    camera.lookAt(0, 0.1, 0);
+    camera.position.set(0, 6.2, 12.0);
+    camera.lookAt(0, -0.2, 0);
 
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     renderer.setSize(container.clientWidth, container.clientHeight);
@@ -344,9 +344,9 @@ export default function LabHeroRoboticScene() {
       robotGroup.position.z = sweepZ;
 
       // Camera Parallax
-      camera.position.x = mouseX * 2.2;
-      camera.position.y = 5.5 + mouseY * 1.1;
-      camera.lookAt(0, 0.1, 0);
+      camera.position.x = mouseX * 2.0;
+      camera.position.y = 6.2 + mouseY * 1.0;
+      camera.lookAt(0, -0.2, 0);
 
       renderer.render(scene, camera);
     };
