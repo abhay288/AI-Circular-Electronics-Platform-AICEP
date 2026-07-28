@@ -2,76 +2,307 @@
 @import "tailwindcss/components";
 @import "tailwindcss/utilities";
 
+/* ============================================================
+   ECOINTEL LIGHT LABORATORY DESIGN SYSTEM
+   Premium Enterprise AI Platform — Light Studio Aesthetic
+   ============================================================ */
+
 :root {
-  --background: #F8FAFC;
-  --bg-secondary: #FFFFFF;
-  --surface: #FFFFFF;
-  --surface-alt: #F1F5F9;
+  /* Background Surfaces */
+  --bg-base: #F8FAFC;
+  --bg-surface: #FFFFFF;
+  --bg-surface-alt: #F1F5F9;
+  --bg-surface-raised: #FFFFFF;
+
+  /* Borders */
   --border: #E2E8F0;
+  --border-strong: #CBD5E1;
+  --border-focus: #2563EB;
+
+  /* Color Roles */
   --primary: #2563EB;
+  --primary-light: #EFF6FF;
+  --primary-dark: #1D4ED8;
   --success: #16A34A;
+  --success-light: #DCFCE7;
   --gold: #C9A227;
-  --text: #0F172A;
+  --gold-light: #FEF9C3;
+
+  /* Typography */
+  --text-primary: #0F172A;
   --text-secondary: #475569;
   --text-muted: #64748B;
+  --text-subtle: #94A3B8;
+
+  /* Spacing */
+  --radius-sm: 0.625rem;
+  --radius-md: 1rem;
+  --radius-lg: 1.25rem;
+  --radius-xl: 1.5rem;
+  --radius-2xl: 2rem;
+
+  /* Font Families */
+  --font-heading: var(--font-space-grotesk), 'Space Grotesk', system-ui, sans-serif;
+  --font-body: var(--font-inter), 'Inter', system-ui, sans-serif;
+  --font-mono: var(--font-ibm-plex-mono), 'IBM Plex Mono', 'Courier New', monospace;
+}
+
+/* ============================================================
+   BASE GLOBAL RESETS
+   ============================================================ */
+
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+html {
+  font-size: 16px;
+  -webkit-text-size-adjust: 100%;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 body {
-  background-color: var(--background);
-  color: var(--text);
-  font-family: var(--font-inter), sans-serif;
+  background-color: var(--bg-base);
+  color: var(--text-primary);
+  font-family: var(--font-body);
+  font-size: 1rem;
+  line-height: 1.6;
   overflow-x: hidden;
-  -webkit-font-smoothing: antialiased;
+  letter-spacing: -0.01em;
 }
 
+/* ============================================================
+   PREMIUM TYPOGRAPHY SYSTEM
+   ============================================================ */
+
+/* Headings: Space Grotesk — tight tracking, crisp */
+h1, h2, h3, h4, h5, h6,
+.font-heading {
+  font-family: var(--font-heading);
+  font-weight: 700;
+  letter-spacing: -0.025em;
+  line-height: 1.1;
+}
+
+h1 { font-size: clamp(2.5rem, 5vw, 5rem); letter-spacing: -0.04em; }
+h2 { font-size: clamp(1.875rem, 4vw, 3rem); letter-spacing: -0.03em; }
+h3 { font-size: clamp(1.375rem, 2.5vw, 1.875rem); letter-spacing: -0.025em; }
+h4 { font-size: clamp(1.125rem, 2vw, 1.375rem); letter-spacing: -0.02em; }
+
+/* Monospace: IBM Plex Mono — telemetry, metrics, code */
+.font-mono,
+code, kbd, samp, pre {
+  font-family: var(--font-mono);
+  letter-spacing: -0.01em;
+}
+
+/* Text selection */
 ::selection {
-  background-color: rgba(37, 99, 235, 0.15);
+  background-color: rgba(37, 99, 235, 0.12);
   color: #0F172A;
 }
 
-/* Light Laboratory Card Utilities */
+/* ============================================================
+   LIGHT LABORATORY CARD SYSTEM
+   ============================================================ */
+
 .lab-card {
   background: #FFFFFF;
   border: 1px solid #E2E8F0;
-  border-radius: 1.25rem;
-  box-shadow: 0 4px 20px -2px rgba(15, 23, 42, 0.05), 0 2px 6px -1px rgba(15, 23, 42, 0.02);
-  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  border-radius: var(--radius-lg);
+  box-shadow:
+    0 1px 2px rgba(15, 23, 42, 0.04),
+    0 4px 16px -4px rgba(15, 23, 42, 0.06),
+    0 0 0 0 rgba(37, 99, 235, 0);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
 }
 
 .lab-card-interactive {
   background: #FFFFFF;
   border: 1px solid #E2E8F0;
-  border-radius: 1.25rem;
-  box-shadow: 0 4px 20px -2px rgba(15, 23, 42, 0.05);
-  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  border-radius: var(--radius-lg);
+  box-shadow:
+    0 1px 2px rgba(15, 23, 42, 0.04),
+    0 4px 16px -4px rgba(15, 23, 42, 0.06);
+  transition: border-color 0.25s ease, box-shadow 0.25s ease, transform 0.25s ease;
+  cursor: pointer;
 }
 
 .lab-card-interactive:hover {
-  border-color: #BFDBFE;
-  box-shadow: 0 20px 40px -15px rgba(37, 99, 235, 0.12), 0 0 20px 0 rgba(15, 23, 42, 0.04);
-  transform: translateY(-2px);
+  border-color: rgba(37, 99, 235, 0.35);
+  box-shadow:
+    0 1px 2px rgba(15, 23, 42, 0.04),
+    0 8px 32px -8px rgba(37, 99, 235, 0.14),
+    0 0 0 1px rgba(37, 99, 235, 0.06);
+  transform: translateY(-3px);
 }
 
-/* Floating White Studio Glass Badge */
+/* ============================================================
+   FLOATING GLASS TELEMETRY PILL BADGES
+   ============================================================ */
+
 .glass-pill {
-  background: rgba(255, 255, 255, 0.9);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid #E2E8F0;
-  box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.08);
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(16px) saturate(180%);
+  -webkit-backdrop-filter: blur(16px) saturate(180%);
+  border: 1px solid rgba(226, 232, 240, 0.8);
+  box-shadow:
+    0 4px 24px -4px rgba(15, 23, 42, 0.10),
+    0 1px 4px rgba(15, 23, 42, 0.06),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9);
 }
 
-/* Custom Minimal Scrollbar */
+/* ============================================================
+   PREMIUM BUTTON STYLES
+   ============================================================ */
+
+.btn-primary {
+  background: #0F172A;
+  color: #FFFFFF;
+  border-radius: 9999px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  transition: background 0.2s ease, box-shadow 0.2s ease, transform 0.15s ease;
+}
+
+.btn-primary:hover {
+  background: #1E293B;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.2), 0 8px 24px -6px rgba(37, 99, 235, 0.3);
+  transform: translateY(-1px);
+}
+
+.btn-ghost {
+  background: rgba(255, 255, 255, 0.9);
+  color: #0F172A;
+  border: 1.5px solid #E2E8F0;
+  border-radius: 9999px;
+  font-weight: 500;
+  transition: border-color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
+}
+
+.btn-ghost:hover {
+  border-color: rgba(37, 99, 235, 0.4);
+  background: #FFFFFF;
+  box-shadow: 0 4px 12px -4px rgba(37, 99, 235, 0.1);
+}
+
+/* ============================================================
+   BADGE & TAG UTILITIES
+   ============================================================ */
+
+.badge-blue {
+  background: #EFF6FF;
+  border: 1px solid #BFDBFE;
+  color: #2563EB;
+  border-radius: 9999px;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  padding: 0.25rem 0.75rem;
+}
+
+.badge-green {
+  background: #DCFCE7;
+  border: 1px solid #86EFAC;
+  color: #16A34A;
+}
+
+.badge-gold {
+  background: #FEF9C3;
+  border: 1px solid #FDE047;
+  color: #C9A227;
+}
+
+/* ============================================================
+   BACKGROUND DECORATION UTILITIES
+   ============================================================ */
+
+/* Blueprint grid lines */
+.bg-blueprint {
+  background-image:
+    linear-gradient(rgba(37, 99, 235, 0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(37, 99, 235, 0.04) 1px, transparent 1px);
+  background-size: 40px 40px;
+}
+
+/* Subtle radial glow */
+.radial-glow-blue {
+  background: radial-gradient(ellipse 70% 50% at 50% 50%, rgba(37, 99, 235, 0.06) 0%, transparent 70%);
+}
+
+.radial-glow-green {
+  background: radial-gradient(ellipse 70% 50% at 50% 50%, rgba(22, 163, 74, 0.06) 0%, transparent 70%);
+}
+
+/* ============================================================
+   SECTION UTILITIES
+   ============================================================ */
+
+.section-divider {
+  border-top: 1px solid var(--border);
+}
+
+/* ============================================================
+   CUSTOM SCROLLBAR
+   ============================================================ */
+
 ::-webkit-scrollbar {
-  width: 8px;
+  width: 6px;
+  height: 6px;
 }
 ::-webkit-scrollbar-track {
   background: #F8FAFC;
 }
 ::-webkit-scrollbar-thumb {
   background: #CBD5E1;
-  border-radius: 4px;
+  border-radius: 999px;
 }
 ::-webkit-scrollbar-thumb:hover {
   background: #94A3B8;
 }
+
+/* ============================================================
+   ANIMATION UTILITIES
+   ============================================================ */
+
+@keyframes float-gentle {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+
+@keyframes pulse-ring {
+  0% { box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.2); }
+  100% { box-shadow: 0 0 0 12px rgba(37, 99, 235, 0); }
+}
+
+@keyframes scan-line {
+  0%, 100% { opacity: 0.3; transform: scaleX(0.9); }
+  50% { opacity: 1; transform: scaleX(1); }
+}
+
+.animate-float { animation: float-gentle 4s ease-in-out infinite; }
+.animate-float-delayed { animation: float-gentle 4s ease-in-out infinite 1s; }
+.animate-pulse-ring { animation: pulse-ring 2s ease-out infinite; }
+.animate-scan { animation: scan-line 2s ease-in-out infinite; }
+
+/* ============================================================
+   FOCUS & ACCESSIBILITY
+   ============================================================ */
+
+:focus-visible {
+  outline: 2px solid #2563EB;
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+
+/* ============================================================
+   UTILITY OVERRIDES
+   ============================================================ */
+
+.tracking-tight-hero { letter-spacing: -0.04em; }
+.tracking-tight-h2 { letter-spacing: -0.03em; }
+.line-height-hero { line-height: 1.02; }

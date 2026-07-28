@@ -4,10 +4,10 @@ import React from "react";
 import { cn } from "@/lib/utils";
 
 interface FloatingBadgeProps {
-  icon?: React.ReactNode;
+  icon: React.ReactNode;
   label: string;
   value: string;
-  variant?: "cyan" | "green" | "gold" | "blue" | "default";
+  variant?: "blue" | "green" | "gold" | "neutral";
   className?: string;
 }
 
@@ -15,32 +15,31 @@ export default function FloatingBadge({
   icon,
   label,
   value,
-  variant = "default",
+  variant = "blue",
   className,
 }: FloatingBadgeProps) {
   const valueColors = {
-    cyan: "text-[#2563EB]",
+    blue: "text-[#2563EB]",
     green: "text-[#16A34A]",
     gold: "text-[#C9A227]",
-    blue: "text-[#2563EB]",
-    default: "text-[#0F172A]",
+    neutral: "text-[#0F172A]",
   };
 
   return (
     <div
       className={cn(
-        "inline-flex items-center gap-3 px-4 py-2.5 rounded-2xl bg-white/90 backdrop-blur-md border border-[#E2E8F0] shadow-[0_10px_25px_-5px_rgba(15,23,42,0.08)] font-sans transition-all hover:scale-105",
+        "glass-pill inline-flex items-center gap-3 px-4 py-2.5 rounded-2xl animate-float",
         className
       )}
     >
-      {icon && (
-        <div className="w-8 h-8 rounded-xl bg-[#F1F5F9] flex items-center justify-center text-[#2563EB]">
-          {icon}
-        </div>
-      )}
-      <div className="flex flex-col text-left">
-        <span className="text-[11px] font-medium text-[#64748B] leading-tight">{label}</span>
-        <span className={cn("font-mono text-sm font-bold leading-tight", valueColors[variant])}>
+      <div className="flex-shrink-0 w-8 h-8 rounded-xl bg-[#F8FAFC] border border-[#E2E8F0] flex items-center justify-center">
+        {icon}
+      </div>
+      <div className="flex flex-col min-w-0">
+        <span className="text-[10px] font-mono uppercase tracking-widest text-[#94A3B8] font-medium leading-none mb-0.5 whitespace-nowrap">
+          {label}
+        </span>
+        <span className={cn("text-sm font-mono font-bold leading-tight", valueColors[variant])}>
           {value}
         </span>
       </div>
