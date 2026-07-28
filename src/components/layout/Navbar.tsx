@@ -14,8 +14,6 @@ import {
   ArrowRight,
   Menu,
   X,
-  Search,
-  Sparkles,
 } from "lucide-react";
 import PrimaryButton from "@/components/ui/PrimaryButton";
 
@@ -83,30 +81,30 @@ export default function Navbar() {
   return (
     <header className="fixed top-0 left-0 right-0 z-50 px-4 sm:px-8 py-4 pointer-events-none transition-all duration-300">
       <div className="max-w-7xl mx-auto flex items-center justify-between pointer-events-auto">
-        {/* Floating White Glass Navbar Container */}
+        {/* Floating Ultra-Glassmorphism Navbar Container */}
         <nav
-          className={`w-full flex items-center justify-between px-6 py-3.5 rounded-full border transition-all duration-300 ${
+          className={`w-full flex items-center justify-between px-6 py-3 rounded-full border transition-all duration-300 backdrop-blur-2xl ${
             scrolled
-              ? "bg-white/95 backdrop-blur-xl border-[#E2E8F0] shadow-[0_10px_30px_-5px_rgba(15,23,42,0.08)]"
-              : "bg-white/80 backdrop-blur-md border-[#E2E8F0]/60 shadow-[0_4px_20px_-2px_rgba(15,23,42,0.04)]"
+              ? "bg-white/80 border-white/80 shadow-[0_12px_40px_-10px_rgba(15,23,42,0.12),inset_0_1px_0_0_rgba(255,255,255,0.9)]"
+              : "bg-white/65 border-white/70 shadow-[0_8px_30px_-5px_rgba(15,23,42,0.06),inset_0_1px_0_0_rgba(255,255,255,0.8)]"
           }`}
         >
-          {/* Brand Logo Placeholder */}
+          {/* Brand Logo */}
           <Link href="/" className="flex items-center gap-3 group">
-            <div className="w-9 h-9 rounded-xl bg-[#2563EB] flex items-center justify-center text-white shadow-md group-hover:scale-105 transition-transform">
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-[#2563EB] to-[#3B82F6] flex items-center justify-center text-white shadow-md shadow-blue-500/20 group-hover:scale-105 transition-transform duration-200">
               <Cpu className="w-5 h-5" />
             </div>
             <div className="flex flex-col">
               <span className="font-heading text-lg font-bold tracking-tight text-[#0F172A] group-hover:text-[#2563EB] transition-colors">
                 EcoIntel
               </span>
-              <span className="text-[10px] font-mono text-[#64748B] -mt-1 tracking-widest uppercase font-medium">
+              <span className="text-[9px] font-mono text-[#64748B] -mt-1 tracking-widest uppercase font-semibold">
                 CIRCULAR AI
               </span>
             </div>
           </Link>
 
-          {/* Desktop Navigation */}
+          {/* Desktop Navigation Links */}
           <div className="hidden lg:flex items-center gap-8">
             <Link
               href="/"
@@ -131,13 +129,17 @@ export default function Navbar() {
                 }`}
               >
                 <span>Platform</span>
-                <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${platformDropdownOpen ? "rotate-180 text-[#2563EB]" : ""}`} />
+                <ChevronDown
+                  className={`w-4 h-4 transition-transform duration-200 ${
+                    platformDropdownOpen ? "rotate-180 text-[#2563EB]" : ""
+                  }`}
+                />
               </button>
 
-              {/* Platform Dropdown Panel */}
+              {/* Platform Glass Dropdown Panel */}
               {platformDropdownOpen && (
                 <div className="absolute top-full left-1/2 -translate-x-1/2 pt-3 w-[580px] pointer-events-auto">
-                  <div className="p-4 rounded-2xl bg-white border border-[#E2E8F0] shadow-2xl grid grid-cols-2 gap-2">
+                  <div className="p-4 rounded-2xl bg-white/95 backdrop-blur-2xl border border-white/80 shadow-2xl shadow-slate-900/10 grid grid-cols-2 gap-2">
                     {platformSubPages.map((sub) => {
                       const IconComp = sub.icon;
                       return (
@@ -182,7 +184,7 @@ export default function Navbar() {
           {/* Action CTAs */}
           <div className="hidden md:flex items-center gap-3">
             <Link href="/console">
-              <PrimaryButton variant="primary" size="sm" className="px-5 py-2 text-xs">
+              <PrimaryButton variant="primary" size="sm" className="px-5 py-2 text-xs shadow-md shadow-blue-500/10">
                 <span>Launch Console</span>
                 <ArrowRight className="w-3.5 h-3.5" />
               </PrimaryButton>
@@ -201,7 +203,7 @@ export default function Navbar() {
 
       {/* Mobile Drawer */}
       {mobileMenuOpen && (
-        <div className="lg:hidden fixed inset-x-4 top-24 z-40 p-6 rounded-2xl bg-white border border-[#E2E8F0] shadow-2xl flex flex-col gap-4 pointer-events-auto">
+        <div className="lg:hidden fixed inset-x-4 top-24 z-40 p-6 rounded-2xl bg-white/95 backdrop-blur-2xl border border-white/80 shadow-2xl flex flex-col gap-4 pointer-events-auto">
           <div className="flex flex-col gap-2">
             <Link
               href="/"
@@ -210,7 +212,7 @@ export default function Navbar() {
             >
               Home
             </Link>
-            <div className="pt-2 font-mono text-xs text-[#2563EB] uppercase tracking-wider">
+            <div className="pt-2 font-mono text-xs text-[#2563EB] uppercase tracking-wider font-bold">
               Platform Modules
             </div>
             {platformSubPages.map((sub) => (
