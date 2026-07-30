@@ -1,134 +1,132 @@
 "use client";
 
 import React, { useState } from "react";
-import dynamic from "next/dynamic";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
-import SectionHeader from "@/components/ui/SectionHeader";
-import LabCard from "@/components/ui/LabCard";
-import PrimaryButton from "@/components/ui/PrimaryButton";
 import TechBadge from "@/components/ui/TechBadge";
-import { ShoppingCart, ShieldCheck, Tag, ArrowRight } from "lucide-react";
-
-const GlassCapsule3D = dynamic(
-  () => import("@/components/3d/GlassCapsule3D"),
-  { ssr: false, loading: () => <div className="w-full h-full bg-[#F8FAFC] rounded-2xl" /> }
-);
-
-interface MarketplaceItem {
-  id: string;
-  name: string;
-  category: string;
-  health: number;
-  priceUSD: number;
-  priceETH: string;
-  rul: string;
-  verified: boolean;
-}
-
-const marketplaceItems: MarketplaceItem[] = [
-  {
-    id: "comp-1",
-    name: "Refurbished NVIDIA H100 Tensor Core GPU",
-    category: "AI Accelerators",
-    health: 98,
-    priceUSD: 14500,
-    priceETH: "4.2 ETH",
-    rul: "4.8 Years",
-    verified: true,
-  },
-  {
-    id: "comp-2",
-    name: "Apple M2 Max System-on-Chip (SOC)",
-    category: "Processors",
-    health: 94,
-    priceUSD: 850,
-    priceETH: "0.25 ETH",
-    rul: "3.9 Years",
-    verified: true,
-  },
-  {
-    id: "comp-3",
-    name: "Samsung 64GB DDR5 ECC Registered RAM Module",
-    category: "Memory Systems",
-    health: 96,
-    priceUSD: 240,
-    priceETH: "0.07 ETH",
-    rul: "5.0 Years",
-    verified: true,
-  },
-];
+import { ShoppingCart, ShieldCheck, Search, Filter, ArrowRight } from "lucide-react";
 
 export default function MarketplacePage() {
-  const [hoveredId, setHoveredId] = useState<string | null>(null);
+  const [searchTerm, setSearchTerm] = useState("");
+
+  const listings = [
+    {
+      id: "capsule_01",
+      title: "ATmega328P Microcontrollers (Batch of 50)",
+      health: "Grade A+ (92%)",
+      rul: "6.4 Yrs Remaining",
+      price: "$142.50",
+      seller: "TerraCycle Lab (Tokyo)",
+      polygonToken: "98421",
+      badge: "VERIFIED PASSPORT",
+    },
+    {
+      id: "capsule_02",
+      title: "LM358 Dual Op-Amps (Batch of 100)",
+      health: "Grade A (88%)",
+      rul: "5.2 Yrs Remaining",
+      price: "$85.00",
+      seller: "LUMAFUSE Systems (Berlin)",
+      polygonToken: "98422",
+      badge: "VERIFIED PASSPORT",
+    },
+    {
+      id: "capsule_03",
+      title: "Solid Polymer Capacitors 220uF (Batch of 200)",
+      health: "Grade A+ (95%)",
+      rul: "8.0 Yrs Remaining",
+      price: "$64.00",
+      seller: "ReMaterials Corp (Austin)",
+      polygonToken: "98423",
+      badge: "VERIFIED PASSPORT",
+    },
+  ];
 
   return (
-    <main className="min-h-screen bg-[#F8FAFC]">
+    <main className="relative flex flex-col min-h-screen bg-[#F1F5F9]">
       <Navbar />
 
-      <section className="pt-32 pb-20">
+      {/* Hero Header */}
+      <section className="pt-32 pb-16 bg-[#0F172A] text-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-8">
-          <SectionHeader
-            badge="CIRCULAR B2B HARDWARE EXCHANGE"
-            title="Verified Component Marketplace"
-            subtitle="Acquire AI-diagnosed electronic components featuring Polygon ERC-721 Digital Product Passports, verified remaining lifespan, and instant escrow."
-          />
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {marketplaceItems.map((item) => {
-              const isHovered = hoveredId === item.id;
-              return (
-                <div
-                  key={item.id}
-                  onMouseEnter={() => setHoveredId(item.id)}
-                  onMouseLeave={() => setHoveredId(null)}
-                >
-                  <LabCard interactive className="p-6 h-full flex flex-col justify-between">
-                    <div className="w-full h-48 rounded-2xl bg-[#F8FAFC] border border-[#E2E8F0] relative overflow-hidden mb-6 flex items-center justify-center">
-                      <GlassCapsule3D isHovered={isHovered} />
-                      <div className="absolute top-3 right-3">
-                        <TechBadge label="Polygon Verified" variant="green" />
-                      </div>
-                    </div>
-
-                    <div className="space-y-3">
-                      <span className="text-[11px] font-mono text-[#2563EB] uppercase tracking-wider block font-semibold">
-                        {item.category}
-                      </span>
-                      <h3 className="font-heading text-lg font-bold text-[#0F172A] line-clamp-1">
-                        {item.name}
-                      </h3>
-
-                      <div className="grid grid-cols-2 gap-2 py-3 border-y border-[#E2E8F0] font-mono text-xs">
-                        <div>
-                          <span className="text-[#64748B] block">Health Score</span>
-                          <span className="text-[#16A34A] font-bold">{item.health}% Grade A</span>
-                        </div>
-                        <div>
-                          <span className="text-[#64748B] block">Remaining RUL</span>
-                          <span className="text-[#2563EB] font-bold">{item.rul}</span>
-                        </div>
-                      </div>
-
-                      <div className="pt-2 flex items-center justify-between">
-                        <div>
-                          <span className="font-mono text-xl font-extrabold text-[#0F172A]">
-                            ${item.priceUSD.toLocaleString()}
-                          </span>
-                          <span className="text-xs font-mono text-[#64748B] block">{item.priceETH}</span>
-                        </div>
-
-                        <PrimaryButton variant="primary" size="sm">
-                          <ShoppingCart className="w-3.5 h-3.5" />
-                          <span>Acquire</span>
-                        </PrimaryButton>
-                      </div>
-                    </div>
-                  </LabCard>
-                </div>
-              );
-            })}
+          <div className="flex flex-col gap-4">
+            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-blue-500/10 border border-blue-500/30 text-[#60A5FA] text-xs font-mono font-bold w-fit">
+              <ShoppingCart className="w-4 h-4" />
+              <span>MODULE 07 · CIRCULAR B2B HARDWARE EXCHANGE & ESCROW</span>
+            </div>
+            <h1 className="font-heading text-4xl sm:text-6xl font-extrabold tracking-tight">
+              B2B Hardware Marketplace
+            </h1>
+            <p className="text-slate-300 text-base max-w-2xl leading-relaxed">
+              Trade verified recovered electronic components inside transparent marketplace capsules with Polygon blockchain product passports and smart contract escrow.
+            </p>
           </div>
+        </div>
+      </section>
+
+      {/* Search & Listings Grid */}
+      <section className="py-20">
+        <div className="max-w-7xl mx-auto px-4 sm:px-8">
+
+          {/* Search Bar */}
+          <div className="glass-panel p-4 mb-8 flex flex-col sm:flex-row gap-4 items-center justify-between">
+            <div className="relative flex-1 w-full">
+              <Search className="w-4 h-4 text-[#64748B] absolute left-4 top-1/2 -translate-y-1/2" />
+              <input
+                type="text"
+                placeholder="Search microchips, ICs, capacitors, or Polygon Token IDs..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-11 pr-4 py-3 rounded-full bg-white border border-[#E2E8F0] text-xs font-mono focus:outline-none focus:border-[#2563EB]"
+              />
+            </div>
+            <div className="flex gap-2">
+              <button className="px-5 py-3 rounded-full bg-white border border-[#E2E8F0] text-xs font-mono font-bold text-[#0F172A] inline-flex items-center gap-2 hover:bg-slate-50">
+                <Filter className="w-4 h-4 text-[#2563EB]" />
+                <span>Filters</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Listings Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {listings.map((item) => (
+              <div key={item.id} className="glass-card-interactive p-7 flex flex-col justify-between space-y-6">
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <TechBadge label={item.badge} variant="green" />
+                    <span className="font-mono text-xs font-bold text-[#2563EB]">#{item.polygonToken}</span>
+                  </div>
+
+                  <h3 className="font-heading text-lg font-bold text-[#0F172A]">{item.title}</h3>
+
+                  <div className="space-y-2 pt-2 border-t border-slate-100">
+                    <div className="flex justify-between text-xs font-mono">
+                      <span className="text-[#64748B]">Certified Health</span>
+                      <span className="font-bold text-[#16A34A]">{item.health}</span>
+                    </div>
+                    <div className="flex justify-between text-xs font-mono">
+                      <span className="text-[#64748B]">Lifespan Baseline</span>
+                      <span className="font-bold text-[#2563EB]">{item.rul}</span>
+                    </div>
+                    <div className="flex justify-between text-xs font-mono">
+                      <span className="text-[#64748B]">Verified Facility</span>
+                      <span className="font-bold text-[#0F172A]">{item.seller}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="pt-4 border-t border-slate-200 flex items-center justify-between">
+                  <span className="font-mono font-extrabold text-xl text-[#0F172A]">{item.price}</span>
+                  <button className="px-6 py-2.5 rounded-full bg-[#0F172A] text-white text-xs font-mono font-bold inline-flex items-center gap-2 hover:bg-[#1E293B]">
+                    <span>Buy Capsule</span>
+                    <ArrowRight className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+
         </div>
       </section>
 

@@ -4,162 +4,126 @@ import React, { useState } from "react";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
 import SectionHeader from "@/components/ui/SectionHeader";
-import LabCard from "@/components/ui/LabCard";
-import PrimaryButton from "@/components/ui/PrimaryButton";
 import TechBadge from "@/components/ui/TechBadge";
-import { Cpu, ShieldCheck, Activity, Database, CheckCircle2, Layers, ArrowLeft } from "lucide-react";
-import Link from "next/link";
+import { Cpu, Upload, CheckCircle2, ShieldCheck, ArrowRight, Activity } from "lucide-react";
 
-interface ComponentDetail {
-  name: string;
-  package: string;
-  health: number;
-  confidence: number;
-  rul: string;
-  material: string;
-}
+export default function DetectionPage() {
+  const [selectedChip, setSelectedChip] = useState("LM358");
 
-const componentList: Record<string, ComponentDetail> = {
-  soc: {
-    name: "Apple M2 Max System-on-Chip (SoC)",
-    package: "BGA-2304",
-    health: 96,
-    confidence: 99.4,
-    rul: "4.2 Years (36,800 Hrs)",
-    material: "99.99% Gold Pin Array, Silicon Die",
-  },
-  vram: {
-    name: "GDDR6X High-Speed VRAM",
-    package: "FBGA-180",
-    health: 91,
-    confidence: 98.8,
-    rul: "3.5 Years (30,600 Hrs)",
-    material: "Copper Substrate, Silver Solder",
-  },
-  mosfet: {
-    name: "DrMOS Power Stage MOSFET",
-    package: "QFN-40",
-    health: 84,
-    confidence: 97.9,
-    rul: "2.1 Years (18,400 Hrs)",
-    material: "Palladium Leadframe, Heavy Copper",
-  },
-};
-
-export default function ComponentDetectionPage() {
-  const [selectedCompKey, setSelectedCompKey] = useState<string>("soc");
-  const selectedComp = componentList[selectedCompKey];
+  const detectedChips = [
+    { id: "LM358", name: "LM358 Dual Op-Amp IC", package: "SOP-8", mfr: "Texas Instruments", health: "92%", rul: "6.4 Yrs", conf: "99.2%", status: "Polygon Verified" },
+    { id: "ATmega328P", name: "ATmega328P Microcontroller", package: "TQFP-32", mfr: "Microchip Tech", health: "88%", rul: "5.2 Yrs", conf: "98.7%", status: "Polygon Verified" },
+    { id: "Cap220uF", name: "Solid Polymer Capacitor", package: "SMD-6.3", mfr: "Nichicon", health: "95%", rul: "8.0 Yrs", conf: "97.5%", status: "Polygon Verified" },
+  ];
 
   return (
-    <main className="min-h-screen bg-[#F8FAFC]">
+    <main className="relative flex flex-col min-h-screen bg-[#F1F5F9]">
       <Navbar />
 
-      <section className="pt-32 pb-20">
+      {/* Hero Header */}
+      <section className="pt-32 pb-16 bg-[#0F172A] text-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-8">
-          <Link href="/" className="inline-flex items-center gap-2 text-xs font-mono text-[#2563EB] mb-6 hover:underline font-semibold">
-            <ArrowLeft className="w-4 h-4" />
-            <span>Back to Vision Overview</span>
-          </Link>
+          <div className="flex flex-col gap-4">
+            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-blue-500/10 border border-blue-500/30 text-[#60A5FA] text-xs font-mono font-bold w-fit">
+              <Cpu className="w-4 h-4" />
+              <span>MODULE 01 · YOLOv11 & RT-DETR 50-MICRON AI VISION</span>
+            </div>
+            <h1 className="font-heading text-4xl sm:text-6xl font-extrabold tracking-tight">
+              AI Component Detection
+            </h1>
+            <p className="text-slate-300 text-base max-w-2xl leading-relaxed">
+              Sub-millimeter spectro-spatial neural vision pipeline detecting microchips, SMD capacitors, MOSFETs, and relays from high-volume e-waste streams.
+            </p>
+          </div>
+        </div>
+      </section>
 
-          <SectionHeader
-            badge="01 | COMPUTER VISION & SPECTROMETRY"
-            title="Sub-Millimeter AI Component Intelligence"
-            subtitle="EcoIntel's spectro-spatial vision models detect, classify, and diagnose electronic components down to 50 microns in under 120 milliseconds."
-          />
-
+      {/* Interactive Detection Workbench */}
+      <section className="py-20">
+        <div className="max-w-7xl mx-auto px-4 sm:px-8">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-            {/* Interactive Component Inspector */}
-            <div className="lg:col-span-7">
-              <LabCard className="p-8 space-y-6">
-                <div className="flex items-center justify-between pb-4 border-b border-[#E2E8F0]">
-                  <span className="font-mono text-xs font-bold text-[#0F172A] uppercase">
-                    PCB Spectro-Spatial Target Selector
-                  </span>
-                  <TechBadge label="YOLOv8-EcoPCB Live" variant="blue" />
+
+            {/* Left Upload & Bounding Box Viewer */}
+            <div className="lg:col-span-7 glass-card p-8 space-y-6">
+              <div className="flex items-center justify-between">
+                <span className="font-mono text-xs font-bold text-[#2563EB]">INTERACTIVE PCB INSPECTION WORKBENCH</span>
+                <TechBadge label="99.2% Vision Confidence" variant="blue" />
+              </div>
+
+              {/* PCB Inspection Display Frame */}
+              <div className="relative h-[380px] rounded-2xl bg-gradient-to-br from-[#0F172A] to-[#1E293B] border border-slate-800 flex items-center justify-center p-6 text-center text-white overflow-hidden shadow-inner">
+                
+                {/* Bounding Box Highlights */}
+                <div className="absolute top-1/4 left-1/4 p-3 rounded-xl border-2 border-[#16A34A] bg-[#16A34A]/20 cursor-pointer animate-pulse" onClick={() => setSelectedChip("LM358")}>
+                  <span className="font-mono text-[10px] font-bold text-[#4ADE80]">LM358 (99.2%)</span>
                 </div>
 
-                <div className="grid grid-cols-3 gap-3">
-                  {[
-                    { key: "soc", label: "Processor SoC" },
-                    { key: "vram", label: "VRAM Memory" },
-                    { key: "mosfet", label: "Power MOSFET" },
-                  ].map((item) => (
-                    <button
-                      key={item.key}
-                      onClick={() => setSelectedCompKey(item.key)}
-                      className={`p-3 rounded-xl text-xs font-mono font-semibold border transition-all cursor-pointer ${
-                        selectedCompKey === item.key
-                          ? "bg-[#2563EB] text-white border-[#2563EB] shadow-md"
-                          : "bg-[#F8FAFC] text-[#475569] border-[#E2E8F0] hover:bg-[#F1F5F9]"
-                      }`}
-                    >
-                      {item.label}
-                    </button>
-                  ))}
+                <div className="absolute top-1/3 right-1/4 p-4 rounded-xl border-2 border-[#2563EB] bg-[#2563EB]/20 cursor-pointer" onClick={() => setSelectedChip("ATmega328P")}>
+                  <span className="font-mono text-[10px] font-bold text-[#60A5FA]">ATmega328P (98.7%)</span>
                 </div>
 
-                <div className="aspect-[4/3] rounded-2xl bg-[#0F172A] p-6 text-white relative overflow-hidden flex flex-col justify-between">
-                  <div className="flex items-center justify-between z-10">
-                    <span className="font-mono text-xs text-[#60A5FA]">Spectrometer Output</span>
-                    <span className="text-xs font-mono px-2.5 py-1 rounded bg-emerald-500/20 text-emerald-400">
-                      {selectedComp.confidence}% Confidence
-                    </span>
-                  </div>
-
-                  <div className="z-10 space-y-2">
-                    <h3 className="font-heading text-2xl font-bold">{selectedComp.name}</h3>
-                    <p className="text-xs font-mono text-slate-400">
-                      Package: <span className="text-white">{selectedComp.package}</span>
-                    </p>
-                  </div>
-
-                  <div className="z-10 pt-4 border-t border-slate-700 flex items-center justify-between text-xs font-mono text-slate-400">
-                    <span>Target ID: EINT-993A</span>
-                    <span className="text-emerald-400 font-bold">Grade A+ Reuse Eligible</span>
-                  </div>
+                <div className="flex flex-col items-center space-y-3 pointer-events-none">
+                  <Cpu className="w-12 h-12 text-[#60A5FA] animate-bounce" />
+                  <span className="font-heading font-extrabold text-lg">Hover / Click Component Bounding Box</span>
+                  <span className="text-xs text-slate-400 font-mono">50 Micron Spectro-Spatial Neural Feed Online</span>
                 </div>
-              </LabCard>
+              </div>
+
+              {/* Upload Drop Zone */}
+              <div className="border-2 border-dashed border-[#BFDBFE] rounded-2xl p-6 text-center bg-[#EFF6FF]/40 hover:bg-[#EFF6FF] transition-colors cursor-pointer flex flex-col items-center gap-2">
+                <Upload className="w-6 h-6 text-[#2563EB]" />
+                <span className="text-xs font-bold text-[#0F172A]">Upload Custom PCB Batch Image (JPG / PNG / TIFF)</span>
+                <span className="text-[10px] font-mono text-[#64748B]">Supports high-resolution 4K optical & X-ray spectrometry feeds</span>
+              </div>
             </div>
 
-            {/* Readout Telemetry Card */}
-            <div className="lg:col-span-5 space-y-6">
-              <LabCard className="p-8">
-                <h3 className="font-heading text-xl font-bold text-[#0F172A] mb-6">
-                  Diagnosed Component Specs
-                </h3>
+            {/* Right Selected Component Inspector Panel */}
+            <div className="lg:col-span-5 glass-card p-8 space-y-6">
+              <span className="font-mono text-xs font-bold text-[#2563EB]">COMPONENT TELEMETRY INSPECTOR</span>
+              
+              {detectedChips.filter(c => c.id === selectedChip || selectedChip === "LM358").slice(0, 1).map((chip) => (
+                <div key={chip.id} className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h3 className="font-heading text-xl font-bold text-[#0F172A]">{chip.name}</h3>
+                    <TechBadge label={chip.status} variant="green" />
+                  </div>
 
-                <div className="space-y-4 font-mono text-xs">
-                  <div className="flex justify-between py-2 border-b border-[#E2E8F0]">
-                    <span className="text-[#64748B]">Component Name</span>
-                    <span className="text-[#0F172A] font-bold">{selectedComp.name}</span>
+                  <div className="grid grid-cols-2 gap-3 pt-2">
+                    <div className="p-4 rounded-xl bg-white border border-[#E2E8F0]">
+                      <span className="text-[10px] font-mono text-[#64748B] block">Package Type</span>
+                      <span className="font-mono font-bold text-sm text-[#0F172A]">{chip.package}</span>
+                    </div>
+                    <div className="p-4 rounded-xl bg-white border border-[#E2E8F0]">
+                      <span className="text-[10px] font-mono text-[#64748B] block">Manufacturer</span>
+                      <span className="font-mono font-bold text-sm text-[#0F172A]">{chip.mfr}</span>
+                    </div>
+                    <div className="p-4 rounded-xl bg-white border border-[#E2E8F0]">
+                      <span className="text-[10px] font-mono text-[#64748B] block">Health Score</span>
+                      <span className="font-mono font-bold text-sm text-[#16A34A]">{chip.health}</span>
+                    </div>
+                    <div className="p-4 rounded-xl bg-white border border-[#E2E8F0]">
+                      <span className="text-[10px] font-mono text-[#64748B] block">Remaining Life</span>
+                      <span className="font-mono font-bold text-sm text-[#2563EB]">{chip.rul}</span>
+                    </div>
                   </div>
-                  <div className="flex justify-between py-2 border-b border-[#E2E8F0]">
-                    <span className="text-[#64748B]">Package Type</span>
-                    <span className="text-[#0F172A]">{selectedComp.package}</span>
-                  </div>
-                  <div className="flex justify-between py-2 border-b border-[#E2E8F0]">
-                    <span className="text-[#64748B]">Health Score</span>
-                    <span className="text-[#16A34A] font-bold">{selectedComp.health}%</span>
-                  </div>
-                  <div className="flex justify-between py-2 border-b border-[#E2E8F0]">
-                    <span className="text-[#64748B]">Estimated RUL</span>
-                    <span className="text-[#2563EB] font-bold">{selectedComp.rul}</span>
-                  </div>
-                  <div className="flex justify-between py-2 border-b border-[#E2E8F0]">
-                    <span className="text-[#64748B]">Precious Material</span>
-                    <span className="text-[#0F172A]">{selectedComp.material}</span>
+
+                  <div className="p-4 rounded-xl bg-[#EFF6FF] border border-[#BFDBFE] flex items-center justify-between text-xs font-mono">
+                    <span className="text-[#2563EB] font-bold">Detection Model Confidence</span>
+                    <span className="font-extrabold text-[#0F172A]">{chip.conf}</span>
                   </div>
                 </div>
+              ))}
 
-                <div className="pt-6">
-                  <Link href="/platform/passport">
-                    <PrimaryButton variant="primary" size="md" className="w-full">
-                      <span>View Polygon Passport</span>
-                    </PrimaryButton>
-                  </Link>
+              <div className="pt-4 border-t border-slate-200">
+                <span className="text-xs font-mono text-[#64748B] block mb-3">Model Architecture Pipeline</span>
+                <div className="flex gap-2">
+                  <span className="px-3 py-1 rounded-full bg-white border text-[10px] font-mono text-[#0F172A] font-bold">YOLOv11-x</span>
+                  <span className="px-3 py-1 rounded-full bg-white border text-[10px] font-mono text-[#0F172A] font-bold">RT-DETR-L</span>
+                  <span className="px-3 py-1 rounded-full bg-white border text-[10px] font-mono text-[#0F172A] font-bold">SAM Segmentation</span>
                 </div>
-              </LabCard>
+              </div>
             </div>
+
           </div>
         </div>
       </section>

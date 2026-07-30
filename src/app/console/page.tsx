@@ -1,142 +1,183 @@
 "use client";
 
 import React, { useState } from "react";
-import Navbar from "@/components/layout/Navbar";
-import Footer from "@/components/layout/Footer";
-import SectionHeader from "@/components/ui/SectionHeader";
-import LabCard from "@/components/ui/LabCard";
-import PrimaryButton from "@/components/ui/PrimaryButton";
-import TechBadge from "@/components/ui/TechBadge";
-import { Cpu, Activity, ShieldCheck, Coins, RefreshCw, Radio, Layers, Database, ArrowLeft } from "lucide-react";
 import Link from "next/link";
+import {
+  Cpu,
+  Layers,
+  Activity,
+  Coins,
+  ShieldCheck,
+  ShoppingCart,
+  Leaf,
+  BarChart3,
+  Users,
+  Settings,
+  Bell,
+  Search,
+  CheckCircle2,
+  RefreshCw,
+  Zap,
+} from "lucide-react";
 
-export default function ConsoleDashboardPage() {
-  const [isScanning, setIsScanning] = useState(false);
-  const [scanProgress, setScanProgress] = useState(100);
+export default function ConsoleDashboard() {
+  const [activeTab, setActiveTab] = useState("analytics");
 
-  const triggerScan = () => {
-    setIsScanning(true);
-    setScanProgress(0);
-    const interval = setInterval(() => {
-      setScanProgress((prev) => {
-        if (prev >= 100) {
-          clearInterval(interval);
-          setIsScanning(false);
-          return 100;
-        }
-        return prev + 25;
-      });
-    }, 300);
-  };
+  const sidebarLinks = [
+    { id: "analytics", name: "System Analytics", icon: BarChart3 },
+    { id: "detection", name: "AI Job Queue", icon: Cpu },
+    { id: "pcb", name: "PCB Management", icon: Layers },
+    { id: "rul", name: "RUL Health Engine", icon: Activity },
+    { id: "metals", name: "Urban Mining Yields", icon: Coins },
+    { id: "passports", name: "Polygon Passports", icon: ShieldCheck },
+    { id: "marketplace", name: "Marketplace Orders", icon: ShoppingCart },
+    { id: "settings", name: "Facility Settings", icon: Settings },
+  ];
 
   return (
-    <main className="min-h-screen bg-[#F8FAFC]">
-      <Navbar />
-
-      <section className="pt-32 pb-20">
-        <div className="max-w-7xl mx-auto px-4 sm:px-8">
-          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-8 pb-6 border-b border-[#E2E8F0]">
-            <div>
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#EFF6FF] text-[#2563EB] font-mono text-xs font-semibold mb-2">
-                <Radio className="w-3.5 h-3.5 animate-pulse" />
-                <span>OPERATIONAL CONSOLE LIVE</span>
-              </div>
-              <h1 className="font-heading text-3xl font-bold text-[#0F172A]">EcoIntel Facility Dashboard</h1>
-              <p className="text-xs font-mono text-[#64748B]">Facility ID: TOKYO-LAB-ALPHA-09 | Node: Polygon Mainnet Connected</p>
+    <div className="flex h-screen bg-[#090D16] text-slate-100 font-sans overflow-hidden">
+      
+      {/* Dark Sidebar */}
+      <aside className="w-64 border-r border-slate-800/80 bg-[#0F172A] flex flex-col justify-between p-5">
+        <div className="space-y-8">
+          
+          {/* Brand */}
+          <Link href="/" className="flex items-center gap-3 group">
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-[#2563EB] to-[#3B82F6] flex items-center justify-center text-white shadow-md">
+              <Cpu className="w-5 h-5" />
             </div>
-
-            <div className="flex items-center gap-3">
-              <PrimaryButton variant="primary" size="sm" onClick={triggerScan}>
-                <RefreshCw className={`w-4 h-4 ${isScanning ? "animate-spin" : ""}`} />
-                <span>{isScanning ? `Scanning ${scanProgress}%` : "Run Batch Scan"}</span>
-              </PrimaryButton>
+            <div className="flex flex-col">
+              <span className="font-heading text-lg font-bold tracking-tight text-white">EcoIntel</span>
+              <span className="text-[9px] font-mono text-[#60A5FA] -mt-1 tracking-widest uppercase font-bold">ENTERPRISE CONSOLE</span>
             </div>
-          </div>
+          </Link>
 
-          {/* Metrics Grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-            <LabCard className="p-6">
-              <div className="flex items-center justify-between mb-2">
-                <span className="font-mono text-xs text-[#64748B]">Active AI Vision Stream</span>
-                <TechBadge label="YOLOv8 Live" variant="blue" />
-              </div>
-              <span className="font-mono text-3xl font-extrabold text-[#0F172A]">2,846 / min</span>
-              <span className="text-xs font-mono text-[#16A34A] block mt-1 font-semibold">99.4% Precision</span>
-            </LabCard>
-
-            <LabCard className="p-6">
-              <div className="flex items-center justify-between mb-2">
-                <span className="font-mono text-xs text-[#64748B]">PCBs Reconstructed</span>
-                <TechBadge label="GGNT Netlist" variant="blue" />
-              </div>
-              <span className="font-mono text-3xl font-extrabold text-[#2563EB]">8,450 Boards</span>
-              <span className="text-xs font-mono text-[#2563EB] block mt-1 font-semibold">100% Gerber Exported</span>
-            </LabCard>
-
-            <LabCard className="p-6">
-              <div className="flex items-center justify-between mb-2">
-                <span className="font-mono text-xs text-[#64748B]">Precious Gold Value</span>
-                <TechBadge label="$78.40 / g" variant="gold" />
-              </div>
-              <span className="font-mono text-3xl font-extrabold text-[#C9A227]">$18,740 USD</span>
-              <span className="text-xs font-mono text-[#C9A227] block mt-1 font-semibold">238.8g Pure Gold</span>
-            </LabCard>
-
-            <LabCard className="p-6">
-              <div className="flex items-center justify-between mb-2">
-                <span className="font-mono text-xs text-[#64748B]">Polygon DPP Minted</span>
-                <TechBadge label="Polygon POS" variant="green" />
-              </div>
-              <span className="font-mono text-3xl font-extrabold text-[#16A34A]">73,420 DPPs</span>
-              <span className="text-xs font-mono text-[#16A34A] block mt-1 font-semibold">Immutable On-Chain</span>
-            </LabCard>
-          </div>
-
-          {/* Operational Log Feed Table */}
-          <LabCard className="p-8">
-            <h3 className="font-heading text-lg font-bold text-[#0F172A] mb-4">Real-Time Facility Hardware Telemetry Log</h3>
-
-            <div className="overflow-x-auto">
-              <table className="w-full text-left font-mono text-xs">
-                <thead>
-                  <tr className="border-b border-[#E2E8F0] text-[#64748B]">
-                    <th className="pb-3">Scan ID</th>
-                    <th className="pb-3">Board Model</th>
-                    <th className="pb-3">Detected Components</th>
-                    <th className="pb-3">Health Grade</th>
-                    <th className="pb-3">Est. Gold Yield</th>
-                    <th className="pb-3">Polygon Hash</th>
-                    <th className="pb-3">Status</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-[#E2E8F0]">
-                  {[
-                    { id: "SCAN-88391", model: "NVIDIA H100 PCB Base", count: 48, health: "98.4% (A+)", gold: "0.48g", hash: "0x7f9a88...", status: "Pass" },
-                    { id: "SCAN-88392", model: "Apple M2 Max Motherboard", count: 36, health: "94.2% (A)", gold: "0.32g", hash: "0x3b1c92...", status: "Pass" },
-                    { id: "SCAN-88393", model: "Server VRM Power Stage", count: 18, health: "88.1% (B+)", gold: "0.14g", hash: "0x9d4a11...", status: "Reconstructed" },
-                  ].map((row) => (
-                    <tr key={row.id} className="hover:bg-[#F8FAFC] transition-colors">
-                      <td className="py-3 font-bold text-[#0F172A]">{row.id}</td>
-                      <td className="py-3 text-[#475569]">{row.model}</td>
-                      <td className="py-3 text-[#2563EB]">{row.count} Chips</td>
-                      <td className="py-3 text-[#16A34A] font-bold">{row.health}</td>
-                      <td className="py-3 text-[#C9A227] font-bold">{row.gold}</td>
-                      <td className="py-3 text-[#64748B]">{row.hash}</td>
-                      <td className="py-3">
-                        <span className="px-2 py-0.5 rounded bg-[#DCFCE7] text-[#16A34A] font-bold">
-                          {row.status}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </LabCard>
+          {/* Navigation Links */}
+          <nav className="flex flex-col gap-1.5">
+            {sidebarLinks.map((item) => {
+              const IconComp = item.icon;
+              const isActive = activeTab === item.id;
+              return (
+                <button
+                  key={item.id}
+                  onClick={() => setActiveTab(item.id)}
+                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-mono font-semibold transition-colors cursor-pointer ${
+                    isActive
+                      ? "bg-[#2563EB] text-white shadow-lg shadow-blue-500/20"
+                      : "text-slate-400 hover:text-white hover:bg-slate-800/60"
+                  }`}
+                >
+                  <IconComp className="w-4 h-4" />
+                  <span>{item.name}</span>
+                </button>
+              );
+            })}
+          </nav>
         </div>
-      </section>
 
-      <Footer />
-    </main>
+        {/* User Profile Footer */}
+        <div className="p-3 rounded-xl bg-slate-800/50 border border-slate-800 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-full bg-[#2563EB] text-white flex items-center justify-center font-bold text-xs">
+              AD
+            </div>
+            <div className="flex flex-col">
+              <span className="text-xs font-bold text-white">Admin Operator</span>
+              <span className="text-[9px] font-mono text-emerald-400">Polygon Wallet Connected</span>
+            </div>
+          </div>
+        </div>
+      </aside>
+
+      {/* Main Console Content */}
+      <main className="flex-1 flex flex-col overflow-y-auto">
+        
+        {/* Topbar */}
+        <header className="h-16 border-b border-slate-800/80 bg-[#0F172A]/80 backdrop-blur-xl px-8 flex items-center justify-between">
+          <div className="flex items-center gap-3 w-96">
+            <Search className="w-4 h-4 text-slate-500" />
+            <input
+              type="text"
+              placeholder="Global Search PCBs, Passports, or Token IDs..."
+              className="bg-transparent text-xs font-mono text-white placeholder-slate-500 focus:outline-none w-full"
+            />
+          </div>
+
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-mono font-bold">
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+              <span>Celery Worker Queue Active</span>
+            </div>
+            <button className="p-2 rounded-xl bg-slate-800 text-slate-300 hover:text-white">
+              <Bell className="w-4 h-4" />
+            </button>
+          </div>
+        </header>
+
+        {/* Dashboard Operational Body */}
+        <div className="p-8 space-y-8">
+          
+          {/* Key Metric Tiles */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-5">
+            <div className="p-6 rounded-2xl bg-slate-900 border border-slate-800 space-y-2">
+              <span className="text-xs font-mono text-slate-400">Total Scanned PCBs</span>
+              <span className="font-mono text-3xl font-extrabold text-white block">120,492</span>
+              <span className="text-[10px] font-mono text-emerald-400">↑ 12.4% this week</span>
+            </div>
+
+            <div className="p-6 rounded-2xl bg-slate-900 border border-slate-800 space-y-2">
+              <span className="text-xs font-mono text-slate-400">Active AI Detection Jobs</span>
+              <span className="font-mono text-3xl font-extrabold text-[#60A5FA] block">14 Running</span>
+              <span className="text-[10px] font-mono text-blue-400">YOLOv11 Inference Queue</span>
+            </div>
+
+            <div className="p-6 rounded-2xl bg-slate-900 border border-slate-800 space-y-2">
+              <span className="text-xs font-mono text-slate-400">Minted Polygon Passports</span>
+              <span className="font-mono text-3xl font-extrabold text-white block">73,810</span>
+              <span className="text-[10px] font-mono text-emerald-400">100% Polygon Mainnet</span>
+            </div>
+
+            <div className="p-6 rounded-2xl bg-slate-900 border border-slate-800 space-y-2">
+              <span className="text-xs font-mono text-slate-400">E-Waste Diverted (Tons)</span>
+              <span className="font-mono text-3xl font-extrabold text-emerald-400 block">96.3 Tons</span>
+              <span className="text-[10px] font-mono text-emerald-400">Scope 3 ESG Certified</span>
+            </div>
+          </div>
+
+          {/* AI Worker Task Queue Monitor */}
+          <div className="p-8 rounded-3xl bg-slate-900 border border-slate-800 space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="font-heading text-lg font-bold text-white">Active Background AI Job Queue</h3>
+              <span className="font-mono text-xs text-[#60A5FA] font-bold">Celery + Redis Broker</span>
+            </div>
+
+            <div className="space-y-3">
+              {[
+                { id: "task_98421", name: "50-Micron Spectro-Spatial Scan", status: "COMPLETED", duration: "42ms", batch: "Batch-9842 (TerraCycle)" },
+                { id: "task_98422", name: "Gerber Netlist CAD Synthesis", status: "RUNNING", duration: "112ms", batch: "Batch-9843 (LUMAFUSE)" },
+                { id: "task_98423", name: "Polygon ERC-721 Passport Mint", status: "QUEUED", duration: "Pending", batch: "Batch-9844 (ReMaterials)" },
+              ].map((job) => (
+                <div key={job.id} className="p-4 rounded-xl bg-slate-800/60 border border-slate-700/60 flex items-center justify-between font-mono text-xs">
+                  <div className="flex items-center gap-3">
+                    <span className="text-blue-400 font-bold">{job.id}</span>
+                    <span className="text-white font-semibold">{job.name}</span>
+                  </div>
+                  <span className="text-slate-400">{job.batch}</span>
+                  <span className={`px-3 py-1 rounded-full text-[10px] font-bold ${
+                    job.status === "COMPLETED" ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/40" :
+                    job.status === "RUNNING" ? "bg-blue-500/20 text-blue-400 border border-blue-500/40 animate-pulse" :
+                    "bg-slate-700 text-slate-300"
+                  }`}>
+                    {job.status}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+        </div>
+      </main>
+
+    </div>
   );
 }

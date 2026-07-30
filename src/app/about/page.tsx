@@ -1,102 +1,51 @@
 "use client";
 
-import React, { useState } from "react";
+import React from "react";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
-import SectionHeader from "@/components/ui/SectionHeader";
-import LabCard from "@/components/ui/LabCard";
-import PrimaryButton from "@/components/ui/PrimaryButton";
-import { Target, Compass, Send, CheckCircle } from "lucide-react";
+import TechBadge from "@/components/ui/TechBadge";
+import { Cpu, Globe, ShieldCheck, Mail, ArrowRight } from "lucide-react";
 
 export default function AboutPage() {
-  const [submitted, setSubmitted] = useState(false);
-
   return (
-    <main className="min-h-screen bg-[#F8FAFC]">
+    <main className="relative flex flex-col min-h-screen bg-[#F1F5F9]">
       <Navbar />
 
-      <section className="pt-32 pb-20">
+      {/* Hero Header */}
+      <section className="pt-32 pb-16 bg-[#0F172A] text-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-8">
-          <SectionHeader
-            badge="ENTERPRISE MISSION & VISION"
-            title="Building the Operating System for Circular Electronics"
-            subtitle="EcoIntel synthesizes computer vision, generative CAD topology, and blockchain product passports to transform primitive e-waste recycling into high-precision asset recovery."
-          />
+          <div className="flex flex-col gap-4">
+            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-blue-500/10 border border-blue-500/30 text-[#60A5FA] text-xs font-mono font-bold w-fit">
+              <Globe className="w-4 h-4" />
+              <span>ABOUT ECOINTEL INC.</span>
+            </div>
+            <h1 className="font-heading text-4xl sm:text-6xl font-extrabold tracking-tight">
+              Building the Circular Electronics Operating System
+            </h1>
+            <p className="text-slate-300 text-base max-w-2xl leading-relaxed">
+              We are an enterprise deep-tech organization engineering AI inspection pipelines, generative CAD topology, and Polygon blockchain product passports to eliminate global e-waste.
+            </p>
+          </div>
+        </div>
+      </section>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-16">
-            <LabCard className="p-8">
-              <div className="w-12 h-12 rounded-2xl bg-[#EFF6FF] text-[#2563EB] flex items-center justify-center mb-6">
-                <Target className="w-6 h-6" />
-              </div>
-              <h3 className="font-heading text-2xl font-bold text-[#0F172A] mb-3">Enterprise Mission</h3>
-              <p className="text-sm text-[#475569] leading-relaxed">
-                To eliminate global electronic waste by providing every circuit board and microchip with an AI-certified second life through sub-millimeter component detection and Polygon blockchain traceability.
-              </p>
-            </LabCard>
-
-            <LabCard className="p-8">
-              <div className="w-12 h-12 rounded-2xl bg-[#DCFCE7] text-[#16A34A] flex items-center justify-center mb-6">
-                <Compass className="w-6 h-6" />
-              </div>
-              <h3 className="font-heading text-2xl font-bold text-[#0F172A] mb-3">Patent-Pending Vision</h3>
-              <p className="text-sm text-[#475569] leading-relaxed">
-                Our PCT international patent filings protect Generative Graph Neural Topology (GGNT) algorithms capable of restoring severed multilayer PCB micro-vias in under 120 milliseconds.
-              </p>
-            </LabCard>
+      {/* Mission & Vision */}
+      <section className="py-20">
+        <div className="max-w-7xl mx-auto px-4 sm:px-8 grid grid-cols-1 md:grid-cols-2 gap-8">
+          <div className="glass-card p-10 space-y-4">
+            <span className="font-mono text-xs font-bold text-[#2563EB] uppercase">OUR MISSION</span>
+            <h3 className="font-heading text-2xl font-bold text-[#0F172A]">Zero E-Waste to Landfill</h3>
+            <p className="text-sm text-[#475569] leading-relaxed">
+              Deploy automated spectro-spatial computer vision directly into industrial recycling lines to classify, reconstruct, and mint digital product passports for every recoverable microchip.
+            </p>
           </div>
 
-          {/* Contact Enterprise Form */}
-          <div className="max-w-3xl mx-auto">
-            <LabCard className="p-8 sm:p-12">
-              <h3 className="font-heading text-2xl font-bold text-[#0F172A] mb-2">Connect with EcoIntel AI Lab</h3>
-              <p className="text-xs font-mono text-[#64748B] mb-8">
-                Inquire about facility inspection line deployment, API key access, or joint industrial research.
-              </p>
-
-              {submitted ? (
-                <div className="py-8 flex flex-col items-center text-center space-y-3">
-                  <CheckCircle className="w-12 h-12 text-[#16A34A]" />
-                  <h4 className="font-heading text-xl font-bold text-[#0F172A]">Inquiry Received</h4>
-                  <p className="text-xs font-mono text-[#64748B]">Our AI solutions team will contact your facility within 24 hours.</p>
-                </div>
-              ) : (
-                <form onSubmit={(e) => { e.preventDefault(); setSubmitted(true); }} className="space-y-6">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                    <div>
-                      <label className="text-xs font-mono text-[#64748B] block mb-2">Work Email</label>
-                      <input
-                        type="email"
-                        required
-                        placeholder="name@company.com"
-                        className="w-full px-4 py-3 rounded-xl bg-[#F8FAFC] border border-[#E2E8F0] text-[#0F172A] text-sm font-mono focus:outline-none focus:border-[#2563EB]"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-xs font-mono text-[#64748B] block mb-2">Facility / Company</label>
-                      <input
-                        type="text"
-                        placeholder="Tokyo Recycling Inc."
-                        className="w-full px-4 py-3 rounded-xl bg-[#F8FAFC] border border-[#E2E8F0] text-[#0F172A] text-sm font-mono focus:outline-none focus:border-[#2563EB]"
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="text-xs font-mono text-[#64748B] block mb-2">Processing Intent</label>
-                    <textarea
-                      rows={4}
-                      placeholder="Describe your processing volume, PCB types, or API requirements..."
-                      className="w-full px-4 py-3 rounded-xl bg-[#F8FAFC] border border-[#E2E8F0] text-[#0F172A] text-sm font-mono focus:outline-none focus:border-[#2563EB]"
-                    />
-                  </div>
-
-                  <PrimaryButton variant="primary" size="md" type="submit" className="w-full sm:w-auto">
-                    <Send className="w-4 h-4" />
-                    <span>Transmit Inquiry</span>
-                  </PrimaryButton>
-                </form>
-              )}
-            </LabCard>
+          <div className="glass-card p-10 space-y-4">
+            <span className="font-mono text-xs font-bold text-[#16A34A] uppercase">OUR VISION</span>
+            <h3 className="font-heading text-2xl font-bold text-[#0F172A]">A Billion Reused Microchips</h3>
+            <p className="text-sm text-[#475569] leading-relaxed">
+              Creating a global B2B circular hardware marketplace where every recovered component carries an immutable health grade and Polygon blockchain certificate.
+            </p>
           </div>
         </div>
       </section>

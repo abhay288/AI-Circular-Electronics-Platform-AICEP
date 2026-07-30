@@ -1,102 +1,104 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
-import SectionHeader from "@/components/ui/SectionHeader";
-import LabCard from "@/components/ui/LabCard";
-import PrimaryButton from "@/components/ui/PrimaryButton";
 import TechBadge from "@/components/ui/TechBadge";
-import { ShieldCheck, Lock, ExternalLink, ArrowLeft, CheckCircle } from "lucide-react";
-import Link from "next/link";
+import { ShieldCheck, QrCode, ExternalLink, CheckCircle2, ArrowRight } from "lucide-react";
 
-export default function BlockchainPassportPage() {
+export default function PassportPage() {
+  const [passportId, setPassportId] = useState("ECO-PASSPORT-2026-9842");
+
   return (
-    <main className="min-h-screen bg-[#F8FAFC]">
+    <main className="relative flex flex-col min-h-screen bg-[#F1F5F9]">
       <Navbar />
 
-      <section className="pt-32 pb-20">
+      {/* Hero Header */}
+      <section className="pt-32 pb-16 bg-[#0F172A] text-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-8">
-          <Link href="/" className="inline-flex items-center gap-2 text-xs font-mono text-[#2563EB] mb-6 hover:underline font-semibold">
-            <ArrowLeft className="w-4 h-4" />
-            <span>Back to Vision Overview</span>
-          </Link>
+          <div className="flex flex-col gap-4">
+            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-[#4ADE80] text-xs font-mono font-bold w-fit">
+              <ShieldCheck className="w-4 h-4" />
+              <span>MODULE 05 · POLYGON BLOCKCHAIN ERC-721 DIGITAL PRODUCT PASSPORT</span>
+            </div>
+            <h1 className="font-heading text-4xl sm:text-6xl font-extrabold tracking-tight">
+              Blockchain Product Passport
+            </h1>
+            <p className="text-slate-300 text-base max-w-2xl leading-relaxed">
+              Minting tamper-proof Polygon smart contract NFTs certifying origin facility, component health grade, remaining operational lifespan, and Scope 3 carbon offset metrics.
+            </p>
+          </div>
+        </div>
+      </section>
 
-          <SectionHeader
-            badge="05 | POLYGON BLOCKCHAIN DECENTRALIZED PASSPORTS"
-            title="Digital Product Passport (DPP)"
-            subtitle="Every component receives a tamper-proof Polygon ERC-721 Digital Product Passport recording origin facility, verified health grade, and lifetime reuse cycles."
-          />
-
+      {/* Glass Digital Passport & QR Verification Workbench */}
+      <section className="py-20">
+        <div className="max-w-7xl mx-auto px-4 sm:px-8">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
-            {/* Passport Data Card */}
-            <div className="lg:col-span-7">
-              <LabCard className="p-8 space-y-6">
-                <div className="flex items-center justify-between pb-4 border-b border-[#E2E8F0]">
-                  <div className="flex items-center gap-2">
-                    <Lock className="w-4 h-4 text-[#2563EB]" />
-                    <span className="font-mono text-xs uppercase tracking-wider font-bold text-[#0F172A]">
-                      Polygon Mainnet Contract
-                    </span>
-                  </div>
-                  <TechBadge label="ERC-721 DPP Verified" variant="green" />
-                </div>
 
-                <div className="space-y-4 font-mono text-xs">
-                  <div className="flex justify-between py-2 border-b border-[#E2E8F0]">
-                    <span className="text-[#64748B]">Passport ID</span>
-                    <span className="text-[#0F172A] font-bold">EINT-PASSPORT-88392</span>
+            {/* Left Glass Product Passport Display */}
+            <div className="lg:col-span-7 glass-panel p-8 sm:p-10 space-y-6 relative overflow-hidden">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-[#DCFCE7] text-[#16A34A] flex items-center justify-center font-bold">
+                    <ShieldCheck className="w-6 h-6" />
                   </div>
-                  <div className="flex justify-between py-2 border-b border-[#E2E8F0]">
-                    <span className="text-[#64748B]">Component Type</span>
-                    <span className="text-[#0F172A]">Microcontroller - STM32F103</span>
-                  </div>
-                  <div className="flex justify-between py-2 border-b border-[#E2E8F0]">
-                    <span className="text-[#64748B]">Origin Facility</span>
-                    <span className="text-[#0F172A]">EcoIntel Lab Alpha (Tokyo)</span>
-                  </div>
-                  <div className="flex justify-between py-2 border-b border-[#E2E8F0]">
-                    <span className="text-[#64748B]">Verified Health Grade</span>
-                    <span className="text-[#16A34A] font-bold">98.4% (Grade A+)</span>
-                  </div>
-                  <div className="flex justify-between py-2 border-b border-[#E2E8F0]">
-                    <span className="text-[#64748B]">Reuse Cycle Count</span>
-                    <span className="text-[#2563EB] font-bold">2 Cycles</span>
-                  </div>
-                  <div className="flex justify-between py-2 border-b border-[#E2E8F0]">
-                    <span className="text-[#64748B]">Remaining Life</span>
-                    <span className="text-[#0F172A]">4.2 Years (36,800 Hrs)</span>
-                  </div>
-                  <div className="flex justify-between py-2 border-b border-[#E2E8F0]">
-                    <span className="text-[#64748B]">Verification Hash</span>
-                    <span className="text-[#2563EB] font-bold truncate max-w-[200px]">0x7f9a88392c1044b3f</span>
+                  <div>
+                    <h3 className="font-heading text-lg font-bold text-[#0F172A]">Digital Product Passport</h3>
+                    <span className="font-mono text-xs text-[#2563EB]">{passportId}</span>
                   </div>
                 </div>
+                <TechBadge label="Polygon Mainnet Verified" variant="green" />
+              </div>
 
-                <div className="pt-4 border-t border-[#E2E8F0] flex items-center justify-between text-xs">
-                  <span className="flex items-center gap-1.5 text-[#16A34A] font-mono font-semibold">
-                    <CheckCircle className="w-4 h-4" /> Polygon Smart Contract Confirmed
-                  </span>
-                  <a href="https://polygonscan.com" target="_blank" rel="noreferrer" className="flex items-center gap-1 text-[#2563EB] hover:underline font-mono">
-                    <span>PolygonScan</span>
-                    <ExternalLink className="w-3.5 h-3.5" />
-                  </a>
+              <div className="space-y-3 pt-2">
+                <div className="p-4 rounded-xl bg-white border border-[#E2E8F0] flex justify-between text-xs font-mono">
+                  <span className="text-[#64748B]">Component Part Number</span>
+                  <span className="font-bold text-[#0F172A]">ATmega328P Microcontroller</span>
                 </div>
-              </LabCard>
+                <div className="p-4 rounded-xl bg-white border border-[#E2E8F0] flex justify-between text-xs font-mono">
+                  <span className="text-[#64748B]">Origin Recovery Facility</span>
+                  <span className="font-bold text-[#0F172A]">TerraCycle Lab 04 (Tokyo, Japan)</span>
+                </div>
+                <div className="p-4 rounded-xl bg-white border border-[#E2E8F0] flex justify-between text-xs font-mono">
+                  <span className="text-[#64748B]">Certified Health Grade</span>
+                  <span className="font-bold text-[#16A34A]">Grade A+ (92% Health)</span>
+                </div>
+                <div className="p-4 rounded-xl bg-white border border-[#E2E8F0] flex justify-between text-xs font-mono">
+                  <span className="text-[#64748B]">Scope 3 Carbon Avoided</span>
+                  <span className="font-bold text-[#16A34A]">18.6 kg CO₂</span>
+                </div>
+              </div>
+
+              <div className="p-4 rounded-xl bg-[#0F172A] text-white flex items-center justify-between text-xs font-mono">
+                <span className="text-slate-400">Contract Address</span>
+                <span className="text-[#60A5FA] font-bold truncate max-w-[220px]">0x3B82F6e71C7656EC7ab88b098defB751B7401B5f</span>
+              </div>
             </div>
 
-            {/* QR Verification Placeholder */}
-            <div className="lg:col-span-5">
-              <LabCard className="p-8 text-center flex flex-col items-center justify-center space-y-4">
-                <div className="w-40 h-40 rounded-2xl bg-[#F1F5F9] border border-[#E2E8F0] flex items-center justify-center p-4">
-                  <ShieldCheck className="w-20 h-20 text-[#2563EB]" />
-                </div>
-                <h4 className="font-heading text-lg font-bold text-[#0F172A]">Scan QR Verification</h4>
-                <p className="text-xs text-[#64748B] leading-relaxed max-w-xs font-mono">
-                  Scan to verify supply chain audit, carbon offset proofs, and hardware origin on Polygon POS.
-                </p>
-              </LabCard>
+            {/* Right QR Verifier Panel */}
+            <div className="lg:col-span-5 glass-card p-8 space-y-6 text-center flex flex-col items-center">
+              <span className="font-mono text-xs font-bold text-[#16A34A]">INSTANT ON-CHAIN QR VERIFICATION</span>
+              
+              <div className="w-48 h-48 rounded-2xl bg-white border-2 border-dashed border-[#86EFAC] p-4 flex items-center justify-center shadow-md">
+                <QrCode className="w-36 h-36 text-[#0F172A]" />
+              </div>
+
+              <span className="text-xs text-[#64748B] font-mono max-w-xs">
+                Scan with any smartphone or Web3 wallet to verify Polygon ERC-721 smart contract ownership.
+              </span>
+
+              <a
+                href="https://polygonscan.com"
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-[#16A34A] text-white text-xs font-mono font-bold hover:bg-[#15803D] transition-colors"
+              >
+                <span>View on PolygonScan</span>
+                <ExternalLink className="w-4 h-4" />
+              </a>
             </div>
+
           </div>
         </div>
       </section>
