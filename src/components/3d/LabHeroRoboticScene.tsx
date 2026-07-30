@@ -13,7 +13,7 @@ export default function LabHeroRoboticScene() {
     // 1. Scene & Studio Setup
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0xf1f5f9);
-    scene.fog = new THREE.FogExp2(0xf1f5f9, 0.018);
+    scene.fog = new THREE.FogExp2(0xf1f5f9, 0.015);
 
     const camera = new THREE.PerspectiveCamera(
       35,
@@ -81,7 +81,7 @@ export default function LabHeroRoboticScene() {
     aluminumPedestal.receiveShadow = true;
     pedestalGroup.add(aluminumPedestal);
 
-    // LED Undercarriage Ring
+    // Animated LED Undercarriage Ring
     const ringGeo = new THREE.TorusGeometry(3.4, 0.06, 16, 64);
     const ringMat = new THREE.MeshBasicMaterial({ color: 0x00e6ff });
     const ledRing = new THREE.Mesh(ringGeo, ringMat);
@@ -98,7 +98,7 @@ export default function LabHeroRoboticScene() {
     const pcbDepth = 4.0;
     const pcbGeo = new THREE.BoxGeometry(pcbWidth, 0.14, pcbDepth);
     const pcbMat = new THREE.MeshStandardMaterial({
-      color: 0x0a2f1d, // Authentic Emerald Green PCB
+      color: 0x0a2f1d,
       roughness: 0.25,
       metalness: 0.45,
     });
@@ -153,7 +153,7 @@ export default function LabHeroRoboticScene() {
     cpuDie.castShadow = true;
     motherboardGroup.add(cpuDie);
 
-    // Glowing Holographic Brand Badge on CPU
+    // Holographic Brand Badge on CPU
     const brandMat = new THREE.MeshBasicMaterial({ color: 0x00e6ff });
     const brandBadge = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.02, 0.6), brandMat);
     brandBadge.position.set(0, 0.22, 0);
@@ -299,7 +299,7 @@ export default function LabHeroRoboticScene() {
       color: 0x00e6ff,
       side: THREE.DoubleSide,
       transparent: true,
-      opacity: 0.8,
+      opacity: 0.85,
       blending: THREE.AdditiveBlending,
     });
     const laserSpot = new THREE.Mesh(laserSpotGeo, laserSpotMat);
@@ -326,7 +326,7 @@ export default function LabHeroRoboticScene() {
     };
     window.addEventListener("resize", handleResize);
 
-    // Animation Loop
+    // Animation Loop (Kinematic Joint Sweeping)
     let animId: number;
     let clock = new THREE.Clock();
 
@@ -334,14 +334,18 @@ export default function LabHeroRoboticScene() {
       animId = requestAnimationFrame(animate);
       const elapsedTime = clock.getElapsedTime();
 
-      // Pedestal & PCB Slow Rotation
-      pedestalGroup.rotation.y += 0.005;
+      // Pedestal & PCB Rotation
+      pedestalGroup.rotation.y += 0.006;
 
-      // 6-Axis Arm Scanning Sweep Across PCB Surface
-      const sweepX = Math.sin(elapsedTime * 1.4) * 1.0;
-      const sweepZ = Math.cos(elapsedTime * 1.0) * 0.7;
+      // Kinematic Robotic Arm Multi-Axis Sweeping Motion
+      const sweepX = Math.sin(elapsedTime * 1.5) * 1.1;
+      const sweepZ = Math.cos(elapsedTime * 1.1) * 0.75;
       robotGroup.position.x = sweepX;
       robotGroup.position.z = sweepZ;
+
+      // Subtle wrist tilt & scanner head rotation
+      scannerHead.rotation.y = Math.sin(elapsedTime * 2.0) * 0.2;
+      laserSpot.scale.setScalar(1.0 + Math.sin(elapsedTime * 4.0) * 0.15);
 
       // Camera Parallax
       camera.position.x = mouseX * 2.0;
