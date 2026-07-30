@@ -51,6 +51,19 @@ const MetallicCubes3D = dynamic(
   }
 );
 
+const RecyclingGlobe3D = dynamic(
+  () => import("@/components/3d/RecyclingGlobe3D"),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="w-full h-full flex flex-col items-center justify-center bg-[#F1F5F9] rounded-3xl p-8">
+        <Recycle className="w-10 h-10 text-[#16A34A] animate-pulse mb-3" />
+        <span className="font-mono text-xs font-bold text-[#0F172A]">Loading 3D Recycling Globe...</span>
+      </div>
+    ),
+  }
+);
+
 export default function Home() {
   const [selectedPhase, setSelectedPhase] = useState(0);
 
@@ -464,35 +477,56 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ─── FINAL CTA ───────────────────────────────────────── */}
+      {/* ─── FINAL CTA (INTEGRATED PHOTOREALISTIC 3D RECYCLING GLOBE) ───── */}
       <section className="py-24 relative">
-        <div className="max-w-4xl mx-auto px-4 sm:px-8">
-          <div className="glass-panel p-12 sm:p-18 text-center relative overflow-hidden">
-            <div className="absolute inset-0 radial-glow-blue pointer-events-none" />
+        <div className="max-w-6xl mx-auto px-4 sm:px-8">
+          <div className="glass-panel p-8 sm:p-14 relative overflow-hidden">
+            <div className="absolute inset-0 radial-glow-emerald pointer-events-none" />
 
-            <div className="relative z-10 flex flex-col items-center space-y-6">
-              <div className="w-14 h-14 rounded-2xl bg-[#EFF6FF] border border-[#BFDBFE] flex items-center justify-center shadow-sm">
-                <Recycle className="w-7 h-7 text-[#16A34A]" />
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center relative z-10">
+              
+              {/* Left CTA Text & Actions */}
+              <div className="lg:col-span-7 flex flex-col items-start text-left space-y-6">
+                <div className="w-12 h-12 rounded-2xl bg-[#DCFCE7] border border-[#86EFAC] flex items-center justify-center shadow-sm">
+                  <Recycle className="w-6 h-6 text-[#16A34A]" />
+                </div>
+                <h2 className="font-heading text-3xl sm:text-4xl md:text-5xl font-extrabold text-[#0F172A] tracking-tight leading-[1.08]">
+                  Ready to Eliminate E-Waste in Your Operations?
+                </h2>
+                <p className="text-base text-[#475569] leading-relaxed max-w-lg">
+                  Deploy EcoIntel AI inspection pipelines directly into your high-volume hardware recycling facility or manufacturing line.
+                </p>
+                <div className="flex flex-col sm:flex-row items-center gap-3 pt-2 w-full sm:w-auto">
+                  <Link href="/console" className="w-full sm:w-auto">
+                    <button className="w-full sm:w-auto inline-flex items-center justify-center gap-2.5 px-8 py-4 rounded-full bg-[#0F172A] text-white text-sm font-semibold transition-all duration-200 hover:bg-[#1E293B] hover:shadow-[0_0_0_3px_rgba(37,99,235,0.2),0_12px_28px_-6px_rgba(37,99,235,0.35)] cursor-pointer group shadow-lg shadow-slate-900/20">
+                      <span>Launch Console</span>
+                      <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                    </button>
+                  </Link>
+                  <Link href="/about" className="w-full sm:w-auto">
+                    <button className="w-full sm:w-auto inline-flex items-center justify-center gap-2.5 px-8 py-4 rounded-full glass-pill text-[#475569] text-sm font-semibold hover:bg-white hover:text-[#0F172A] transition-all duration-200 cursor-pointer">
+                      Contact AI Lab
+                    </button>
+                  </Link>
+                </div>
               </div>
-              <h2 className="font-heading text-3xl sm:text-4xl md:text-5xl font-extrabold text-[#0F172A] tracking-tight max-w-xl">
-                Ready to Eliminate E-Waste in Your Operations?
-              </h2>
-              <p className="text-base text-[#475569] leading-relaxed max-w-lg">
-                Deploy EcoIntel AI inspection pipelines directly into your recycling facility or hardware production line.
-              </p>
-              <div className="flex flex-col sm:flex-row items-center gap-3 pt-2">
-                <Link href="/console">
-                  <button className="inline-flex items-center gap-2.5 px-8 py-4 rounded-full bg-[#0F172A] text-white text-sm font-semibold transition-all duration-200 hover:bg-[#1E293B] hover:shadow-[0_0_0_3px_rgba(37,99,235,0.2),0_12px_28px_-6px_rgba(37,99,235,0.35)] cursor-pointer group shadow-lg shadow-slate-900/20">
-                    <span>Launch Console</span>
-                    <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-                  </button>
-                </Link>
-                <Link href="/about">
-                  <button className="inline-flex items-center gap-2.5 px-8 py-4 rounded-full glass-pill text-[#475569] text-sm font-semibold hover:bg-white hover:text-[#0F172A] transition-all duration-200 cursor-pointer">
-                    Contact AI Lab
-                  </button>
-                </Link>
+
+              {/* Right Photorealistic 3D Recycling Globe */}
+              <div className="lg:col-span-5 h-[340px] sm:h-[400px] rounded-3xl bg-gradient-to-br from-[#EFF6FF] via-[#F8FAFC] to-[#DCFCE7]/60 border border-white shadow-xl shadow-slate-900/5 relative overflow-hidden">
+                <RecyclingGlobe3D />
+
+                {/* Floating Telemetry Badge on 3D Recycling Scene */}
+                <div className="absolute bottom-4 left-4 right-4 z-20">
+                  <div className="glass-pill px-4 py-2.5 flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="w-2 h-2 rounded-full bg-[#16A34A] animate-pulse" />
+                      <span className="font-mono text-xs font-bold text-[#0F172A]">Zero-Landfill AI Engine</span>
+                    </div>
+                    <span className="font-mono text-xs font-bold text-[#16A34A]">ISO 14001 Certified</span>
+                  </div>
+                </div>
               </div>
+
             </div>
           </div>
         </div>
