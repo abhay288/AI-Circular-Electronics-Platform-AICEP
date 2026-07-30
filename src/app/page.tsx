@@ -20,54 +20,70 @@ import {
   Leaf,
   CheckCircle2,
   Database,
+  Recycle,
   Sparkles,
   Zap,
 } from "lucide-react";
 
 const LabHeroRoboticScene = dynamic(
   () => import("@/components/3d/LabHeroRoboticScene"),
-  { ssr: false, loading: () => <div className="w-full h-full bg-[#F1F5F9]" /> }
+  {
+    ssr: false,
+    loading: () => (
+      <div className="w-full h-full flex flex-col items-center justify-center bg-[#F1F5F9] rounded-3xl p-8">
+        <Cpu className="w-10 h-10 text-[#2563EB] animate-pulse mb-3" />
+        <span className="font-mono text-xs font-bold text-[#0F172A]">Loading 3D AI Vision Inspection Scene...</span>
+      </div>
+    ),
+  }
 );
 
 const MetallicCubes3D = dynamic(
   () => import("@/components/3d/MetallicCubes3D"),
-  { ssr: false, loading: () => <div className="w-full h-full bg-[#F1F5F9]" /> }
+  {
+    ssr: false,
+    loading: () => (
+      <div className="w-full h-full flex flex-col items-center justify-center bg-[#F1F5F9] rounded-3xl p-8">
+        <Coins className="w-10 h-10 text-[#C9A227] animate-pulse mb-3" />
+        <span className="font-mono text-xs font-bold text-[#0F172A]">Loading Metal Yield Spectrometry Scene...</span>
+      </div>
+    ),
+  }
 );
 
 export default function Home() {
   const [selectedPhase, setSelectedPhase] = useState(0);
 
-  // 4 Strategic Phases (Replaces cramped 7 tiny cards)
   const platformPhases = [
     {
       phase: "PHASE 01",
-      title: "Neural Intake & Inspection",
-      shortDesc: "Sub-millimeter spectro-spatial neural scanning & batch e-waste indexing",
-      fullDesc: "Hardware batches from global recyclers are scanned down to 50 microns using multi-spectrum computer vision and spectro-spatial neural models to classify every IC, capacitor, and substrate.",
+      title: "E-Waste Intake & Neural Inspection",
+      shortDesc: "Sub-millimeter spectro-spatial neural scanning & e-waste batch classification",
+      fullDesc: "Electronic waste batches from global recyclers are scanned down to 50 microns using multi-spectrum computer vision to divert toxic e-waste components away from landfills.",
       icon: Cpu,
-      stats: "99.2% Detection Precision",
+      stats: "99.2% E-Waste Precision",
     },
     {
       phase: "PHASE 02",
-      title: "Generative CAD & Topology",
+      title: "Generative CAD & PCB Reconstruction",
       shortDesc: "PCB micro-trace reconstruction & automated Gerber netlist synthesis",
-      fullDesc: "Generative Graph Neural Topology (GGNT) algorithms reconstruct damaged or severed multilayer copper traces, synthesizing production-ready KiCad schematics and Gerber CAD netlists.",
+      fullDesc: "Generative Graph Neural Topology (GGNT) algorithms reconstruct damaged or severed multilayer copper traces, restoring broken e-waste circuit boards into production CAD schematics.",
       icon: Layers,
       stats: "100% Netlist Match",
     },
     {
       phase: "PHASE 03",
-      title: "Lifespan & Metals Mining",
-      shortDesc: "Physics-informed RUL prediction & precious metal yield spectrometry",
+      title: "Lifespan & Precious Metals Mining",
+      shortDesc: "Physics-informed RUL prediction & urban metal yield spectrometry",
       fullDesc: "Electro-thermal physics simulations calculate component degradation and predict remaining operational lifespan (RUL) while spectrometry estimates recoverable Gold, Silver, and Copper yields.",
       icon: Coins,
       stats: "$78.40/g Gold Value",
     },
     {
       phase: "PHASE 04",
-      title: "Passport & B2B Exchange",
+      title: "Digital Passport & Circular Exchange",
       shortDesc: "Polygon ERC-721 product passports & verified hardware marketplace",
-      fullDesc: "Every component receives a tamper-proof Polygon blockchain Digital Product Passport detailing origin, health grade, and carbon offset proofs before listing on the circular B2B exchange.",
+      fullDesc: "Every recovered component receives a Polygon blockchain Digital Product Passport detailing origin facility, health grade, and Scope 3 carbon reduction proofs.",
       icon: ShieldCheck,
       stats: "Polygon Mainnet Verified",
     },
@@ -77,7 +93,7 @@ export default function Home() {
     {
       badge: "VISION & SPECTROMETRY",
       title: "AI Component Detection",
-      desc: "Detect and classify electronic components down to 50 microns with sub-millimeter spectro-spatial precision.",
+      desc: "Detect and classify discarded electronic waste components down to 50 microns with sub-millimeter spectro-spatial precision.",
       href: "/platform/detection",
       stat: "99.2% Accuracy",
       icon: Cpu,
@@ -85,7 +101,7 @@ export default function Home() {
     {
       badge: "GENERATIVE GRAPH AI",
       title: "PCB Topology Reconstruction",
-      desc: "Reconstruct severed copper traces and generate KiCad & Gerber CAD schematics automatically in under 120ms.",
+      desc: "Reconstruct severed copper traces on damaged e-waste boards and generate KiCad & Gerber CAD schematics automatically.",
       href: "/platform/reconstruction",
       stat: "100% Netlist Match",
       icon: Layers,
@@ -93,7 +109,7 @@ export default function Home() {
     {
       badge: "PHYSICS-INFORMED ML",
       title: "Remaining Useful Life (RUL)",
-      desc: "Electro-thermal physics simulations predict exact component lifespan across operational years before failure.",
+      desc: "Electro-thermal physics simulations predict exact component lifespan across operational years, enabling safe hardware reuse.",
       href: "/platform/rul",
       stat: "50,000 Hr Baseline",
       icon: Activity,
@@ -101,7 +117,7 @@ export default function Home() {
     {
       badge: "URBAN MINING SPECTROMETRY",
       title: "Precious Metal Intelligence",
-      desc: "Estimate recoverable Gold, Silver, Copper, and Palladium yields before pyrometallurgical processing.",
+      desc: "Estimate recoverable Gold, Silver, Copper, and Palladium yields from e-waste before pyrometallurgical processing.",
       href: "/platform/metals",
       stat: "$78.40/g Gold Value",
       icon: Coins,
@@ -109,7 +125,7 @@ export default function Home() {
     {
       badge: "POLYGON BLOCKCHAIN",
       title: "Blockchain Component Passport",
-      desc: "Mint immutable ERC-721 product passports tracking origin facility, verified health grade, and reuse cycles.",
+      desc: "Mint immutable ERC-721 product passports tracking origin facility, verified health grade, and circular reuse cycles.",
       href: "/platform/passport",
       stat: "Polygon Mainnet",
       icon: ShieldCheck,
@@ -117,7 +133,7 @@ export default function Home() {
     {
       badge: "CIRCULAR B2B EXCHANGE",
       title: "Circular Hardware Marketplace",
-      desc: "Trade verified hardware with embedded product passports, verified lifespan, and instant smart contract escrow.",
+      desc: "Trade verified recovered components with embedded product passports, verified lifespan, and instant smart contract escrow.",
       href: "/marketplace",
       stat: "1.4M Components",
       icon: ShoppingCart,
@@ -125,11 +141,11 @@ export default function Home() {
   ];
 
   const metrics = [
-    { value: "120K+", label: "Components Analyzed", color: "text-[#0F172A]" },
+    { value: "120K+", label: "E-Waste PCBs Analyzed", color: "text-[#0F172A]" },
     { value: "8,450+", label: "PCBs Reconstructed", color: "text-[#2563EB]" },
-    { value: "2.4 Tons", label: "Metals Recovered", color: "text-[#C9A227]" },
-    { value: "96.3 Tons", label: "CO₂ Impact Reduced", color: "text-[#16A34A]" },
-    { value: "73K+", label: "Active Passport IDs", color: "text-[#0F172A]" },
+    { value: "2.4 Tons", label: "Precious Metals Mined", color: "text-[#D97706]" },
+    { value: "96.3 Tons", label: "E-Waste Diverted From Landfill", color: "text-[#16A34A]" },
+    { value: "73K+", label: "Polygon Component Passports", color: "text-[#0F172A]" },
   ];
 
   return (
@@ -148,16 +164,16 @@ export default function Home() {
             {/* Left Content Column */}
             <div className="lg:col-span-6 flex flex-col gap-7">
 
-              {/* Eyebrow Glass Pill */}
+              {/* E-Waste Reduction Pill Badge */}
               <div className="glass-pill inline-flex items-center gap-2 px-4 py-2 w-fit">
-                <span className="w-2 h-2 rounded-full bg-[#2563EB] animate-pulse" />
-                <span className="text-[10px] font-mono tracking-[0.14em] uppercase text-[#2563EB] font-bold">
-                  Enterprise Circular Electronics Operating Platform
+                <Recycle className="w-4 h-4 text-[#16A34A] animate-pulse" />
+                <span className="text-[10px] font-mono tracking-[0.14em] uppercase text-[#16A34A] font-bold">
+                  AI E-WASTE ELIMINATION & HARDWARE RECOVERY ENGINE
                 </span>
               </div>
 
               {/* Main Headline */}
-              <h1 className="font-heading text-[52px] sm:text-[64px] md:text-[76px] font-extrabold leading-[1.02] tracking-[-0.04em] text-[#0F172A]">
+              <h1 className="font-heading text-[52px] sm:text-[66px] md:text-[80px] font-extrabold leading-[1.01] tracking-[-0.04em] text-[#0F172A]">
                 Intelligence<br />
                 for the{" "}
                 <span className="bg-gradient-to-r from-[#2563EB] via-[#3B82F6] to-[#1D4ED8] bg-clip-text text-transparent">
@@ -168,7 +184,7 @@ export default function Home() {
 
               {/* Subtitle */}
               <p className="text-base sm:text-[17px] text-[#475569] leading-[1.75] max-w-[520px]">
-                AI-powered platform for detecting, reconstructing and extending the lifecycle of electronic components through Computer Vision, Machine Learning and Digital Product Passports.
+                Transforming global electronic waste into verified digital hardware assets. EcoIntel combines sub-millimeter computer vision, generative CAD topology, and Polygon blockchain passports to divert microchips from toxic landfills.
               </p>
 
               {/* Action Buttons */}
@@ -190,13 +206,16 @@ export default function Home() {
                 </Link>
               </div>
 
-              {/* Trust Section Badges */}
+              {/* Trust & E-Waste Impact Bar */}
               <div className="pt-6 border-t border-[#CBD5E1]/60">
-                <p className="text-[10px] font-mono uppercase tracking-[0.12em] text-[#64748B] mb-3 font-semibold">
-                  Trusted by Electronics Innovators Worldwide
-                </p>
+                <div className="flex items-center justify-between mb-3">
+                  <p className="text-[10px] font-mono uppercase tracking-[0.12em] text-[#64748B] font-semibold">
+                    Trusted by E-Waste Recyclers & Manufacturers
+                  </p>
+                  <span className="text-[10px] font-mono text-[#16A34A] font-bold">96.3 Tons Landfill Diverted</span>
+                </div>
                 <div className="flex flex-wrap gap-2">
-                  {["Research Labs", "Manufacturers", "Repair Centers", "Universities", "Gov. Programs"].map((tag) => (
+                  {["TerraCycle", "LUMAFUSE", "EcoSynch", "ReMaterials", "Tokyo Recycling"].map((tag) => (
                     <span
                       key={tag}
                       className="px-3.5 py-1.5 rounded-full glass-pill text-[11px] font-mono text-[#475569] font-medium"
@@ -234,7 +253,7 @@ export default function Home() {
 
                 <div className="absolute bottom-5 left-5 z-20 animate-float">
                   <FloatingBadge
-                    icon={<Coins className="w-4 h-4 text-[#C9A227]" />}
+                    icon={<Coins className="w-4 h-4 text-[#D97706]" />}
                     label="Metal Value"
                     value="$18.70"
                     variant="gold"
@@ -252,21 +271,21 @@ export default function Home() {
 
                 {/* Live Component Scanning Indicators */}
                 <div className="absolute top-1/2 -translate-y-8 left-6 z-20 hidden sm:block">
-                  <div className="glass-pill px-3.5 py-2 flex items-center gap-2.5">
-                    <span className="w-2 h-2 rounded-full bg-[#16A34A] animate-pulse flex-shrink-0" />
+                  <div className="px-4 py-2.5 rounded-2xl bg-white/95 backdrop-blur-2xl border border-white shadow-xl shadow-slate-900/10 flex items-center gap-3">
+                    <span className="w-2.5 h-2.5 rounded-full bg-[#16A34A] animate-pulse flex-shrink-0" />
                     <div className="flex flex-col">
-                      <span className="font-mono text-[11px] font-bold text-[#0F172A]">LM358 IC</span>
-                      <span className="text-[10px] font-mono text-[#16A34A]">92% Health · Verified</span>
+                      <span className="font-heading font-extrabold text-xs text-[#0F172A]">LM358 Microchip</span>
+                      <span className="text-[10px] font-mono text-[#16A34A] font-bold">92% Health · Grade A+</span>
                     </div>
                   </div>
                 </div>
 
                 <div className="absolute top-1/3 right-6 z-20 hidden sm:block">
-                  <div className="glass-pill px-3.5 py-2 flex items-center gap-2.5">
-                    <span className="w-2 h-2 rounded-full bg-[#2563EB] animate-pulse flex-shrink-0" />
+                  <div className="px-4 py-2.5 rounded-2xl bg-white/95 backdrop-blur-2xl border border-white shadow-xl shadow-slate-900/10 flex items-center gap-3">
+                    <span className="w-2.5 h-2.5 rounded-full bg-[#2563EB] animate-pulse flex-shrink-0" />
                     <div className="flex flex-col">
-                      <span className="font-mono text-[11px] font-bold text-[#0F172A]">ATmega328P</span>
-                      <span className="text-[10px] font-mono text-[#2563EB]">6.4 Years RUL</span>
+                      <span className="font-heading font-extrabold text-xs text-[#0F172A]">ATmega328P</span>
+                      <span className="text-[10px] font-mono text-[#2563EB] font-bold">6.4 Years RUL</span>
                     </div>
                   </div>
                 </div>
@@ -297,16 +316,15 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ─── WORKFLOW SECTION (REDESIGNED 4 SPACIOUS PHASES) ───── */}
+      {/* ─── WORKFLOW SECTION ───────────────────────────────── */}
       <section className="py-24 relative">
         <div className="max-w-7xl mx-auto px-4 sm:px-8">
           <SectionHeader
-            badge="Platform Workflow"
-            title="How EcoIntel Works"
+            badge="E-Waste Platform Workflow"
+            title="How EcoIntel Eliminates E-Waste"
             subtitle="Four core intelligent phases transforming e-waste into verified high-value digital hardware assets."
           />
 
-          {/* 4 Spacious Phase Cards */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
             {platformPhases.map((phaseItem, idx) => {
               const IconComp = phaseItem.icon;
@@ -345,7 +363,7 @@ export default function Home() {
 
                   <div className="flex items-center gap-2 text-xs font-mono text-[#16A34A] pt-2 border-t border-slate-200/60">
                     <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
-                    <span>Automated Industrial Facility Compatible</span>
+                    <span>Automated E-Waste Facility Line Compatible</span>
                   </div>
                 </div>
               );
@@ -408,7 +426,7 @@ export default function Home() {
           <SectionHeader
             badge="Urban Mining Spectrometry"
             title="Precious Metal Intelligence"
-            subtitle="Photorealistic estimation of recoverable Gold, Silver, Copper, and Palladium elements before pyrometallurgical processing."
+            subtitle="Photorealistic estimation of recoverable Gold, Silver, Copper, and Palladium elements from e-waste before processing."
           />
 
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-center">
@@ -454,10 +472,10 @@ export default function Home() {
 
             <div className="relative z-10 flex flex-col items-center space-y-6">
               <div className="w-14 h-14 rounded-2xl bg-[#EFF6FF] border border-[#BFDBFE] flex items-center justify-center shadow-sm">
-                <Cpu className="w-7 h-7 text-[#2563EB]" />
+                <Recycle className="w-7 h-7 text-[#16A34A]" />
               </div>
               <h2 className="font-heading text-3xl sm:text-4xl md:text-5xl font-extrabold text-[#0F172A] tracking-tight max-w-xl">
-                Ready to Build the Circular Electronics Future?
+                Ready to Eliminate E-Waste in Your Operations?
               </h2>
               <p className="text-base text-[#475569] leading-relaxed max-w-lg">
                 Deploy EcoIntel AI inspection pipelines directly into your recycling facility or hardware production line.
