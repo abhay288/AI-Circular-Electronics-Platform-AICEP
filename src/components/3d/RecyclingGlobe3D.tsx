@@ -10,17 +10,17 @@ export default function RecyclingGlobe3D() {
     const container = containerRef.current;
     if (!container) return;
 
-    // 1. Studio Scene & Camera
+    // 1. Studio Scene & Camera Setup
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0xf1f5f9);
 
     const camera = new THREE.PerspectiveCamera(
-      40,
+      36,
       container.clientWidth / container.clientHeight,
       0.1,
       1000
     );
-    camera.position.set(0, 0, 5.2);
+    camera.position.set(0, 0, 6.8);
 
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     renderer.setSize(container.clientWidth, container.clientHeight);
@@ -45,7 +45,7 @@ export default function RecyclingGlobe3D() {
     const mainGroup = new THREE.Group();
 
     // 3. Inner Translucent Earth Core Sphere
-    const coreGeo = new THREE.SphereGeometry(1.25, 48, 48);
+    const coreGeo = new THREE.SphereGeometry(1.2, 48, 48);
     const coreMat = new THREE.MeshPhysicalMaterial({
       color: 0xdcfce7,
       transmission: 0.85,
@@ -58,7 +58,7 @@ export default function RecyclingGlobe3D() {
     mainGroup.add(coreMesh);
 
     // Wireframe Outer Mesh
-    const wireframeGeo = new THREE.SphereGeometry(1.28, 24, 24);
+    const wireframeGeo = new THREE.SphereGeometry(1.23, 24, 24);
     const wireframeMat = new THREE.MeshStandardMaterial({
       color: 0x16a34a,
       wireframe: true,
@@ -70,7 +70,7 @@ export default function RecyclingGlobe3D() {
 
     // 4. 3D Möbius Recycling Ring Ribbon
     const ringGroup = new THREE.Group();
-    const ringGeo = new THREE.TorusGeometry(1.7, 0.08, 16, 100);
+    const ringGeo = new THREE.TorusGeometry(1.6, 0.075, 16, 100);
     const ringMat = new THREE.MeshStandardMaterial({
       color: 0x16a34a,
       metalness: 0.9,
@@ -82,13 +82,16 @@ export default function RecyclingGlobe3D() {
     ringMesh1.rotation.x = Math.PI / 3;
     ringGroup.add(ringMesh1);
 
-    const ringMesh2 = new THREE.Mesh(ringGeo, new THREE.MeshStandardMaterial({
-      color: 0x2563eb,
-      metalness: 0.9,
-      roughness: 0.1,
-      emissive: 0x1e3a8a,
-      emissiveIntensity: 0.3,
-    }));
+    const ringMesh2 = new THREE.Mesh(
+      ringGeo,
+      new THREE.MeshStandardMaterial({
+        color: 0x2563eb,
+        metalness: 0.9,
+        roughness: 0.1,
+        emissive: 0x1e3a8a,
+        emissiveIntensity: 0.3,
+      })
+    );
     ringMesh2.rotation.x = -Math.PI / 3;
     ringMesh2.rotation.y = Math.PI / 4;
     ringGroup.add(ringMesh2);
@@ -96,13 +99,13 @@ export default function RecyclingGlobe3D() {
     mainGroup.add(ringGroup);
 
     // 5. Orbiting Recycled Microchip Nodes (18 Nodes)
-    const nodeGeo = new THREE.BoxGeometry(0.12, 0.12, 0.04);
+    const nodeGeo = new THREE.BoxGeometry(0.11, 0.11, 0.04);
     const nodeMat = new THREE.MeshStandardMaterial({ color: 0xffd700, metalness: 1.0, roughness: 0.1 });
 
     for (let i = 0; i < 18; i++) {
       const node = new THREE.Mesh(nodeGeo, nodeMat);
       const angle = (i / 18) * Math.PI * 2;
-      node.position.set(Math.cos(angle) * 1.7, Math.sin(angle) * 1.7, (Math.random() - 0.5) * 0.4);
+      node.position.set(Math.cos(angle) * 1.6, Math.sin(angle) * 1.6, (Math.random() - 0.5) * 0.4);
       ringMesh1.add(node);
     }
 
@@ -111,8 +114,8 @@ export default function RecyclingGlobe3D() {
     const count = 60;
     const positions = new Float32Array(count * 3);
     for (let i = 0; i < count * 3; i += 3) {
-      positions[i] = (Math.random() - 0.5) * 4.2;
-      positions[i + 1] = (Math.random() - 0.5) * 4.2;
+      positions[i] = (Math.random() - 0.5) * 4.0;
+      positions[i + 1] = (Math.random() - 0.5) * 4.0;
       positions[i + 2] = (Math.random() - 0.5) * 3.0;
     }
     particlesGeo.setAttribute("position", new THREE.BufferAttribute(positions, 3));

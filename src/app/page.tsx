@@ -8,6 +8,7 @@ import Footer from "@/components/layout/Footer";
 import SectionHeader from "@/components/ui/SectionHeader";
 import TechBadge from "@/components/ui/TechBadge";
 import FloatingBadge from "@/components/ui/FloatingBadge";
+import CountUpNumber from "@/components/ui/CountUpNumber";
 import {
   ArrowRight,
   Play,
@@ -153,12 +154,12 @@ export default function Home() {
     },
   ];
 
-  const metrics = [
-    { value: "120K+", label: "E-Waste PCBs Analyzed", color: "text-[#0F172A]" },
-    { value: "8,450+", label: "PCBs Reconstructed", color: "text-[#2563EB]" },
-    { value: "2.4 Tons", label: "Precious Metals Mined", color: "text-[#D97706]" },
-    { value: "96.3 Tons", label: "E-Waste Diverted From Landfill", color: "text-[#16A34A]" },
-    { value: "73K+", label: "Polygon Component Passports", color: "text-[#0F172A]" },
+  const animatedMetrics = [
+    { end: 120, suffix: "K+", label: "E-Waste PCBs Analyzed", color: "text-[#0F172A]" },
+    { end: 8450, suffix: "+", label: "PCBs Reconstructed", color: "text-[#2563EB]" },
+    { end: 2.4, suffix: " Tons", decimals: 1, label: "Precious Metals Mined", color: "text-[#D97706]" },
+    { end: 96.3, suffix: " Tons", decimals: 1, label: "E-Waste Diverted From Landfill", color: "text-[#16A34A]" },
+    { end: 73, suffix: "K+", label: "Polygon Component Passports", color: "text-[#0F172A]" },
   ];
 
   return (
@@ -309,17 +310,21 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ─── METRICS BANNER ───────────────────────────────────── */}
+      {/* ─── ANIMATED COUNT-UP METRICS BANNER ───────────────────── */}
       <section className="py-6 relative z-10">
         <div className="max-w-7xl mx-auto px-4 sm:px-8">
-          <div className="glass-panel p-2">
-            <div className="grid grid-cols-2 md:grid-cols-5 divide-x divide-slate-200/60">
-              {metrics.map((m) => (
-                <div key={m.label} className="px-6 py-5 flex flex-col items-center text-center">
-                  <span className={`font-mono text-2xl sm:text-3xl font-extrabold tracking-tight block ${m.color}`}>
-                    {m.value}
-                  </span>
-                  <span className="text-[11px] text-[#64748B] font-mono mt-1 leading-snug">
+          <div className="glass-panel p-3 shadow-xl">
+            <div className="grid grid-cols-2 md:grid-cols-5 divide-x divide-slate-200/80">
+              {animatedMetrics.map((m) => (
+                <div key={m.label} className="px-6 py-6 flex flex-col items-center text-center group">
+                  <CountUpNumber
+                    end={m.end}
+                    duration={2400}
+                    suffix={m.suffix}
+                    decimals={m.decimals || 0}
+                    className={`font-mono text-3xl sm:text-4xl font-extrabold tracking-tight block ${m.color} group-hover:scale-105 transition-transform duration-200`}
+                  />
+                  <span className="text-[11px] text-[#475569] font-mono font-semibold mt-1.5 leading-snug">
                     {m.label}
                   </span>
                 </div>
@@ -477,7 +482,7 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ─── FINAL CTA (INTEGRATED PHOTOREALISTIC 3D RECYCLING GLOBE) ───── */}
+      {/* ─── FINAL CTA ───────────────────────────────────────── */}
       <section className="py-24 relative">
         <div className="max-w-6xl mx-auto px-4 sm:px-8">
           <div className="glass-panel p-8 sm:p-14 relative overflow-hidden">
@@ -515,7 +520,7 @@ export default function Home() {
               <div className="lg:col-span-5 h-[340px] sm:h-[400px] rounded-3xl bg-gradient-to-br from-[#EFF6FF] via-[#F8FAFC] to-[#DCFCE7]/60 border border-white shadow-xl shadow-slate-900/5 relative overflow-hidden">
                 <RecyclingGlobe3D />
 
-                {/* Floating Telemetry Badge on 3D Recycling Scene */}
+                {/* Floating Telemetry Badge */}
                 <div className="absolute bottom-4 left-4 right-4 z-20">
                   <div className="glass-pill px-4 py-2.5 flex items-center justify-between">
                     <div className="flex items-center gap-2">
