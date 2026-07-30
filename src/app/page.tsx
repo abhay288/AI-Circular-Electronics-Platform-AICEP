@@ -24,6 +24,9 @@ import {
   Recycle,
   Sparkles,
   Zap,
+  Wrench,
+  ChevronRight,
+  BarChart3,
 } from "lucide-react";
 
 const LabHeroRoboticScene = dynamic(
@@ -66,55 +69,89 @@ const RecyclingGlobe3D = dynamic(
 );
 
 export default function Home() {
-  const [selectedPhase, setSelectedPhase] = useState(0);
+  const [activeWorkflowStage, setActiveWorkflowStage] = useState(0);
 
-  const platformPhases = [
+  // 8-Stage Complete Workflow (Section 1 in Master Prompt)
+  const workflowStages = [
     {
-      phase: "PHASE 01",
-      title: "E-Waste Intake & Neural Inspection",
-      shortDesc: "Sub-millimeter spectro-spatial neural scanning & e-waste batch classification",
-      fullDesc: "Electronic waste batches from global recyclers are scanned down to 50 microns using multi-spectrum computer vision to divert toxic e-waste components away from landfills.",
+      step: "01",
+      title: "Electronic Waste Intake",
+      desc: "Batch e-waste indexing & spectro-spatial scanning intake from global recyclers.",
+      icon: Database,
+      badge: "BATCH INTAKE",
+      detail: "Hardware batches from global recyclers are indexed into spectro-spatial intake streams, diverting toxic materials away from landfills.",
+    },
+    {
+      step: "02",
+      title: "AI Robotic Inspection",
+      desc: "Sub-millimeter 50-micron industrial laser scanning & computer vision analysis.",
       icon: Cpu,
-      stats: "99.2% E-Waste Precision",
+      badge: "50-MICRON SCAN",
+      detail: "6-axis industrial robotic arms sweep multi-spectrum laser sensors across circuit board assemblies, identifying component boundaries.",
     },
     {
-      phase: "PHASE 02",
-      title: "Generative CAD & PCB Reconstruction",
-      shortDesc: "PCB micro-trace reconstruction & automated Gerber netlist synthesis",
-      fullDesc: "Generative Graph Neural Topology (GGNT) algorithms reconstruct damaged or severed multilayer copper traces, restoring broken e-waste circuit boards into production CAD schematics.",
+      step: "03",
+      title: "Component Detection",
+      desc: "Spectro-spatial neural models classify IC chips, microcontrollers, and capacitors.",
+      icon: Sparkles,
+      badge: "99.2% PRECISION",
+      detail: "Neural object detection models segment every SMD, QFP, BGA package and microcontroller, mapping health grades and serial hashes.",
+    },
+    {
+      step: "04",
+      title: "PCB Reconstruction",
+      desc: "Generative graph AI reconstructs damaged copper traces & synthesizes Gerber CAD.",
       icon: Layers,
-      stats: "100% Netlist Match",
+      badge: "GERBER CAD SYNTHESIS",
+      detail: "Generative Graph Neural Topology (GGNT) reconstructs severed multilayer copper traces, generating KiCad & Gerber schematics.",
     },
     {
-      phase: "PHASE 03",
-      title: "Lifespan & Precious Metals Mining",
-      shortDesc: "Physics-informed RUL prediction & urban metal yield spectrometry",
-      fullDesc: "Electro-thermal physics simulations calculate component degradation and predict remaining operational lifespan (RUL) while spectrometry estimates recoverable Gold, Silver, and Copper yields.",
+      step: "05",
+      title: "Remaining Useful Life",
+      desc: "Physics-informed ML models predict remaining operational lifespan hours.",
+      icon: Activity,
+      badge: "PHYSICS ML SIMULATION",
+      detail: "Electro-thermal physics simulations calculate component degradation under voltage stress, predicting exact remaining lifespan.",
+    },
+    {
+      step: "06",
+      title: "Precious Metal Yields",
+      desc: "Urban mining spectrometry estimates Gold, Silver, Copper, and Palladium yields.",
       icon: Coins,
-      stats: "$78.40/g Gold Value",
+      badge: "URBAN MINING",
+      detail: "Optical emission spectrometry quantifies precious metal yields ($78.40/g Gold) before pyrometallurgical recovery.",
     },
     {
-      phase: "PHASE 04",
-      title: "Digital Passport & Circular Exchange",
-      shortDesc: "Polygon ERC-721 product passports & verified hardware marketplace",
-      fullDesc: "Every recovered component receives a Polygon blockchain Digital Product Passport detailing origin facility, health grade, and Scope 3 carbon reduction proofs.",
+      step: "07",
+      title: "Blockchain Passport",
+      desc: "Polygon ERC-721 Digital Product Passports minted for origin & health proof.",
       icon: ShieldCheck,
-      stats: "Polygon Mainnet Verified",
+      badge: "POLYGON MAINNET",
+      detail: "Immutable Polygon blockchain product passports record origin facility, health grade, and verified carbon offset proofs.",
+    },
+    {
+      step: "08",
+      title: "Circular B2B Exchange",
+      desc: "Verified hardware listed on circular exchange with smart contract escrow.",
+      icon: ShoppingCart,
+      badge: "SMART ESCROW",
+      detail: "Components are listed inside transparent marketplace capsules with embedded passports, verified lifespan, and instant escrow.",
     },
   ];
 
+  // 6 Platform Overview Cards (Section 2 in Master Prompt - Each linking to dedicated page)
   const platformOverviewCards = [
     {
       badge: "VISION & SPECTROMETRY",
       title: "AI Component Detection",
-      desc: "Detect and classify discarded electronic waste components down to 50 microns with sub-millimeter spectro-spatial precision.",
+      desc: "Detect and classify electronic components down to 50 microns with sub-millimeter spectro-spatial neural precision.",
       href: "/platform/detection",
       stat: "99.2% Accuracy",
       icon: Cpu,
     },
     {
       badge: "GENERATIVE GRAPH AI",
-      title: "PCB Topology Reconstruction",
+      title: "PCB Reconstruction",
       desc: "Reconstruct severed copper traces on damaged e-waste boards and generate KiCad & Gerber CAD schematics automatically.",
       href: "/platform/reconstruction",
       stat: "100% Netlist Match",
@@ -145,12 +182,12 @@ export default function Home() {
       icon: ShieldCheck,
     },
     {
-      badge: "CIRCULAR B2B EXCHANGE",
-      title: "Circular Hardware Marketplace",
-      desc: "Trade verified recovered components with embedded product passports, verified lifespan, and instant smart contract escrow.",
-      href: "/marketplace",
-      stat: "1.4M Components",
-      icon: ShoppingCart,
+      badge: "AI REFLOW & REPAIR",
+      title: "Repair Intelligence",
+      desc: "AI-guided reflow, soldering fault diagnostics, and automated component replacement recommendations.",
+      href: "/platform/repair",
+      stat: "AI Fault Diagnostics",
+      icon: Wrench,
     },
   ];
 
@@ -182,7 +219,7 @@ export default function Home() {
               <div className="glass-pill inline-flex items-center gap-2 px-4 py-2 w-fit">
                 <Recycle className="w-4 h-4 text-[#16A34A] animate-pulse" />
                 <span className="text-[10px] font-mono tracking-[0.14em] uppercase text-[#16A34A] font-bold">
-                  AI E-WASTE ELIMINATION & HARDWARE RECOVERY ENGINE
+                  THE INTELLIGENCE LAYER FOR CIRCULAR ELECTRONICS
                 </span>
               </div>
 
@@ -334,63 +371,88 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ─── WORKFLOW SECTION ───────────────────────────────── */}
+      {/* ─── SECTION 1: HOW ECOINTEL WORKS (8-STAGE ANIMATED WORKFLOW) ─── */}
       <section className="py-24 relative">
         <div className="max-w-7xl mx-auto px-4 sm:px-8">
           <SectionHeader
-            badge="E-Waste Platform Workflow"
-            title="How EcoIntel Eliminates E-Waste"
-            subtitle="Four core intelligent phases transforming e-waste into verified high-value digital hardware assets."
+            badge="Platform Workflow"
+            title="How EcoIntel Works"
+            subtitle="Transforming electronic waste into intelligent digital assets through an 8-stage automated workflow."
           />
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-            {platformPhases.map((phaseItem, idx) => {
-              const IconComp = phaseItem.icon;
-              const isSelected = selectedPhase === idx;
+          {/* Workflow Stage Tabs */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2 mb-8">
+            {workflowStages.map((st, idx) => {
+              const IconComp = st.icon;
+              const isSelected = activeWorkflowStage === idx;
               return (
-                <div
-                  key={phaseItem.phase}
-                  onClick={() => setSelectedPhase(idx)}
-                  className={`glass-card p-8 cursor-pointer transition-all duration-300 ${
+                <button
+                  key={st.step}
+                  onClick={() => setActiveWorkflowStage(idx)}
+                  className={`p-3 rounded-2xl text-left border transition-all duration-200 cursor-pointer ${
                     isSelected
-                      ? "border-[#2563EB] bg-white shadow-xl shadow-blue-500/10"
-                      : "hover:bg-white/90 hover:border-[#BFDBFE]"
+                      ? "bg-white border-[#2563EB] shadow-lg shadow-blue-500/10"
+                      : "glass-card hover:bg-white"
                   }`}
                 >
-                  <div className="flex items-center justify-between mb-4">
-                    <span className="font-mono text-xs font-bold text-[#2563EB] tracking-widest">
-                      {phaseItem.phase}
-                    </span>
-                    <TechBadge label={phaseItem.stats} variant={isSelected ? "blue" : "neutral"} />
+                  <span className="font-mono text-[10px] text-[#2563EB] block font-bold mb-1 tracking-widest">{st.step}</span>
+                  <div className="flex items-center gap-1.5">
+                    <IconComp className={`w-3.5 h-3.5 flex-shrink-0 ${isSelected ? "text-[#2563EB]" : "text-[#64748B]"}`} />
+                    <span className="font-heading text-[11px] font-bold text-[#0F172A] leading-tight line-clamp-1">{st.title}</span>
                   </div>
-
-                  <div className="flex items-center gap-3.5 mb-3">
-                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
-                      isSelected ? "bg-[#2563EB] text-white" : "bg-[#EFF6FF] text-[#2563EB]"
-                    }`}>
-                      <IconComp className="w-5 h-5" />
-                    </div>
-                    <h3 className="font-heading text-xl font-bold text-[#0F172A] tracking-tight">
-                      {phaseItem.title}
-                    </h3>
-                  </div>
-
-                  <p className="text-sm text-[#475569] leading-relaxed mb-4">
-                    {phaseItem.fullDesc}
-                  </p>
-
-                  <div className="flex items-center gap-2 text-xs font-mono text-[#16A34A] pt-2 border-t border-slate-200/60">
-                    <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
-                    <span>Automated E-Waste Facility Line Compatible</span>
-                  </div>
-                </div>
+                </button>
               );
             })}
+          </div>
+
+          {/* Active Stage Spotlight Panel */}
+          <div className="glass-card p-8 sm:p-12">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
+              
+              <div className="lg:col-span-7 space-y-4">
+                <div className="flex items-center gap-3">
+                  <TechBadge label={`Stage ${workflowStages[activeWorkflowStage].step}`} variant="blue" />
+                  <span className="font-mono text-xs font-bold text-[#2563EB] uppercase tracking-wider">
+                    {workflowStages[activeWorkflowStage].badge}
+                  </span>
+                </div>
+
+                <h3 className="font-heading text-2xl sm:text-3xl font-extrabold text-[#0F172A] tracking-tight">
+                  {workflowStages[activeWorkflowStage].title}
+                </h3>
+
+                <p className="text-base text-[#475569] leading-relaxed">
+                  {workflowStages[activeWorkflowStage].detail}
+                </p>
+
+                <div className="pt-4 flex items-center gap-3 border-t border-slate-200/60">
+                  <CheckCircle2 className="w-5 h-5 text-[#16A34A]" />
+                  <span className="text-xs font-mono font-semibold text-[#16A34A]">
+                    Automated Facility Stream · ISO 14001 Compliant
+                  </span>
+                </div>
+              </div>
+
+              <div className="lg:col-span-5 h-64 rounded-3xl bg-gradient-to-br from-[#EFF6FF] via-[#F8FAFC] to-[#DCFCE7]/40 border border-[#BFDBFE]/60 flex flex-col items-center justify-center p-6 text-center shadow-inner relative overflow-hidden">
+                <div className="w-16 h-16 rounded-2xl bg-white border border-[#E2E8F0] shadow-md flex items-center justify-center mb-4">
+                  {React.createElement(workflowStages[activeWorkflowStage].icon, {
+                    className: "w-8 h-8 text-[#2563EB]",
+                  })}
+                </div>
+                <span className="font-heading text-base font-bold text-[#0F172A]">
+                  Stage {workflowStages[activeWorkflowStage].step} — {workflowStages[activeWorkflowStage].title}
+                </span>
+                <span className="text-xs text-[#64748B] font-mono mt-1.5">
+                  {workflowStages[activeWorkflowStage].desc}
+                </span>
+              </div>
+
+            </div>
           </div>
         </div>
       </section>
 
-      {/* ─── PLATFORM OVERVIEW MODULES ───────────────────────── */}
+      {/* ─── SECTION 2: PLATFORM OVERVIEW (6 FEATURE MODULE CARDS) ─── */}
       <section className="py-24 relative">
         <div className="max-w-7xl mx-auto px-4 sm:px-8">
           <SectionHeader
@@ -425,7 +487,7 @@ export default function Home() {
                     </div>
 
                     <div className="pt-6 border-t border-slate-200/60 mt-6 flex items-center justify-between">
-                      <span className="text-xs font-semibold text-[#2563EB]">Explore Module</span>
+                      <span className="text-xs font-semibold text-[#2563EB]">Learn More</span>
                       <div className="w-8 h-8 rounded-full bg-[#EFF6FF] flex items-center justify-center group-hover:bg-[#2563EB] transition-all duration-200">
                         <ArrowRight className="w-4 h-4 text-[#2563EB] group-hover:text-white transition-colors" />
                       </div>
