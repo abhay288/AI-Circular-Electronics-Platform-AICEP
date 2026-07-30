@@ -14,7 +14,6 @@ import {
   ArrowRight,
   Menu,
   X,
-  Sparkles,
 } from "lucide-react";
 import PrimaryButton from "@/components/ui/PrimaryButton";
 
@@ -83,40 +82,37 @@ export default function Navbar() {
     <header className="fixed top-0 left-0 right-0 z-50 px-4 sm:px-8 py-4 pointer-events-none transition-all duration-300">
       <div className="max-w-7xl mx-auto flex items-center justify-between pointer-events-auto">
         
-        {/* Floating Ultra-Glassmorphism Navbar Container */}
+        {/* Floating Enterprise Studio Glass Navbar Container */}
         <nav
-          className={`w-full flex items-center justify-between px-6 py-3 rounded-full transition-all duration-300 backdrop-blur-2xl ${
+          className={`w-full flex items-center justify-between px-6 py-3 rounded-full transition-all duration-300 backdrop-blur-xl ${
             scrolled
-              ? "bg-white/85 border border-white/90 shadow-[0_14px_40px_-10px_rgba(15,23,42,0.12),inset_0_1px_0_0_rgba(255,255,255,1)]"
-              : "bg-white/70 border border-white/80 shadow-[0_8px_30px_-5px_rgba(15,23,42,0.06),inset_0_1px_0_0_rgba(255,255,255,0.9)]"
+              ? "bg-white/95 border border-[#E2E8F0] shadow-[0_12px_36px_-8px_rgba(15,23,42,0.08)]"
+              : "bg-white/85 border border-[#E2E8F0]/80 shadow-[0_4px_20px_-2px_rgba(15,23,42,0.04)]"
           }`}
         >
-          {/* Brand Logo & Live Network Status */}
+          {/* Brand Logo */}
           <Link href="/" className="flex items-center gap-3.5 group">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-[#2563EB] via-[#3B82F6] to-[#1D4ED8] flex items-center justify-center text-white shadow-md shadow-blue-500/25 group-hover:scale-105 transition-transform duration-200">
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-[#2563EB] to-[#1D4ED8] flex items-center justify-center text-white shadow-md shadow-blue-500/20 group-hover:scale-105 transition-transform duration-200">
               <Cpu className="w-5 h-5" />
             </div>
             <div className="flex flex-col">
-              <div className="flex items-center gap-2">
-                <span className="font-heading text-lg font-bold tracking-tight text-[#0F172A] group-hover:text-[#2563EB] transition-colors">
-                  EcoIntel
-                </span>
-                <span className="w-2 h-2 rounded-full bg-[#16A34A] animate-pulse" title="Polygon Mainnet Online" />
-              </div>
+              <span className="font-heading text-lg font-bold tracking-tight text-[#0F172A] group-hover:text-[#2563EB] transition-colors">
+                EcoIntel
+              </span>
               <span className="text-[9px] font-mono text-[#64748B] -mt-1 tracking-widest uppercase font-bold">
-                CIRCULAR AI PLATFORM
+                CIRCULAR AI
               </span>
             </div>
           </Link>
 
           {/* Desktop Navigation Links */}
-          <div className="hidden lg:flex items-center gap-1">
+          <div className="hidden lg:flex items-center gap-1.5">
             <Link
               href="/"
-              className={`px-4 py-2 rounded-full text-xs font-semibold font-mono transition-all ${
+              className={`px-4 py-2 rounded-full text-[13px] font-medium tracking-tight transition-all ${
                 pathname === "/"
-                  ? "bg-[#EFF6FF] text-[#2563EB] border border-[#BFDBFE]/60"
-                  : "text-[#475569] hover:text-[#0F172A] hover:bg-[#F1F5F9]/80"
+                  ? "bg-[#EFF6FF] text-[#2563EB] font-semibold"
+                  : "text-[#475569] hover:text-[#0F172A] hover:bg-[#F1F5F9]"
               }`}
             >
               Home
@@ -129,10 +125,10 @@ export default function Navbar() {
               onMouseLeave={() => setPlatformDropdownOpen(false)}
             >
               <button
-                className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-semibold font-mono transition-all cursor-pointer ${
+                className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-[13px] font-medium tracking-tight transition-all cursor-pointer ${
                   pathname.startsWith("/platform")
-                    ? "bg-[#EFF6FF] text-[#2563EB] border border-[#BFDBFE]/60"
-                    : "text-[#475569] hover:text-[#0F172A] hover:bg-[#F1F5F9]/80"
+                    ? "bg-[#EFF6FF] text-[#2563EB] font-semibold"
+                    : "text-[#475569] hover:text-[#0F172A] hover:bg-[#F1F5F9]"
                 }`}
               >
                 <span>Platform</span>
@@ -145,8 +141,8 @@ export default function Navbar() {
 
               {/* Platform Glass Dropdown Panel */}
               {platformDropdownOpen && (
-                <div className="absolute top-full left-1/2 -translate-x-1/2 pt-3 w-[600px] pointer-events-auto">
-                  <div className="p-4 rounded-3xl bg-white/95 backdrop-blur-3xl border border-white/90 shadow-2xl shadow-slate-900/12 grid grid-cols-2 gap-2">
+                <div className="absolute top-full left-1/2 -translate-x-1/2 pt-3 w-[580px] pointer-events-auto">
+                  <div className="p-4 rounded-3xl bg-white border border-[#E2E8F0] shadow-2xl shadow-slate-900/10 grid grid-cols-2 gap-2">
                     {platformSubPages.map((sub) => {
                       const IconComp = sub.icon;
                       return (
@@ -179,10 +175,10 @@ export default function Navbar() {
               <Link
                 key={link.href}
                 href={link.href}
-                className={`px-4 py-2 rounded-full text-xs font-semibold font-mono transition-all ${
+                className={`px-4 py-2 rounded-full text-[13px] font-medium tracking-tight transition-all ${
                   pathname === link.href
-                    ? "bg-[#EFF6FF] text-[#2563EB] border border-[#BFDBFE]/60"
-                    : "text-[#475569] hover:text-[#0F172A] hover:bg-[#F1F5F9]/80"
+                    ? "bg-[#EFF6FF] text-[#2563EB] font-semibold"
+                    : "text-[#475569] hover:text-[#0F172A] hover:bg-[#F1F5F9]"
                 }`}
               >
                 {link.name}
@@ -193,7 +189,7 @@ export default function Navbar() {
           {/* Action CTAs */}
           <div className="hidden md:flex items-center gap-3">
             <Link href="/console">
-              <button className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-full bg-[#0F172A] text-white text-xs font-semibold font-mono transition-all duration-200 hover:bg-[#1E293B] hover:shadow-[0_0_0_3px_rgba(37,99,235,0.2),0_8px_24px_-6px_rgba(37,99,235,0.35)] cursor-pointer group shadow-sm">
+              <button className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-full bg-[#0F172A] text-white text-xs font-semibold tracking-tight transition-all duration-200 hover:bg-[#1E293B] hover:shadow-[0_0_0_3px_rgba(37,99,235,0.2)] cursor-pointer group shadow-sm">
                 <span>Launch Console</span>
                 <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform duration-200" />
               </button>
@@ -212,7 +208,7 @@ export default function Navbar() {
 
       {/* Mobile Drawer */}
       {mobileMenuOpen && (
-        <div className="lg:hidden fixed inset-x-4 top-24 z-40 p-6 rounded-3xl bg-white/95 backdrop-blur-3xl border border-white/90 shadow-2xl flex flex-col gap-4 pointer-events-auto">
+        <div className="lg:hidden fixed inset-x-4 top-24 z-40 p-6 rounded-3xl bg-white border border-[#E2E8F0] shadow-2xl flex flex-col gap-4 pointer-events-auto">
           <div className="flex flex-col gap-2">
             <Link
               href="/"
