@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import Navbar from "@/components/layout/Navbar";
@@ -27,6 +27,7 @@ import {
   Wrench,
   ChevronRight,
   BarChart3,
+  Pause,
 } from "lucide-react";
 
 const LabHeroRoboticScene = dynamic(
@@ -70,6 +71,7 @@ const RecyclingGlobe3D = dynamic(
 
 export default function Home() {
   const [activeWorkflowStage, setActiveWorkflowStage] = useState(0);
+  const [isAutoSliding, setIsAutoSliding] = useState(true);
 
   // 8-Stage Complete Workflow (Section 1 in Master Prompt)
   const workflowStages = [
@@ -138,6 +140,15 @@ export default function Home() {
       detail: "Components are listed inside transparent marketplace capsules with embedded passports, verified lifespan, and instant escrow.",
     },
   ];
+
+  // Auto-Sliding Interval Effect for How EcoIntel Works Section
+  useEffect(() => {
+    if (!isAutoSliding) return;
+    const interval = setInterval(() => {
+      setActiveWorkflowStage((prev) => (prev + 1) % workflowStages.length);
+    }, 3800);
+    return () => clearInterval(interval);
+  }, [isAutoSliding, workflowStages.length]);
 
   // 6 Platform Overview Cards (Section 2 in Master Prompt - Each linking to dedicated page)
   const platformOverviewCards = [
@@ -371,16 +382,33 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ─── SECTION 1: HOW ECOINTEL WORKS (8-STAGE ANIMATED WORKFLOW) ─── */}
+      {/* ─── SECTION 1: HOW ECOINTEL WORKS (AUTO-SLIDABLE 8-STAGE WORKFLOW) ─── */}
       <section className="py-24 relative">
         <div className="max-w-7xl mx-auto px-4 sm:px-8">
-          <SectionHeader
-            badge="Platform Workflow"
-            title="How EcoIntel Works"
-            subtitle="Transforming electronic waste into intelligent digital assets through an 8-stage automated workflow."
-          />
+          <div className="flex flex-col md:flex-row md:items-end justify-between mb-8 gap-4">
+            <SectionHeader
+              badge="Platform Workflow"
+              title="How EcoIntel Works"
+              subtitle="Transforming electronic waste into intelligent digital assets through an 8-stage automated workflow."
+            />
 
-          {/* Workflow Stage Tabs */}
+            {/* Auto-Slide Controls */}
+            <div className="flex items-center gap-2 self-start md:self-auto mb-6">
+              <button
+                onClick={() => setIsAutoSliding(!isAutoSliding)}
+                className={`px-3 py-1.5 rounded-full text-xs font-mono font-bold flex items-center gap-2 border transition-all cursor-pointer ${
+                  isAutoSliding
+                    ? "bg-[#EFF6FF] text-[#2563EB] border-[#BFDBFE]"
+                    : "bg-white text-[#64748B] border-[#E2E8F0]"
+                }`}
+              >
+                <span className={`w-2 h-2 rounded-full ${isAutoSliding ? "bg-[#2563EB] animate-pulse" : "bg-[#94A3B8]"}`} />
+                <span>{isAutoSliding ? "Auto-Play Active" : "Paused"}</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Workflow Stage Tabs with Auto-Slide Progress Bar */}
           <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2 mb-8">
             {workflowStages.map((st, idx) => {
               const IconComp = st.icon;
@@ -388,13 +416,20 @@ export default function Home() {
               return (
                 <button
                   key={st.step}
-                  onClick={() => setActiveWorkflowStage(idx)}
-                  className={`p-3 rounded-2xl text-left border transition-all duration-200 cursor-pointer ${
+                  onClick={() => {
+                    setActiveWorkflowStage(idx);
+                    setIsAutoSliding(false);
+                  }}
+                  className={`p-3 rounded-2xl text-left border relative overflow-hidden transition-all duration-300 cursor-pointer ${
                     isSelected
-                      ? "bg-white border-[#2563EB] shadow-lg shadow-blue-500/10"
+                      ? "bg-white border-[#2563EB] shadow-lg shadow-blue-500/10 scale-[1.02]"
                       : "glass-card hover:bg-white"
                   }`}
                 >
+                  {/* Top Progress Line for Active Stage */}
+                  {isSelected && (
+                    <div className="absolute top-0 left-0 right-0 h-1 bg-[#2563EB] animate-pulse" />
+                  )}
                   <span className="font-mono text-[10px] text-[#2563EB] block font-bold mb-1 tracking-widest">{st.step}</span>
                   <div className="flex items-center gap-1.5">
                     <IconComp className={`w-3.5 h-3.5 flex-shrink-0 ${isSelected ? "text-[#2563EB]" : "text-[#64748B]"}`} />
@@ -434,7 +469,7 @@ export default function Home() {
               </div>
 
               <div className="lg:col-span-5 h-64 rounded-3xl bg-gradient-to-br from-[#EFF6FF] via-[#F8FAFC] to-[#DCFCE7]/40 border border-[#BFDBFE]/60 flex flex-col items-center justify-center p-6 text-center shadow-inner relative overflow-hidden">
-                <div className="w-16 h-16 rounded-2xl bg-white border border-[#E2E8F0] shadow-md flex items-center justify-center mb-4">
+                <div className="w-16 h-16 rounded-2xl bg-white border border-[#E2E8F0] shadow-md flex items-center justify-center mb-4 transition-transform duration-300 transform hover:scale-110">
                   {React.createElement(workflowStages[activeWorkflowStage].icon, {
                     className: "w-8 h-8 text-[#2563EB]",
                   })}
