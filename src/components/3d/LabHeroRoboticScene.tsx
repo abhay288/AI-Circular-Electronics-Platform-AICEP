@@ -12,17 +12,17 @@ export default function LabHeroRoboticScene() {
 
     // 1. Scene & Studio Setup
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0xeff4fb);
-    scene.fog = new THREE.FogExp2(0xf8fafc, 0.02);
+    scene.background = new THREE.Color(0xf1f5f9);
+    scene.fog = new THREE.FogExp2(0xf1f5f9, 0.018);
 
     const camera = new THREE.PerspectiveCamera(
-      36,
+      35,
       container.clientWidth / container.clientHeight,
       0.1,
       1000
     );
-    camera.position.set(0, 6.2, 12.0);
-    camera.lookAt(0, -0.2, 0);
+    camera.position.set(0, 6.0, 11.5);
+    camera.lookAt(0, -0.1, 0);
 
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     renderer.setSize(container.clientWidth, container.clientHeight);
@@ -34,10 +34,10 @@ export default function LabHeroRoboticScene() {
     container.appendChild(renderer.domElement);
 
     // 2. High-Contrast Studio Lighting
-    const ambientLight = new THREE.AmbientLight(0xffffff, 1.2);
+    const ambientLight = new THREE.AmbientLight(0xffffff, 1.3);
     scene.add(ambientLight);
 
-    const keyLight = new THREE.DirectionalLight(0xffffff, 2.5);
+    const keyLight = new THREE.DirectionalLight(0xffffff, 2.6);
     keyLight.position.set(6, 12, 6);
     keyLight.castShadow = true;
     keyLight.shadow.mapSize.width = 2048;
@@ -45,11 +45,11 @@ export default function LabHeroRoboticScene() {
     keyLight.shadow.bias = -0.0001;
     scene.add(keyLight);
 
-    const rimLight = new THREE.DirectionalLight(0x00e6ff, 1.2);
+    const rimLight = new THREE.DirectionalLight(0x00e6ff, 1.4);
     rimLight.position.set(-6, 8, -6);
     scene.add(rimLight);
 
-    const fillLight = new THREE.DirectionalLight(0xffffff, 1.0);
+    const fillLight = new THREE.DirectionalLight(0xffffff, 1.1);
     fillLight.position.set(0, 8, 8);
     scene.add(fillLight);
 
@@ -68,11 +68,11 @@ export default function LabHeroRoboticScene() {
     floor.receiveShadow = true;
     pedestalGroup.add(floor);
 
-    // Aluminum Pedestal
+    // Aluminum Pedestal Base
     const aluminumGeo = new THREE.CylinderGeometry(3.6, 3.8, 0.5, 64);
     const aluminumMat = new THREE.MeshStandardMaterial({
       color: 0xe2e8f0,
-      metalness: 0.9,
+      metalness: 0.92,
       roughness: 0.12,
     });
     const aluminumPedestal = new THREE.Mesh(aluminumGeo, aluminumMat);
@@ -214,7 +214,7 @@ export default function LabHeroRoboticScene() {
     ioTower.castShadow = true;
     motherboardGroup.add(ioTower);
 
-    // Realistic Aluminum Electrolytic Capacitors (24 Units)
+    // Realistic Aluminum Electrolytic Capacitors (22 Units)
     const capBodyMat = new THREE.MeshStandardMaterial({ color: 0xe2e8f0, metalness: 0.95, roughness: 0.08 });
     const capTopMat = new THREE.MeshStandardMaterial({ color: 0x0f172a, metalness: 0.5 });
 
@@ -334,7 +334,7 @@ export default function LabHeroRoboticScene() {
       animId = requestAnimationFrame(animate);
       const elapsedTime = clock.getElapsedTime();
 
-      // Pedestal & Realistic Emerald PCB Rotation
+      // Pedestal & PCB Slow Rotation
       pedestalGroup.rotation.y += 0.005;
 
       // 6-Axis Arm Scanning Sweep Across PCB Surface
@@ -345,8 +345,8 @@ export default function LabHeroRoboticScene() {
 
       // Camera Parallax
       camera.position.x = mouseX * 2.0;
-      camera.position.y = 6.2 + mouseY * 1.0;
-      camera.lookAt(0, -0.2, 0);
+      camera.position.y = 6.0 + mouseY * 1.0;
+      camera.lookAt(0, -0.1, 0);
 
       renderer.render(scene, camera);
     };
