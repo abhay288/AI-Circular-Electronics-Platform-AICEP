@@ -22,7 +22,6 @@ import {
   Database,
   Sparkles,
   Zap,
-  Check,
 } from "lucide-react";
 
 const LabHeroRoboticScene = dynamic(
@@ -36,25 +35,93 @@ const MetallicCubes3D = dynamic(
 );
 
 export default function Home() {
-  const [selectedWorkflowStep, setSelectedWorkflowStep] = useState(0);
+  const [selectedPhase, setSelectedPhase] = useState(0);
 
-  const workflowSteps = [
-    { step: "01", title: "Collect E-Waste", desc: "Scanned and indexed e-waste batches from global recyclers", icon: Database },
-    { step: "02", title: "AI Inspection", desc: "Sub-millimeter spectro-spatial neural scanning", icon: Cpu },
-    { step: "03", title: "PCB Reconstruction", desc: "Generative CAD topology & Gerber netlist generation", icon: Layers },
-    { step: "04", title: "Health Prediction", desc: "Physics-informed ML predicts remaining lifespan", icon: Activity },
-    { step: "05", title: "Digital Passport", desc: "Polygon ERC-721 product passport minted", icon: ShieldCheck },
-    { step: "06", title: "Marketplace", desc: "Listed on B2B circular hardware exchange", icon: ShoppingCart },
-    { step: "07", title: "Carbon Report", desc: "Quantified ESG Scope 3 emissions avoided", icon: Leaf },
+  // 4 Strategic Phases (Replaces cramped 7 tiny cards)
+  const platformPhases = [
+    {
+      phase: "PHASE 01",
+      title: "Neural Intake & Inspection",
+      shortDesc: "Sub-millimeter spectro-spatial neural scanning & batch e-waste indexing",
+      fullDesc: "Hardware batches from global recyclers are scanned down to 50 microns using multi-spectrum computer vision and spectro-spatial neural models to classify every IC, capacitor, and substrate.",
+      icon: Cpu,
+      stats: "99.2% Detection Precision",
+    },
+    {
+      phase: "PHASE 02",
+      title: "Generative CAD & Topology",
+      shortDesc: "PCB micro-trace reconstruction & automated Gerber netlist synthesis",
+      fullDesc: "Generative Graph Neural Topology (GGNT) algorithms reconstruct damaged or severed multilayer copper traces, synthesizing production-ready KiCad schematics and Gerber CAD netlists.",
+      icon: Layers,
+      stats: "100% Netlist Match",
+    },
+    {
+      phase: "PHASE 03",
+      title: "Lifespan & Metals Mining",
+      shortDesc: "Physics-informed RUL prediction & precious metal yield spectrometry",
+      fullDesc: "Electro-thermal physics simulations calculate component degradation and predict remaining operational lifespan (RUL) while spectrometry estimates recoverable Gold, Silver, and Copper yields.",
+      icon: Coins,
+      stats: "$78.40/g Gold Value",
+    },
+    {
+      phase: "PHASE 04",
+      title: "Passport & B2B Exchange",
+      shortDesc: "Polygon ERC-721 product passports & verified hardware marketplace",
+      fullDesc: "Every component receives a tamper-proof Polygon blockchain Digital Product Passport detailing origin, health grade, and carbon offset proofs before listing on the circular B2B exchange.",
+      icon: ShieldCheck,
+      stats: "Polygon Mainnet Verified",
+    },
   ];
 
   const platformOverviewCards = [
-    { badge: "VISION & SPECTROMETRY", title: "AI Component Detection", desc: "Detect and classify electronic components down to 50 microns with sub-millimeter precision.", href: "/platform/detection", stat: "99.2% Accuracy", icon: Cpu },
-    { badge: "GENERATIVE GRAPH AI", title: "PCB Reconstruction", desc: "Reconstruct severed copper traces and generate KiCad & Gerber CAD schematics automatically.", href: "/platform/reconstruction", stat: "100% Netlist Match", icon: Layers },
-    { badge: "PHYSICS-INFORMED ML", title: "Remaining Useful Life (RUL)", desc: "Electro-thermal physics simulations predict exact component lifespan across operational years.", href: "/platform/rul", stat: "50,000 Hr Baseline", icon: Activity },
-    { badge: "URBAN MINING SPECTROMETRY", title: "Precious Metal Intelligence", desc: "Estimate recoverable Gold, Silver, Copper, and Palladium yields before processing.", href: "/platform/metals", stat: "$78.40/g Gold Value", icon: Coins },
-    { badge: "POLYGON BLOCKCHAIN", title: "Blockchain Passport", desc: "Mint immutable ERC-721 product passports tracking origin, health grade, and reuse cycles.", href: "/platform/passport", stat: "Polygon Mainnet", icon: ShieldCheck },
-    { badge: "CIRCULAR B2B EXCHANGE", title: "Circular Marketplace", desc: "Trade verified hardware with embedded passports, verified lifespan, and instant escrow.", href: "/marketplace", stat: "1.4M Components", icon: ShoppingCart },
+    {
+      badge: "VISION & SPECTROMETRY",
+      title: "AI Component Detection",
+      desc: "Detect and classify electronic components down to 50 microns with sub-millimeter spectro-spatial precision.",
+      href: "/platform/detection",
+      stat: "99.2% Accuracy",
+      icon: Cpu,
+    },
+    {
+      badge: "GENERATIVE GRAPH AI",
+      title: "PCB Topology Reconstruction",
+      desc: "Reconstruct severed copper traces and generate KiCad & Gerber CAD schematics automatically in under 120ms.",
+      href: "/platform/reconstruction",
+      stat: "100% Netlist Match",
+      icon: Layers,
+    },
+    {
+      badge: "PHYSICS-INFORMED ML",
+      title: "Remaining Useful Life (RUL)",
+      desc: "Electro-thermal physics simulations predict exact component lifespan across operational years before failure.",
+      href: "/platform/rul",
+      stat: "50,000 Hr Baseline",
+      icon: Activity,
+    },
+    {
+      badge: "URBAN MINING SPECTROMETRY",
+      title: "Precious Metal Intelligence",
+      desc: "Estimate recoverable Gold, Silver, Copper, and Palladium yields before pyrometallurgical processing.",
+      href: "/platform/metals",
+      stat: "$78.40/g Gold Value",
+      icon: Coins,
+    },
+    {
+      badge: "POLYGON BLOCKCHAIN",
+      title: "Blockchain Component Passport",
+      desc: "Mint immutable ERC-721 product passports tracking origin facility, verified health grade, and reuse cycles.",
+      href: "/platform/passport",
+      stat: "Polygon Mainnet",
+      icon: ShieldCheck,
+    },
+    {
+      badge: "CIRCULAR B2B EXCHANGE",
+      title: "Circular Hardware Marketplace",
+      desc: "Trade verified hardware with embedded product passports, verified lifespan, and instant smart contract escrow.",
+      href: "/marketplace",
+      stat: "1.4M Components",
+      icon: ShoppingCart,
+    },
   ];
 
   const metrics = [
@@ -71,11 +138,8 @@ export default function Home() {
 
       {/* ─── HERO SECTION ─────────────────────────────────────── */}
       <section className="relative pt-32 pb-20 overflow-hidden">
-        {/* Subtle technical blueprint background */}
         <div className="absolute inset-0 bg-blueprint opacity-100 pointer-events-none" />
-        {/* Ambient blue aura glow behind left content */}
         <div className="absolute -left-32 top-1/4 w-[500px] h-[500px] rounded-full bg-[#E0F2FE]/60 blur-[130px] pointer-events-none" />
-        {/* Ambient emerald aura glow behind 3D */}
         <div className="absolute right-0 top-1/3 w-[600px] h-[600px] rounded-full bg-[#DCFCE7]/50 blur-[140px] pointer-events-none" />
 
         <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-8">
@@ -84,7 +148,7 @@ export default function Home() {
             {/* Left Content Column */}
             <div className="lg:col-span-6 flex flex-col gap-7">
 
-              {/* Eyebrow Glass Pill Badge */}
+              {/* Eyebrow Glass Pill */}
               <div className="glass-pill inline-flex items-center gap-2 px-4 py-2 w-fit">
                 <span className="w-2 h-2 rounded-full bg-[#2563EB] animate-pulse" />
                 <span className="text-[10px] font-mono tracking-[0.14em] uppercase text-[#2563EB] font-bold">
@@ -233,72 +297,59 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ─── WORKFLOW SECTION ───────────────────────────────── */}
+      {/* ─── WORKFLOW SECTION (REDESIGNED 4 SPACIOUS PHASES) ───── */}
       <section className="py-24 relative">
         <div className="max-w-7xl mx-auto px-4 sm:px-8">
           <SectionHeader
             badge="Platform Workflow"
             title="How EcoIntel Works"
-            subtitle="End-to-end circular electronics intelligence platform transforming discarded hardware into verified high-value digital assets."
+            subtitle="Four core intelligent phases transforming e-waste into verified high-value digital hardware assets."
           />
 
-          {/* Stepper Grid */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-7 gap-3 mb-8">
-            {workflowSteps.map((step, idx) => {
-              const IconComp = step.icon;
-              const isSelected = selectedWorkflowStep === idx;
+          {/* 4 Spacious Phase Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+            {platformPhases.map((phaseItem, idx) => {
+              const IconComp = phaseItem.icon;
+              const isSelected = selectedPhase === idx;
               return (
-                <button
-                  key={step.step}
-                  onClick={() => setSelectedWorkflowStep(idx)}
-                  className={`p-4 rounded-2xl text-left border transition-all duration-200 cursor-pointer ${
+                <div
+                  key={phaseItem.phase}
+                  onClick={() => setSelectedPhase(idx)}
+                  className={`glass-card p-8 cursor-pointer transition-all duration-300 ${
                     isSelected
-                      ? "bg-white border-[#2563EB] shadow-lg shadow-blue-500/10"
-                      : "glass-card hover:bg-white"
+                      ? "border-[#2563EB] bg-white shadow-xl shadow-blue-500/10"
+                      : "hover:bg-white/90 hover:border-[#BFDBFE]"
                   }`}
                 >
-                  <span className="font-mono text-[10px] text-[#2563EB] block font-bold mb-2 tracking-widest">{step.step}</span>
-                  <div className="flex items-center gap-1.5 mb-1.5">
-                    <IconComp className={`w-3.5 h-3.5 flex-shrink-0 ${isSelected ? "text-[#2563EB]" : "text-[#64748B]"}`} />
-                    <span className="font-heading text-[11px] font-bold text-[#0F172A] leading-tight">{step.title}</span>
+                  <div className="flex items-center justify-between mb-4">
+                    <span className="font-mono text-xs font-bold text-[#2563EB] tracking-widest">
+                      {phaseItem.phase}
+                    </span>
+                    <TechBadge label={phaseItem.stats} variant={isSelected ? "blue" : "neutral"} />
                   </div>
-                  <p className="text-[10px] text-[#64748B] leading-snug line-clamp-2 hidden sm:block">{step.desc}</p>
-                </button>
+
+                  <div className="flex items-center gap-3.5 mb-3">
+                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
+                      isSelected ? "bg-[#2563EB] text-white" : "bg-[#EFF6FF] text-[#2563EB]"
+                    }`}>
+                      <IconComp className="w-5 h-5" />
+                    </div>
+                    <h3 className="font-heading text-xl font-bold text-[#0F172A] tracking-tight">
+                      {phaseItem.title}
+                    </h3>
+                  </div>
+
+                  <p className="text-sm text-[#475569] leading-relaxed mb-4">
+                    {phaseItem.fullDesc}
+                  </p>
+
+                  <div className="flex items-center gap-2 text-xs font-mono text-[#16A34A] pt-2 border-t border-slate-200/60">
+                    <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
+                    <span>Automated Industrial Facility Compatible</span>
+                  </div>
+                </div>
               );
             })}
-          </div>
-
-          {/* Workflow Interactive Spotlight Card */}
-          <div className="glass-card p-8 sm:p-10">
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
-              <div className="lg:col-span-7 space-y-4">
-                <TechBadge label={`Stage ${workflowSteps[selectedWorkflowStep].step}`} variant="blue" />
-                <h3 className="font-heading text-2xl sm:text-3xl font-bold text-[#0F172A] tracking-tight">
-                  {workflowSteps[selectedWorkflowStep].title}
-                </h3>
-                <p className="text-sm sm:text-base text-[#475569] leading-relaxed">
-                  {workflowSteps[selectedWorkflowStep].desc}. EcoIntel uses computer vision models and neural spectral synthesis to process hardware batches at enterprise scale.
-                </p>
-                <div className="flex items-center gap-2 text-xs font-mono text-[#16A34A] pt-2">
-                  <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
-                  <span>Fully Automated · Industrial Line Compatible · ISO Certified</span>
-                </div>
-              </div>
-
-              <div className="lg:col-span-5 h-56 rounded-2xl bg-gradient-to-br from-[#EFF6FF] via-[#F8FAFC] to-[#EFF6FF] border border-[#BFDBFE]/60 flex flex-col items-center justify-center p-6 text-center shadow-inner">
-                <div className="w-14 h-14 rounded-2xl bg-white border border-[#E2E8F0] shadow-md flex items-center justify-center mb-4">
-                  {React.createElement(workflowSteps[selectedWorkflowStep].icon, {
-                    className: "w-7 h-7 text-[#2563EB]",
-                  })}
-                </div>
-                <span className="font-mono text-xs font-bold text-[#0F172A]">
-                  Stage {workflowSteps[selectedWorkflowStep].step} — {workflowSteps[selectedWorkflowStep].title}
-                </span>
-                <span className="text-[11px] text-[#64748B] font-mono mt-1">
-                  Enterprise API payload ready
-                </span>
-              </div>
-            </div>
           </div>
         </div>
       </section>
@@ -317,19 +368,19 @@ export default function Home() {
               const IconComp = card.icon;
               return (
                 <Link key={card.title} href={card.href}>
-                  <div className="glass-card-interactive p-7 h-full flex flex-col justify-between group">
+                  <div className="glass-card-interactive p-8 h-full flex flex-col justify-between group">
                     <div className="space-y-4">
                       <div className="flex items-center justify-between">
-                        <div className="w-11 h-11 rounded-2xl bg-[#EFF6FF] border border-[#BFDBFE]/60 text-[#2563EB] flex items-center justify-center group-hover:bg-[#2563EB] group-hover:text-white transition-all duration-200 shadow-sm">
-                          <IconComp className="w-5 h-5" />
+                        <div className="w-12 h-12 rounded-2xl bg-[#EFF6FF] border border-[#BFDBFE]/60 text-[#2563EB] flex items-center justify-center group-hover:bg-[#2563EB] group-hover:text-white transition-all duration-200 shadow-sm">
+                          <IconComp className="w-6 h-6" />
                         </div>
                         <TechBadge label={card.stat} variant="blue" />
                       </div>
 
-                      <span className="font-mono text-[10px] text-[#2563EB] uppercase tracking-[0.1em] block font-bold">
+                      <span className="font-mono text-[10px] text-[#2563EB] uppercase tracking-[0.12em] block font-bold">
                         {card.badge}
                       </span>
-                      <h3 className="font-heading text-lg sm:text-xl font-bold text-[#0F172A] group-hover:text-[#2563EB] transition-colors tracking-tight">
+                      <h3 className="font-heading text-xl font-bold text-[#0F172A] group-hover:text-[#2563EB] transition-colors tracking-tight">
                         {card.title}
                       </h3>
                       <p className="text-sm text-[#64748B] leading-relaxed">
@@ -338,9 +389,9 @@ export default function Home() {
                     </div>
 
                     <div className="pt-6 border-t border-slate-200/60 mt-6 flex items-center justify-between">
-                      <span className="text-xs font-semibold text-[#2563EB]">Learn More</span>
-                      <div className="w-7 h-7 rounded-full bg-[#EFF6FF] flex items-center justify-center group-hover:bg-[#2563EB] transition-all duration-200">
-                        <ArrowRight className="w-3.5 h-3.5 text-[#2563EB] group-hover:text-white transition-colors" />
+                      <span className="text-xs font-semibold text-[#2563EB]">Explore Module</span>
+                      <div className="w-8 h-8 rounded-full bg-[#EFF6FF] flex items-center justify-center group-hover:bg-[#2563EB] transition-all duration-200">
+                        <ArrowRight className="w-4 h-4 text-[#2563EB] group-hover:text-white transition-colors" />
                       </div>
                     </div>
                   </div>
@@ -361,16 +412,16 @@ export default function Home() {
           />
 
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-center">
-            <div className="lg:col-span-6 h-[400px] rounded-3xl glass-panel overflow-hidden">
+            <div className="lg:col-span-6 h-[420px] rounded-3xl glass-panel overflow-hidden">
               <MetallicCubes3D />
             </div>
 
             <div className="lg:col-span-6 space-y-4">
               {[
-                { symbol: "Au", name: "Gold (79)", yield: "280–350 g / Ton", price: "$78.40/g", bg: "bg-[#FEF9C3]", color: "text-[#C9A227]", border: "border-[#FDE047]" },
-                { symbol: "Ag", name: "Silver (47)", yield: "1,200–1,800 g / Ton", price: "$0.95/g", bg: "bg-[#F1F5F9]", color: "text-[#475569]", border: "border-[#E2E8F0]" },
-                { symbol: "Cu", name: "Copper (29)", yield: "15,000–20,000 g / Ton", price: "$0.009/g", bg: "bg-[#FFF7ED]", color: "text-[#EA580C]", border: "border-[#FED7AA]" },
-                { symbol: "Pd", name: "Palladium (46)", yield: "30–60 g / Ton", price: "$49.20/g", bg: "bg-[#EFF6FF]", color: "text-[#2563EB]", border: "border-[#BFDBFE]" },
+                { symbol: "Au", name: "Gold (79)", yield: "280–350 g / Ton e-waste", price: "$78.40/g", bg: "bg-[#FEF9C3]", color: "text-[#C9A227]", border: "border-[#FDE047]" },
+                { symbol: "Ag", name: "Silver (47)", yield: "1,200–1,800 g / Ton e-waste", price: "$0.95/g", bg: "bg-[#F1F5F9]", color: "text-[#475569]", border: "border-[#E2E8F0]" },
+                { symbol: "Cu", name: "Copper (29)", yield: "15,000–20,000 g / Ton e-waste", price: "$0.009/g", bg: "bg-[#FFF7ED]", color: "text-[#EA580C]", border: "border-[#FED7AA]" },
+                { symbol: "Pd", name: "Palladium (46)", yield: "30–60 g / Ton e-waste", price: "$49.20/g", bg: "bg-[#EFF6FF]", color: "text-[#2563EB]", border: "border-[#BFDBFE]" },
               ].map((metal) => (
                 <div key={metal.symbol} className="glass-card p-5 hover:border-[#2563EB]/30 transition-all duration-200 flex items-center gap-4">
                   <div className={`w-12 h-12 rounded-2xl ${metal.bg} border ${metal.border} flex items-center justify-center font-mono font-extrabold text-lg ${metal.color} flex-shrink-0 shadow-sm`}>
