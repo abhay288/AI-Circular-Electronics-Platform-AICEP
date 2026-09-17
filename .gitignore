@@ -32,3 +32,8 @@ next-env.d.ts
 # OS generated files
 .DS_Store
 Thumbs.db
+
+# python
+backend/venv/
+backend/__pycache__/
+*.pyc
