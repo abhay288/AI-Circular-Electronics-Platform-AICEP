@@ -1,10 +1,7 @@
 import mongoose from "mongoose";
 
-const MONGODB_URI = process.env.MONGODB_URI || "mongodb://localhost:27017/eco_intel";
+// MONGODB_URI is now evaluated inside connectToDatabase
 
-if (!MONGODB_URI) {
-  throw new Error("Please define the MONGODB_URI environment variable inside .env.local");
-}
 
 interface MongooseCache {
   conn: typeof mongoose | null;
@@ -23,6 +20,12 @@ if (!cached) {
 }
 
 export async function connectToDatabase() {
+  const MONGODB_URI = process.env.MONGODB_URI || "mongodb://localhost:27017/eco_intel";
+
+  if (!MONGODB_URI) {
+    throw new Error("Please define the MONGODB_URI environment variable inside .env.local");
+  }
+
   if (cached?.conn) {
     return cached.conn;
   }

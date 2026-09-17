@@ -7,6 +7,8 @@ export interface IUser extends Document {
   organization?: string;
   apiKey?: string;
   walletAddress?: string;
+  location?: string;
+  verificationStatus?: "pending" | "verified" | "rejected";
   createdAt: Date;
   updatedAt: Date;
 }
@@ -23,6 +25,12 @@ const UserSchema: Schema<IUser> = new Schema(
     organization: { type: String },
     apiKey: { type: String, unique: true, sparse: true },
     walletAddress: { type: String },
+    location: { type: String },
+    verificationStatus: {
+      type: String,
+      enum: ["pending", "verified", "rejected"],
+      default: "pending",
+    },
   },
   { timestamps: true }
 );

@@ -1,9 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
+import { connectToDatabase } from "@/lib/db/mongodb";
+import { Component } from "@/lib/db/models/Component";
 
 export async function POST(req: NextRequest) {
   try {
+    await connectToDatabase();
     const body = await req.json();
-    const { pcbWeightKg = 1.0 } = body;
+    const { pcbWeightKg = 1.0, componentId } = body;
 
     const goldGrams = +(pcbWeightKg * 0.32).toFixed(2);
     const silverGrams = +(pcbWeightKg * 1.5).toFixed(2);
@@ -16,6 +19,18 @@ export async function POST(req: NextRequest) {
     const palladiumValue = +(palladiumGrams * 49.20).toFixed(2);
 
     const totalValueUSD = +(goldValue + silverValue + copperValue + palladiumValue).toFixed(2);
+
+    if (componentId) {
+      await Component.findByIdAndUpdate(componentId, {
+        materials: {
+          goldGrams,
+          silverGrams,
+          copperGrams,
+          palladiumGrams,
+          estimatedRecoveryValueUSD: totalValueUSD
+        }
+      });
+    }
 
     return NextResponse.json({
       success: true,

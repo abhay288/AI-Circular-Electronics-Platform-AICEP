@@ -1,47 +1,33 @@
 import { NextRequest, NextResponse } from "next/server";
+import { connectToDatabase } from "@/lib/db/mongodb";
+import { MarketplaceListing } from "@/lib/db/models/MarketplaceListing";
+import "@/lib/db/models/User"; // Ensure User model is loaded for population
+import "@/lib/db/models/Component"; // Ensure Component model is loaded for population
 
 export async function GET(req: NextRequest) {
   try {
-    const listings = [
-      {
-        id: "mkt_capsule_01",
-        title: "ATmega328P Microcontroller (Batch of 50)",
-        healthGrade: "A+",
-        remainingYears: 6.4,
-        priceUSD: 142.5,
-        polygonTokenId: "98421",
-        seller: "TerraCycle E-Waste Lab",
-        location: "Tokyo, Japan",
-        verifiedPassport: true,
-        image: "/images/marketplace/microchip_capsule.png",
-      },
-      {
-        id: "mkt_capsule_02",
-        title: "LM358 Dual Operational Amplifiers (Batch of 100)",
-        healthGrade: "A",
-        remainingYears: 5.2,
-        priceUSD: 85.0,
-        polygonTokenId: "98422",
-        seller: "LUMAFUSE Systems",
-        location: "Berlin, Germany",
-        verifiedPassport: true,
-        image: "/images/marketplace/opamp_capsule.png",
-      },
-      {
-        id: "mkt_capsule_03",
-        title: "Solid Polymer Capacitors 220uF (Batch of 200)",
-        healthGrade: "A+",
-        remainingYears: 8.0,
-        priceUSD: 64.0,
-        polygonTokenId: "98423",
-        seller: "ReMaterials Corp",
-        location: "Austin, TX, USA",
-        verifiedPassport: true,
-        image: "/images/marketplace/capacitor_capsule.png",
-      },
-    ];
+    await connectToDatabase();
 
-    return NextResponse.json({ success: true, count: listings.length, listings });
+    const listings = await MarketplaceListing.find({ status: "active" })
+      .populate("sellerId", "name location")
+      .populate("componentId", "healthScore remainingLifespanHours")
+      .lean();
+
+    // Transform data to match existing frontend expectations
+    const formattedListings = listings.map((listing: any) => ({
+      id: listing.listingId,
+      title: listing.title,
+      healthGrade: listing.componentId?.healthScore > 90 ? "A+" : "A",
+      remainingYears: listing.componentId?.remainingLifespanHours ? parseFloat((listing.componentId.remainingLifespanHours / 8760).toFixed(1)) : 0,
+      priceUSD: listing.priceUSD,
+      polygonTokenId: listing.blockchainTxHash || "N/A",
+      seller: listing.sellerId?.name || "Unknown Seller",
+      location: listing.sellerId?.location || "Unknown Location",
+      verifiedPassport: !!listing.passportId,
+      image: listing.capsulePreviewUrl || "/images/marketplace/default.png",
+    }));
+
+    return NextResponse.json({ success: true, count: formattedListings.length, listings: formattedListings });
   } catch (error: any) {
     return NextResponse.json({ error: error.message || "Marketplace listing fetch error" }, { status: 500 });
   }
