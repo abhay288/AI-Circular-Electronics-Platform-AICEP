@@ -1,9 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
+import { connectToDatabase } from "@/lib/db/mongodb";
+import { Component } from "@/lib/db/models/Component";
 
 export async function POST(req: NextRequest) {
   try {
+    await connectToDatabase();
     const body = await req.json();
-    const { componentType, ageYears, operatingTemp, voltage, cycles } = body;
+    const { componentId, componentType, ageYears, operatingTemp, voltage, cycles } = body;
 
     const baseHours = 60000;
     const tempFactor = Math.max(0.2, 1 - (operatingTemp || 45) / 120);
@@ -13,6 +16,14 @@ export async function POST(req: NextRequest) {
     const predictedHours = Math.round(baseHours * tempFactor * voltageFactor * cyclesFactor);
     const predictedYears = +(predictedHours / 8760).toFixed(1);
     const healthScore = Math.min(100, Math.round((predictedHours / baseHours) * 100));
+
+    if (componentId) {
+      // Find component and update its RUL and health
+      await Component.findByIdAndUpdate(componentId, {
+        remainingUsefulLifeHours: predictedHours,
+        healthScore: healthScore
+      });
+    }
 
     return NextResponse.json({
       success: true,
