@@ -51,7 +51,7 @@ export default function RepairPage() {
                     Solder joints intact. Zero thermal stress cracks detected. Component certified for direct reuse in secondary electronics manufacturing.
                   </p>
                   <div className="pt-2 flex justify-between text-xs font-mono">
-                    <span className="text-[#64748B]">Estimated Cost: $0.00</span>
+                    <span className="text-[#64748B]">Estimated Cost: ₹0.00</span>
                     <span className="text-[#16A34A] font-bold">14.2 kg CO₂ Saved</span>
                   </div>
                 </div>
@@ -66,7 +66,7 @@ export default function RepairPage() {
                     Mild micro-cracks on Pin 14 solder pad. Thermal reflow at 240°C for 45 seconds will restore full electrical connectivity.
                   </p>
                   <div className="pt-2 flex justify-between text-xs font-mono">
-                    <span className="text-[#64748B]">Estimated Cost: $14.50</span>
+                    <span className="text-[#64748B]">Estimated Cost: ₹1,250</span>
                     <span className="text-[#2563EB] font-bold">18.6 kg CO₂ Saved</span>
                   </div>
                 </div>

@@ -11,13 +11,13 @@ export default function MetalsPage() {
   const [pcbWeight, setPcbWeight] = useState(10); // 10 kg e-waste batch
 
   const metalsData = [
-    { symbol: "Au", name: "Gold (79)", rateUSD: 78.40, yieldKg: +(pcbWeight * 0.00032).toFixed(4), valueUSD: +(pcbWeight * 0.32 * 78.40).toFixed(2), bg: "bg-[#FEF9C3]", color: "text-[#C9A227]" },
-    { symbol: "Ag", name: "Silver (47)", rateUSD: 0.95, yieldKg: +(pcbWeight * 0.0015).toFixed(4), valueUSD: +(pcbWeight * 1.5 * 0.95).toFixed(2), bg: "bg-[#F1F5F9]", color: "text-[#475569]" },
-    { symbol: "Cu", name: "Copper (29)", rateUSD: 0.009, yieldKg: +(pcbWeight * 0.018).toFixed(4), valueUSD: +(pcbWeight * 18 * 0.009).toFixed(2), bg: "bg-[#FFF7ED]", color: "text-[#EA580C]" },
-    { symbol: "Pd", name: "Palladium (46)", rateUSD: 49.20, yieldKg: +(pcbWeight * 0.000045).toFixed(5), valueUSD: +(pcbWeight * 0.045 * 49.20).toFixed(2), bg: "bg-[#EFF6FF]", color: "text-[#2563EB]" },
+    { symbol: "Au", name: "Gold (79)", rateINR: 6780, yieldKg: +(pcbWeight * 0.00032).toFixed(4), valueINR: Math.round(pcbWeight * 0.32 * 6780), bg: "bg-[#FEF9C3]", color: "text-[#C9A227]" },
+    { symbol: "Ag", name: "Silver (47)", rateINR: 82, yieldKg: +(pcbWeight * 0.0015).toFixed(4), valueINR: Math.round(pcbWeight * 1.5 * 82), bg: "bg-[#F1F5F9]", color: "text-[#475569]" },
+    { symbol: "Cu", name: "Copper (29)", rateINR: 0.78, yieldKg: +(pcbWeight * 0.018).toFixed(4), valueINR: Math.round(pcbWeight * 18 * 0.78), bg: "bg-[#FFF7ED]", color: "text-[#EA580C]" },
+    { symbol: "Pd", name: "Palladium (46)", rateINR: 4255, yieldKg: +(pcbWeight * 0.000045).toFixed(5), valueINR: Math.round(pcbWeight * 0.045 * 4255), bg: "bg-[#EFF6FF]", color: "text-[#2563EB]" },
   ];
 
-  const totalBatchValue = metalsData.reduce((acc, m) => acc + m.valueUSD, 0).toFixed(2);
+  const totalBatchValue = metalsData.reduce((acc, m) => acc + m.valueINR, 0).toLocaleString("en-IN");
 
   return (
     <main className="relative flex flex-col min-h-screen bg-[#F1F5F9]">
@@ -55,7 +55,7 @@ export default function MetalsPage() {
             <div className="lg:col-span-6 glass-card p-8 space-y-6">
               <div className="flex items-center justify-between">
                 <span className="font-mono text-xs font-bold text-[#D97706]">E-WASTE BATCH WEIGHT CALCULATOR</span>
-                <TechBadge label={`$${totalBatchValue} Total Yield`} variant="blue" />
+                <TechBadge label={`₹${totalBatchValue} Total Yield`} variant="blue" />
               </div>
 
               {/* Weight Slider */}
@@ -87,7 +87,7 @@ export default function MetalsPage() {
                         <span className="text-[10px] font-mono text-[#64748B]">{m.yieldKg} kg recoverable</span>
                       </div>
                     </div>
-                    <span className={`font-mono font-extrabold text-sm ${m.color}`}>${m.valueUSD}</span>
+                    <span className={`font-mono font-extrabold text-sm ${m.color}`}>₹{m.valueINR.toLocaleString("en-IN")}</span>
                   </div>
                 ))}
               </div>

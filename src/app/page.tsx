@@ -121,7 +121,7 @@ export default function Home() {
       desc: "Urban mining spectrometry estimates Gold, Silver, Copper, and Palladium yields.",
       icon: Coins,
       badge: "URBAN MINING",
-      detail: "Optical emission spectrometry quantifies precious metal yields ($78.40/g Gold) before pyrometallurgical recovery.",
+      detail: "Optical emission spectrometry quantifies precious metal yields (₹6,780/g Gold) before pyrometallurgical recovery.",
     },
     {
       step: "07",
@@ -181,7 +181,7 @@ export default function Home() {
       title: "Precious Metal Intelligence",
       desc: "Estimate recoverable Gold, Silver, Copper, and Palladium yields from e-waste before pyrometallurgical processing.",
       href: "/platform/metals",
-      stat: "$78.40/g Gold Value",
+      stat: "₹6,780/g Gold Value",
       icon: Coins,
     },
     {
@@ -317,7 +317,7 @@ export default function Home() {
                   <FloatingBadge
                     icon={<Coins className="w-4 h-4 text-[#D97706]" />}
                     label="Metal Value"
-                    value="$18.70"
+                    value="₹1,617"
                     variant="gold"
                   />
                 </div>
@@ -551,10 +551,10 @@ export default function Home() {
 
             <div className="lg:col-span-6 space-y-4">
               {[
-                { symbol: "Au", name: "Gold (79)", yield: "280–350 g / Ton e-waste", price: "$78.40/g", bg: "bg-[#FEF9C3]", color: "text-[#C9A227]", border: "border-[#FDE047]" },
-                { symbol: "Ag", name: "Silver (47)", yield: "1,200–1,800 g / Ton e-waste", price: "$0.95/g", bg: "bg-[#F1F5F9]", color: "text-[#475569]", border: "border-[#E2E8F0]" },
-                { symbol: "Cu", name: "Copper (29)", yield: "15,000–20,000 g / Ton e-waste", price: "$0.009/g", bg: "bg-[#FFF7ED]", color: "text-[#EA580C]", border: "border-[#FED7AA]" },
-                { symbol: "Pd", name: "Palladium (46)", yield: "30–60 g / Ton e-waste", price: "$49.20/g", bg: "bg-[#EFF6FF]", color: "text-[#2563EB]", border: "border-[#BFDBFE]" },
+                { symbol: "Au", name: "Gold (79)", yield: "280–350 g / Ton e-waste", price: "₹6,780/g", bg: "bg-[#FEF9C3]", color: "text-[#C9A227]", border: "border-[#FDE047]" },
+                { symbol: "Ag", name: "Silver (47)", yield: "1,200–1,800 g / Ton e-waste", price: "₹82/g", bg: "bg-[#F1F5F9]", color: "text-[#475569]", border: "border-[#E2E8F0]" },
+                { symbol: "Cu", name: "Copper (29)", yield: "15,000–20,000 g / Ton e-waste", price: "₹0.78/g", bg: "bg-[#FFF7ED]", color: "text-[#EA580C]", border: "border-[#FED7AA]" },
+                { symbol: "Pd", name: "Palladium (46)", yield: "30–60 g / Ton e-waste", price: "₹4,255/g", bg: "bg-[#EFF6FF]", color: "text-[#2563EB]", border: "border-[#BFDBFE]" },
               ].map((metal) => (
                 <div key={metal.symbol} className="glass-card p-5 hover:border-[#2563EB]/30 transition-all duration-200 flex items-center gap-4">
                   <div className={`w-12 h-12 rounded-2xl ${metal.bg} border ${metal.border} flex items-center justify-center font-mono font-extrabold text-lg ${metal.color} flex-shrink-0 shadow-sm`}>
