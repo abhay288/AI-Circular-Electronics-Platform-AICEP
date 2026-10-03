@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, Suspense } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
@@ -19,14 +19,14 @@ import {
 } from "lucide-react";
 import { useAnalysisSession } from "@/lib/context/AnalysisSessionContext";
 
-export default function ReadyForAnalysisPage() {
+function ReadyForAnalysisContent() {
   const router = useRouter();
   const { session, setActiveStep } = useAnalysisSession();
   const [isValidating, setIsValidating] = useState(false);
 
   const handleStartAnalysis = () => {
     setActiveStep(2);
-    router.push("/console/processing");
+    router.push(`/console/processing?analysisId=${encodeURIComponent(session.id)}`);
   };
 
   const validationChecks = [
@@ -188,5 +188,20 @@ export default function ReadyForAnalysisPage() {
       </div>
 
     </div>
+  );
+}
+
+export default function ReadyForAnalysisPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex-1 py-16 flex flex-col items-center justify-center">
+          <div className="w-10 h-10 rounded-full border-2 border-[#2563EB] border-t-transparent animate-spin mb-3" />
+          <span className="font-mono text-xs font-bold text-[#0F172A]">Loading Pre-Flight Verification...</span>
+        </div>
+      }
+    >
+      <ReadyForAnalysisContent />
+    </Suspense>
   );
 }

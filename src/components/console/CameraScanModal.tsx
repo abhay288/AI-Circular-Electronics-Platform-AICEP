@@ -139,7 +139,7 @@ export default function CameraScanModal({ isOpen, onClose }: CameraScanModalProp
     stopCamera();
     onClose();
     setActiveStep(2);
-    router.push("/console/analyze");
+    router.push("/console/processing");
   };
 
   if (!isOpen) return null;

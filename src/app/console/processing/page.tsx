@@ -1,8 +1,8 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, Suspense } from "react";
 import dynamic from "next/dynamic";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   Cpu,
   CheckCircle2,
@@ -21,6 +21,7 @@ import {
   RotateCcw,
 } from "lucide-react";
 import { useAnalysisSession } from "@/lib/context/AnalysisSessionContext";
+import { analysisService } from "@/lib/services/analysisService";
 
 const ProcessingPcb3D = dynamic(
   () => import("@/components/3d/ProcessingPcb3D"),
@@ -37,8 +38,11 @@ const ProcessingPcb3D = dynamic(
   }
 );
 
-export default function ConsoleProcessingPage() {
+function ConsoleProcessingContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const queryAnalysisId = searchParams.get("analysisId") || searchParams.get("sessionId");
+
   const { session, runAnalysis, setActiveStep, isAnalyzing, liveDetections } =
     useAnalysisSession();
 
@@ -60,6 +64,8 @@ export default function ConsoleProcessingPage() {
     { num: "09", name: "Scope 3 ESG & Carbon Life-Cycle Analysis", icon: Leaf },
   ];
 
+  const sessionId = queryAnalysisId || session.id || "ECI-2026-7740";
+
   useEffect(() => {
     let isMounted = true;
 
@@ -74,7 +80,7 @@ export default function ConsoleProcessingPage() {
         // Automatically route to results after brief delay
         setTimeout(() => {
           setActiveStep(3);
-          router.push("/console/results");
+          router.push(`/console/results?analysisId=${encodeURIComponent(sessionId)}`);
         }, 1200);
       }
     });
@@ -120,7 +126,7 @@ export default function ConsoleProcessingPage() {
         <div className="flex items-center gap-4 p-3 rounded-2xl bg-white border border-[#E2E8F0] shadow-sm">
           <div className="text-right">
             <p className="text-[10px] font-mono text-[#64748B] uppercase">Session Stream</p>
-            <p className="font-mono text-sm font-bold text-[#0F172A]">#{session.sessionId}</p>
+            <p className="font-mono text-sm font-bold text-[#0F172A]">#{sessionId}</p>
           </div>
           <div className="h-8 w-px bg-[#E2E8F0]" />
           <div className="text-right">
@@ -309,14 +315,14 @@ export default function ConsoleProcessingPage() {
               )}
             </div>
 
-            {/* Direct Bypass Button if user wants to immediately view results */}
+            {/* Direct Bypass Button */}
             <div className="pt-2">
               <button
                 onClick={() => {
                   setActiveStep(3);
-                  router.push("/console/results");
+                  router.push(`/console/results?analysisId=${encodeURIComponent(sessionId)}`);
                 }}
-                className="w-full py-2.5 px-4 rounded-xl bg-[#F1F5F9] hover:bg-[#2563EB] text-[#475569] hover:text-white text-xs font-semibold font-mono transition-colors flex items-center justify-center gap-2"
+                className="w-full py-2.5 px-4 rounded-xl bg-[#F1F5F9] hover:bg-[#2563EB] text-[#475569] hover:text-white text-xs font-semibold font-mono transition-colors flex items-center justify-center gap-2 cursor-pointer"
               >
                 <span>View Full Results Overview</span>
                 <ArrowRight className="w-3.5 h-3.5" />
@@ -329,5 +335,20 @@ export default function ConsoleProcessingPage() {
       </div>
 
     </div>
+  );
+}
+
+export default function ConsoleProcessingPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex-1 py-16 flex flex-col items-center justify-center">
+          <div className="w-10 h-10 rounded-full border-2 border-[#2563EB] border-t-transparent animate-spin mb-3" />
+          <span className="font-mono text-xs font-bold text-[#0F172A]">Initializing Neural Inference...</span>
+        </div>
+      }
+    >
+      <ConsoleProcessingContent />
+    </Suspense>
   );
 }

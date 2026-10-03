@@ -44,7 +44,7 @@ const InspectionScanner3D = dynamic(
 
 export default function ConsoleCapturePage() {
   const router = useRouter();
-  const { loadSample, setImageUpload, setActiveStep } = useAnalysisSession();
+  const { session, loadSample, setImageUpload, setActiveStep } = useAnalysisSession();
 
   const [isCameraModalOpen, setIsCameraModalOpen] = useState(false);
   const [dragOver, setDragOver] = useState(false);
@@ -86,13 +86,13 @@ export default function ConsoleCapturePage() {
   const handleAnalyzeUpload = () => {
     if (!selectedFile) return;
     setActiveStep(2);
-    router.push("/console/analyze");
+    router.push(`/console/processing?analysisId=${encodeURIComponent(session.id)}`);
   };
 
   const handleSelectSample = (sampleId: string) => {
     loadSample(sampleId);
     setActiveStep(2);
-    router.push("/console/analyze");
+    router.push(`/console/processing?analysisId=${encodeURIComponent(sampleId)}`);
   };
 
   const whatWeAnalyze = [

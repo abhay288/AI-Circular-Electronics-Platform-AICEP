@@ -1,185 +1,130 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect } from "react";
-import { SAMPLE_DATASETS, SampleDataset } from "@/lib/data/sampleDatasets";
-
-export interface AnalysisSessionState {
-  sessionId: string;
-  deviceName: string;
-  deviceType: string;
-  sourceType: "upload" | "camera" | "sample";
-  sampleId?: string;
-  image: string;
-  imageQuality?: {
-    quality: "good" | "acceptable" | "poor";
-    resolution: string;
-    lightingScore: number;
-    visibilityPercent: number;
-    estimatedComponentsVisible: number;
-  };
-  status: "draft" | "ready" | "processing" | "completed" | "failed";
-  dataClassification: "measured" | "detected" | "predicted" | "estimated" | "simulated" | "sample";
-  detectionResult?: any;
-  reconstructionResult?: any;
-  rulResult?: any;
-  metalResult?: any;
-  repairResult?: any;
-  passportId?: string;
-  passportResult?: any;
-  carbonResult?: any;
-  reportId?: string;
-  executiveSummary?: {
-    overallHealthPercent: number;
-    classification: string;
-    potentialValueUSD: number;
-    estimatedRemainingLifeYears: number;
-    componentsDetectedCount: number;
-    recommendedAction: string;
-  };
-  createdAt: string;
-  updatedAt: string;
-}
+import { SAMPLE_DATASETS } from "@/lib/data/sampleDatasets";
+import {
+  AnalysisSession,
+  AnalysisStatus,
+  DetectedComponent,
+  DataClassification,
+} from "@/lib/types/analysis";
+import {
+  analysisService,
+  defaultRouterSession,
+  convertSampleToSession,
+} from "@/lib/services/analysisService";
 
 interface AnalysisContextType {
-  session: AnalysisSessionState;
+  session: AnalysisSession;
   activeStep: number;
   setActiveStep: (step: number) => void;
   resultsTab: string;
   setResultsTab: (tab: string) => void;
   isAnalyzing: boolean;
   pipelineStep: number;
-  liveDetections: any[];
-  selectedComponent: any | null;
-  setSelectedComponent: (comp: any | null) => void;
+  liveDetections: DetectedComponent[];
+  selectedComponent: DetectedComponent | null;
+  setSelectedComponent: (comp: DetectedComponent | null) => void;
   loadSample: (sampleId: string) => void;
+  loadSessionById: (sessionId: string) => Promise<void>;
   setImageUpload: (previewUrl: string, name: string, sizeBytes: number, dims?: string) => void;
   setCameraCapture: (dataUrl: string, qualityInfo?: any) => void;
   runAnalysis: (onStepProgress?: (step: number) => void) => Promise<void>;
-  updateRulSimulation: (params: { temp: number; voltage: number; cycles: number; age: number }) => void;
+  updateRulSimulation: (params: { temp: number; voltage: number; cycles: number; age: number; wear?: number }) => void;
   resetSession: () => void;
   isMarketplaceModalOpen: boolean;
   setIsMarketplaceModalOpen: (open: boolean) => void;
-  marketplaceComponent: any | null;
-  openMarketplaceListing: (component?: any) => void;
+  marketplaceComponent: DetectedComponent | null;
+  openMarketplaceListing: (component?: DetectedComponent | null) => void;
 }
-
-const defaultInitialSample = SAMPLE_DATASETS["laptop-motherboard"];
-
-const defaultSession: AnalysisSessionState = {
-  sessionId: "ECI-2026-8941",
-  deviceName: defaultInitialSample.name,
-  deviceType: defaultInitialSample.deviceType,
-  sourceType: "sample",
-  sampleId: defaultInitialSample.id,
-  image: defaultInitialSample.image,
-  imageQuality: {
-    quality: "good",
-    resolution: "2400 x 1600 px",
-    lightingScore: 98,
-    visibilityPercent: 96,
-    estimatedComponentsVisible: defaultInitialSample.componentCount,
-  },
-  status: "draft",
-  dataClassification: "sample",
-  detectionResult: defaultInitialSample.detection,
-  reconstructionResult: defaultInitialSample.reconstruction,
-  rulResult: defaultInitialSample.rul,
-  metalResult: defaultInitialSample.metals,
-  repairResult: defaultInitialSample.repair,
-  passportId: defaultInitialSample.passport.passportId,
-  passportResult: defaultInitialSample.passport,
-  carbonResult: defaultInitialSample.carbon,
-  reportId: `REP-${defaultInitialSample.id}-2026`,
-  executiveSummary: defaultInitialSample.executiveSummary,
-  createdAt: new Date().toISOString(),
-  updatedAt: new Date().toISOString(),
-};
 
 const AnalysisContext = createContext<AnalysisContextType | null>(null);
 
 const STORAGE_KEY = "ecointel_active_analysis_session_v2";
 
 export function AnalysisSessionProvider({ children }: { children: React.ReactNode }) {
-  const [session, setSession] = useState<AnalysisSessionState>(defaultSession);
-  const [activeStep, setActiveStep] = useState<number>(1);
-  const [resultsTab, setResultsTab] = useState<string>("inventory");
+  const [session, setSession] = useState<AnalysisSession>(defaultRouterSession);
+  const [activeStep, setActiveStep] = useState<number>(3);
+  const [resultsTab, setResultsTab] = useState<string>("overview");
   const [isAnalyzing, setIsAnalyzing] = useState<boolean>(false);
   const [pipelineStep, setPipelineStep] = useState<number>(0);
-  const [liveDetections, setLiveDetections] = useState<any[]>([]);
-  const [selectedComponent, setSelectedComponent] = useState<any | null>(null);
+  const [liveDetections, setLiveDetections] = useState<DetectedComponent[]>([]);
+  const [selectedComponent, setSelectedComponent] = useState<DetectedComponent | null>(
+    defaultRouterSession.detection.components[0] || null
+  );
   const [isMarketplaceModalOpen, setIsMarketplaceModalOpen] = useState<boolean>(false);
-  const [marketplaceComponent, setMarketplaceComponent] = useState<any | null>(null);
+  const [marketplaceComponent, setMarketplaceComponent] = useState<DetectedComponent | null>(null);
 
-  // Initialize from localStorage or fallback
+  // Initialize from URL search param or localStorage on mount
   useEffect(() => {
     try {
-      const stored = localStorage.getItem(STORAGE_KEY);
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        if (parsed && parsed.sessionId) {
-          setSession(parsed);
-          if (parsed.detectionResult?.components?.length > 0) {
-            setSelectedComponent(parsed.detectionResult.components[0]);
+      if (typeof window !== "undefined") {
+        const urlParams = new URLSearchParams(window.location.search);
+        const queryId = urlParams.get("analysisId") || urlParams.get("sessionId");
+
+        if (queryId) {
+          analysisService.getSession(queryId).then((sess) => {
+            if (sess) {
+              setSession(sess);
+              if (sess.detection?.components?.length > 0) {
+                setSelectedComponent(sess.detection.components[0]);
+              }
+            }
+          });
+          return;
+        }
+
+        const stored = localStorage.getItem(STORAGE_KEY);
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (parsed && (parsed.id || parsed.sessionId)) {
+            // Normalize session structure if needed
+            const normalizedSession: AnalysisSession = {
+              ...defaultRouterSession,
+              ...parsed,
+              id: parsed.id || parsed.sessionId,
+              sessionId: parsed.id || parsed.sessionId,
+              detection: parsed.detection || parsed.detectionResult || defaultRouterSession.detection,
+              pcbAnalysis: parsed.pcbAnalysis || parsed.reconstructionResult || defaultRouterSession.pcbAnalysis,
+              rulPrediction: parsed.rulPrediction || parsed.rulResult || defaultRouterSession.rulPrediction,
+              materialRecovery: parsed.materialRecovery || parsed.metalResult || defaultRouterSession.materialRecovery,
+              repairAssessment: parsed.repairAssessment || parsed.repairResult || defaultRouterSession.repairAssessment,
+              passport: parsed.passport || parsed.passportResult || defaultRouterSession.passport,
+              carbonImpact: parsed.carbonImpact || parsed.carbonResult || defaultRouterSession.carbonImpact,
+              report: parsed.report || { reportId: `REP-${parsed.id || parsed.sessionId}`, isReady: true, generatedAt: new Date().toISOString(), version: "2.4.0" },
+              executiveSummary: parsed.executiveSummary || defaultRouterSession.executiveSummary,
+            };
+            setSession(normalizedSession);
+            if (normalizedSession.detection?.components?.length > 0) {
+              setSelectedComponent(normalizedSession.detection.components[0]);
+            }
           }
         }
-      } else {
-        setSelectedComponent(defaultInitialSample.detection.components[0]);
       }
     } catch (e) {
-      console.warn("Could not load stored session:", e);
+      console.warn("Could not restore stored session:", e);
     }
   }, []);
 
-  // Save changes to localStorage and optionally sync to /api/sessions
-  const persistSession = (newSession: AnalysisSessionState) => {
+  const persistSession = (newSession: AnalysisSession) => {
     setSession(newSession);
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(newSession));
-    } catch (e) {
-      console.warn("Storage write error:", e);
-    }
+    analysisService.saveSession(newSession);
+  };
 
-    // Background sync to MongoDB API
-    fetch("/api/sessions", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(newSession),
-    }).catch((err) => console.warn("Background session sync warning:", err));
+  const loadSessionById = async (sessionId: string) => {
+    const fetched = await analysisService.getSession(sessionId);
+    if (fetched) {
+      setSession(fetched);
+      if (fetched.detection?.components?.length > 0) {
+        setSelectedComponent(fetched.detection.components[0]);
+      }
+    }
   };
 
   const loadSample = (sampleId: string) => {
-    const dataset = SAMPLE_DATASETS[sampleId] || SAMPLE_DATASETS["laptop-motherboard"];
-    const newSession: AnalysisSessionState = {
-      sessionId: `ECI-2026-${Math.floor(1000 + Math.random() * 9000)}`,
-      deviceName: dataset.name,
-      deviceType: dataset.deviceType,
-      sourceType: "sample",
-      sampleId: dataset.id,
-      image: dataset.image,
-      imageQuality: {
-        quality: "good",
-        resolution: "2400 x 1600 px",
-        lightingScore: 98,
-        visibilityPercent: 97,
-        estimatedComponentsVisible: dataset.componentCount,
-      },
-      status: "ready",
-      dataClassification: "sample",
-      detectionResult: dataset.detection,
-      reconstructionResult: dataset.reconstruction,
-      rulResult: dataset.rul,
-      metalResult: dataset.metals,
-      repairResult: dataset.repair,
-      passportId: dataset.passport.passportId,
-      passportResult: dataset.passport,
-      carbonResult: dataset.carbon,
-      reportId: `REP-${dataset.id}-2026`,
-      executiveSummary: dataset.executiveSummary,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
-
-    setSelectedComponent(dataset.detection.components[0] || null);
+    const dataset = SAMPLE_DATASETS[sampleId] || SAMPLE_DATASETS["router-board"] || SAMPLE_DATASETS["laptop-motherboard"];
+    const newSession = convertSampleToSession(dataset, "COMPLETED");
+    setSelectedComponent(newSession.detection.components[0] || null);
     persistSession(newSession);
   };
 
@@ -189,81 +134,75 @@ export function AnalysisSessionProvider({ children }: { children: React.ReactNod
     sizeBytes: number,
     dims = "3024 x 4032 px"
   ) => {
-    const mbSize = (sizeBytes / (1024 * 1024)).toFixed(2);
-    const newSession: AnalysisSessionState = {
-      sessionId: `ECI-2026-${Math.floor(1000 + Math.random() * 9000)}`,
+    const routerSample = SAMPLE_DATASETS["router-board"] || SAMPLE_DATASETS["laptop-motherboard"];
+    const id = `ECI-2026-${Math.floor(1000 + Math.random() * 9000)}`;
+    const baseSession = convertSampleToSession(routerSample, "CAPTURED", id);
+
+    const newSession: AnalysisSession = {
+      ...baseSession,
+      id,
+      sessionId: id,
       deviceName: name.replace(/\.[^/.]+$/, ""),
       deviceType: "Electronic Circuit Assembly (PCB)",
       sourceType: "upload",
+      imageUrl: previewUrl,
       image: previewUrl,
+      dataClassification: "detected",
+      status: "CAPTURED",
       imageQuality: {
         quality: "good",
         resolution: dims,
         lightingScore: 94,
         visibilityPercent: 92,
-        estimatedComponentsVisible: 36,
+        estimatedComponentsVisible: 38,
       },
-      status: "ready",
-      dataClassification: "detected",
-      // Synthesize starting analysis data
-      detectionResult: {
-        ...defaultInitialSample.detection,
-        componentsCount: 36,
+      report: {
+        ...baseSession.report,
+        reportId: `REP-UPL-${Date.now()}`,
+        isReady: false,
       },
-      reconstructionResult: defaultInitialSample.reconstruction,
-      rulResult: defaultInitialSample.rul,
-      metalResult: defaultInitialSample.metals,
-      repairResult: defaultInitialSample.repair,
-      passportId: `ECO-PASSPORT-2026-${Math.floor(1000 + Math.random() * 9000)}`,
-      passportResult: {
-        ...defaultInitialSample.passport,
-        passportId: `ECO-PASSPORT-2026-${Math.floor(1000 + Math.random() * 9000)}`,
-        blockchainStatus: "Passport Ready",
-      },
-      carbonResult: defaultInitialSample.carbon,
       reportId: `REP-UPL-${Date.now()}`,
-      executiveSummary: {
-        ...defaultInitialSample.executiveSummary,
-        componentsDetectedCount: 36,
-      },
-      createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
 
     persistSession(newSession);
+    setSelectedComponent(newSession.detection.components[0] || null);
   };
 
   const setCameraCapture = (dataUrl: string, qualityInfo?: any) => {
-    const newSession: AnalysisSessionState = {
-      sessionId: `ECI-2026-${Math.floor(1000 + Math.random() * 9000)}`,
+    const routerSample = SAMPLE_DATASETS["router-board"] || SAMPLE_DATASETS["laptop-motherboard"];
+    const id = `ECI-2026-${Math.floor(1000 + Math.random() * 9000)}`;
+    const baseSession = convertSampleToSession(routerSample, "CAPTURED", id);
+
+    const newSession: AnalysisSession = {
+      ...baseSession,
+      id,
+      sessionId: id,
       deviceName: "Realtime Optical Camera Ingest",
       deviceType: "High-Resolution PCB Scan",
       sourceType: "camera",
+      imageUrl: dataUrl,
       image: dataUrl,
+      dataClassification: "measured",
+      status: "CAPTURED",
       imageQuality: qualityInfo || {
         quality: "good",
         resolution: "1920 x 1080 px",
         lightingScore: 92,
         visibilityPercent: 94,
-        estimatedComponentsVisible: 40,
+        estimatedComponentsVisible: 38,
       },
-      status: "ready",
-      dataClassification: "measured",
-      detectionResult: defaultInitialSample.detection,
-      reconstructionResult: defaultInitialSample.reconstruction,
-      rulResult: defaultInitialSample.rul,
-      metalResult: defaultInitialSample.metals,
-      repairResult: defaultInitialSample.repair,
-      passportId: `ECO-PASSPORT-2026-${Math.floor(1000 + Math.random() * 9000)}`,
-      passportResult: defaultInitialSample.passport,
-      carbonResult: defaultInitialSample.carbon,
+      report: {
+        ...baseSession.report,
+        reportId: `REP-CAM-${Date.now()}`,
+        isReady: false,
+      },
       reportId: `REP-CAM-${Date.now()}`,
-      executiveSummary: defaultInitialSample.executiveSummary,
-      createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
 
     persistSession(newSession);
+    setSelectedComponent(newSession.detection.components[0] || null);
   };
 
   const runAnalysis = async (onStepProgress?: (step: number) => void) => {
@@ -271,19 +210,27 @@ export function AnalysisSessionProvider({ children }: { children: React.ReactNod
     setPipelineStep(0);
     setLiveDetections([]);
 
-    const steps = [
-      "Image Acquisition & Calibration",
-      "Spectro-Spatial AI Detection (YOLOv11)",
-      "Generative CAD Reconstruction (GGNT)",
-      "Physics-Informed Health Assessment",
-      "Remaining Useful Life (RUL) Modeling",
-      "Precious Metal Recovery Estimation",
-      "Automated Diagnostic & Repair Mapping",
-      "Polygon Digital Product Passport Synthesis",
-      "Life-Cycle ESG & Carbon Accounting",
+    // Update status to PROCESSING
+    const processingSession: AnalysisSession = {
+      ...session,
+      status: "PROCESSING",
+      updatedAt: new Date().toISOString(),
+    };
+    persistSession(processingSession);
+
+    const steps: Array<{ name: string; status: AnalysisStatus }> = [
+      { name: "Image Acquisition & Calibration", status: "PROCESSING" },
+      { name: "Spectro-Spatial AI Detection (YOLOv11)", status: "DETECTION_COMPLETE" },
+      { name: "PCB Topology & Trace Reconstruction", status: "PCB_ANALYSIS_COMPLETE" },
+      { name: "Physics-Informed Health Assessment", status: "RUL_COMPLETE" },
+      { name: "Remaining Useful Life (RUL) Modeling", status: "RUL_COMPLETE" },
+      { name: "Precious Material Recovery Estimation", status: "MATERIAL_ANALYSIS_COMPLETE" },
+      { name: "Automated Diagnostic & Repair Mapping", status: "REPAIR_COMPLETE" },
+      { name: "Digital Product Passport Synthesis", status: "PASSPORT_READY" },
+      { name: "Life-Cycle ESG & Carbon Accounting", status: "REPORT_READY" },
     ];
 
-    const allComponents = session.detectionResult?.components || defaultInitialSample.detection.components;
+    const allComponents = session.detection?.components || defaultRouterSession.detection.components;
 
     for (let i = 0; i < steps.length; i++) {
       setPipelineStep(i + 1);
@@ -292,18 +239,23 @@ export function AnalysisSessionProvider({ children }: { children: React.ReactNod
       // Stream live detection cards during detection step
       if (i === 1) {
         for (let c = 0; c < allComponents.length; c++) {
-          await new Promise((res) => setTimeout(res, 350));
+          await new Promise((res) => setTimeout(res, 280));
           setLiveDetections((prev) => [...prev, allComponents[c]]);
         }
       } else {
-        await new Promise((res) => setTimeout(res, 600));
+        await new Promise((res) => setTimeout(res, 450));
       }
     }
 
-    // Finish analysis and update session status
-    const completedSession: AnalysisSessionState = {
+    // Complete session with COMPLETED status
+    const completedSession: AnalysisSession = {
       ...session,
-      status: "completed",
+      status: "COMPLETED",
+      report: {
+        ...session.report,
+        isReady: true,
+        generatedAt: new Date().toISOString(),
+      },
       updatedAt: new Date().toISOString(),
     };
 
@@ -316,21 +268,23 @@ export function AnalysisSessionProvider({ children }: { children: React.ReactNod
     voltage: number;
     cycles: number;
     age: number;
+    wear?: number;
   }) => {
-    const baseHours = 60000;
-    const tempFactor = Math.max(0.2, 1 - params.temp / 120);
-    const voltageFactor = Math.max(0.3, 1 - Math.abs(params.voltage - 3.3) / 10);
-    const cyclesFactor = Math.max(0.3, 1 - params.cycles / 50000);
-    const ageFactor = Math.max(0.2, 1 - params.age / 15);
+    const baseHours = 68000;
+    const tempFactor = Math.max(0.2, 1 - (params.temp - 25) / 100);
+    const voltageFactor = Math.max(0.3, 1 - Math.abs(params.voltage - 12.0) / 20);
+    const cyclesFactor = Math.max(0.3, 1 - params.cycles / 40000);
+    const ageFactor = Math.max(0.2, 1 - params.age / 12);
+    const wearFactor = params.wear ? Math.max(0.3, 1 - params.wear / 100) : 0.92;
 
-    const predictedHours = Math.round(baseHours * tempFactor * voltageFactor * cyclesFactor * ageFactor);
+    const predictedHours = Math.round(baseHours * tempFactor * voltageFactor * cyclesFactor * ageFactor * wearFactor);
     const predictedYears = +(predictedHours / 8760).toFixed(1);
-    const healthScore = Math.min(100, Math.max(10, Math.round((predictedHours / baseHours) * 100)));
+    const healthScore = Math.min(100, Math.max(15, Math.round((predictedHours / baseHours) * 98)));
 
-    const updatedSession: AnalysisSessionState = {
+    const updatedSession: AnalysisSession = {
       ...session,
-      rulResult: {
-        ...session.rulResult,
+      rulPrediction: {
+        ...session.rulPrediction,
         overallHealthScore: healthScore,
         predictedHours,
         predictedYears,
@@ -340,22 +294,43 @@ export function AnalysisSessionProvider({ children }: { children: React.ReactNod
           inputVoltageVolts: params.voltage,
           operatingCycles: params.cycles,
           ageYears: params.age,
+          wearFactor: params.wear || 12,
         },
       },
+      rulResult: {
+        ...session.rulPrediction,
+        overallHealthScore: healthScore,
+        predictedHours,
+        predictedYears,
+        failureProbability: +((100 - healthScore) / 100).toFixed(2),
+        parameters: {
+          operatingTempCelsius: params.temp,
+          inputVoltageVolts: params.voltage,
+          operatingCycles: params.cycles,
+          ageYears: params.age,
+          wearFactor: params.wear || 12,
+        },
+      },
+      executiveSummary: {
+        ...session.executiveSummary,
+        overallHealthPercent: healthScore,
+        estimatedRemainingLifeYears: predictedYears,
+      },
+      updatedAt: new Date().toISOString(),
     };
 
     persistSession(updatedSession);
   };
 
   const resetSession = () => {
-    persistSession(defaultSession);
+    persistSession(defaultRouterSession);
     setActiveStep(1);
-    setResultsTab("inventory");
-    setSelectedComponent(defaultInitialSample.detection.components[0]);
+    setResultsTab("overview");
+    setSelectedComponent(defaultRouterSession.detection.components[0] || null);
   };
 
-  const openMarketplaceListing = (component?: any) => {
-    setMarketplaceComponent(component || selectedComponent || session.detectionResult?.components?.[0]);
+  const openMarketplaceListing = (component?: DetectedComponent | null) => {
+    setMarketplaceComponent(component || selectedComponent || session.detection.components[0] || null);
     setIsMarketplaceModalOpen(true);
   };
 
@@ -373,6 +348,7 @@ export function AnalysisSessionProvider({ children }: { children: React.ReactNod
         selectedComponent,
         setSelectedComponent,
         loadSample,
+        loadSessionById,
         setImageUpload,
         setCameraCapture,
         runAnalysis,

@@ -1,35 +1,72 @@
 "use client";
 
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef } from "react";
 import * as THREE from "three";
+import { RotateCcw, ZoomIn, ZoomOut, Move, Eye } from "lucide-react";
 
-interface ProcessingPcb3DProps {
+export interface ProcessingPcb3DProps {
   isScanning?: boolean;
   highlightComponentId?: string | null;
   exploded?: boolean;
+  showComponents?: boolean;
   showTraces?: boolean;
   showBoxes?: boolean;
+  showLayers?: boolean;
+  showHealthOverlay?: boolean;
+  showRulOverlay?: boolean;
   onSelectComponent?: (compName: string) => void;
 }
 
 export default function ProcessingPcb3D({
-  isScanning = true,
+  isScanning = false,
   highlightComponentId = null,
   exploded = false,
+  showComponents = true,
   showTraces = true,
   showBoxes = true,
+  showLayers = false,
+  showHealthOverlay = false,
+  showRulOverlay = false,
   onSelectComponent,
 }: ProcessingPcb3DProps) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const explodedRef = useRef(exploded);
-  const showBoxesRef = useRef(showBoxes);
-  const showTracesRef = useRef(showTraces);
+  const resetCameraRef = useRef<(() => void) | null>(null);
+  const zoomInRef = useRef<(() => void) | null>(null);
+  const zoomOutRef = useRef<(() => void) | null>(null);
+
+  // Dynamic prop refs for 60fps render loop
+  const propsRef = useRef({
+    exploded,
+    showComponents,
+    showBoxes,
+    showTraces,
+    showLayers,
+    showHealthOverlay,
+    showRulOverlay,
+    highlightComponentId,
+  });
 
   useEffect(() => {
-    explodedRef.current = exploded;
-    showBoxesRef.current = showBoxes;
-    showTracesRef.current = showTraces;
-  }, [exploded, showBoxes, showTraces]);
+    propsRef.current = {
+      exploded: exploded || showLayers,
+      showComponents,
+      showBoxes,
+      showTraces,
+      showLayers,
+      showHealthOverlay,
+      showRulOverlay,
+      highlightComponentId,
+    };
+  }, [
+    exploded,
+    showComponents,
+    showBoxes,
+    showTraces,
+    showLayers,
+    showHealthOverlay,
+    showRulOverlay,
+    highlightComponentId,
+  ]);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -40,7 +77,8 @@ export default function ProcessingPcb3D({
 
     const scene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 100);
-    camera.position.set(0, 5.2, 7.5);
+    const defaultPos = new THREE.Vector3(0, 5.2, 7.5);
+    camera.position.copy(defaultPos);
     camera.lookAt(0, 0, 0);
 
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
@@ -50,7 +88,7 @@ export default function ProcessingPcb3D({
     container.appendChild(renderer.domElement);
 
     // Light Setup (Clean light theme industrial studio)
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.85);
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.95);
     scene.add(ambientLight);
 
     const keyLight = new THREE.DirectionalLight(0xffffff, 2.2);
@@ -58,17 +96,17 @@ export default function ProcessingPcb3D({
     keyLight.castShadow = true;
     scene.add(keyLight);
 
-    const blueFill = new THREE.DirectionalLight(0x2563eb, 1.4);
+    const blueFill = new THREE.DirectionalLight(0x2563eb, 1.2);
     blueFill.position.set(-6, 3, -4);
     scene.add(blueFill);
 
-    const rimLight = new THREE.PointLight(0x60a5fa, 1.8, 15);
+    const rimLight = new THREE.PointLight(0x60a5fa, 1.5, 15);
     rimLight.position.set(0, 4, -4);
     scene.add(rimLight);
 
     const pcbGroup = new THREE.Group();
 
-    // 1. PCB Base Board (High-spec dark emerald / matte blue substrate)
+    // 1. PCB Base Board
     const boardGeo = new THREE.BoxGeometry(6.8, 0.12, 5.0);
     const boardMat = new THREE.MeshStandardMaterial({
       color: 0x0f291e, // Deep emerald solder mask
@@ -78,6 +116,25 @@ export default function ProcessingPcb3D({
     const boardMesh = new THREE.Mesh(boardGeo, boardMat);
     boardMesh.receiveShadow = true;
     pcbGroup.add(boardMesh);
+
+    // 1b. Multi-Layer Substrate Slices (when showLayers is active)
+    const layersGroup = new THREE.Group();
+    const layerColors = [0x164e63, 0xd97706, 0x1e293b, 0xd97706];
+    layerColors.forEach((col, idx) => {
+      const slice = new THREE.Mesh(
+        new THREE.BoxGeometry(6.75, 0.04, 4.95),
+        new THREE.MeshStandardMaterial({
+          color: col,
+          metalness: 0.7,
+          roughness: 0.3,
+          transparent: true,
+          opacity: 0.85,
+        })
+      );
+      slice.position.y = -0.2 * (idx + 1);
+      layersGroup.add(slice);
+    });
+    pcbGroup.add(layersGroup);
 
     // 2. Gold Edge Connector Fingers
     const goldMat = new THREE.MeshStandardMaterial({
@@ -94,6 +151,9 @@ export default function ProcessingPcb3D({
     // 3. Components Assembly Group (Explodable)
     const componentsGroup = new THREE.Group();
 
+    // Component tracking list for interactive highlighting
+    const componentMeshMap = new Map<string, THREE.MeshStandardMaterial>();
+
     // A. CPU / SoC Core BGA Socket
     const cpuSubstrate = new THREE.Mesh(
       new THREE.BoxGeometry(1.6, 0.12, 1.6),
@@ -101,63 +161,65 @@ export default function ProcessingPcb3D({
     );
     cpuSubstrate.position.set(-0.6, 0.12, -0.4);
 
-    const cpuDie = new THREE.Mesh(
-      new THREE.BoxGeometry(1.0, 0.06, 1.0),
-      new THREE.MeshStandardMaterial({
-        color: 0x0f172a,
-        roughness: 0.05,
-        metalness: 0.95,
-        emissive: 0x2563eb,
-        emissiveIntensity: 0.2,
-      })
-    );
+    const cpuDieMat = new THREE.MeshStandardMaterial({
+      color: 0x0f172a,
+      roughness: 0.05,
+      metalness: 0.95,
+      emissive: 0x2563eb,
+      emissiveIntensity: 0.25,
+    });
+    const cpuDie = new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.06, 1.0), cpuDieMat);
     cpuDie.position.set(-0.6, 0.21, -0.4);
     componentsGroup.add(cpuSubstrate);
     componentsGroup.add(cpuDie);
+    componentMeshMap.set("comp_npu_01", cpuDieMat);
+    componentMeshMap.set("comp_cpu_01", cpuDieMat);
 
     // B. RAM Chips Array
-    const ramChips: THREE.Mesh[] = [];
-    [-1.8, 1.8].forEach((rx) => {
-      const ramStick = new THREE.Mesh(
-        new THREE.BoxGeometry(0.35, 0.35, 2.4),
-        new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.4, metalness: 0.6 })
-      );
+    [-1.8, 1.8].forEach((rx, idx) => {
+      const ramMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.4, metalness: 0.6 });
+      const ramStick = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.35, 2.4), ramMat);
       ramStick.position.set(rx, 0.22, 0);
       componentsGroup.add(ramStick);
-      ramChips.push(ramStick);
+      componentMeshMap.set(`comp_ram_${idx + 1}`, ramMat);
     });
 
     // C. Power Inductors & Ferrite Chokes
-    const chokeMat = new THREE.MeshStandardMaterial({ color: 0x334155, metalness: 0.85, roughness: 0.3 });
     [
-      { x: -0.8, z: 1.1 },
-      { x: -0.1, z: 1.1 },
-      { x: 0.6, z: 1.1 },
+      { x: -0.8, z: 1.1, id: "comp_ind_01" },
+      { x: -0.1, z: 1.1, id: "comp_ind_02" },
+      { x: 0.6, z: 1.1, id: "comp_ind_03" },
     ].forEach((pos) => {
+      const chokeMat = new THREE.MeshStandardMaterial({ color: 0x334155, metalness: 0.85, roughness: 0.3 });
       const choke = new THREE.Mesh(new THREE.BoxGeometry(0.48, 0.32, 0.48), chokeMat);
       choke.position.set(pos.x, 0.22, pos.z);
       componentsGroup.add(choke);
+      componentMeshMap.set(pos.id, chokeMat);
     });
 
-    // D. Solid Polymer SMD Capacitors (Silver Cans)
+    // D. LAN Magnetics / Transformers
+    const magMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, metalness: 0.7, roughness: 0.3 });
+    const magMesh = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.4, 0.8), magMat);
+    magMesh.position.set(2.0, 0.25, -1.4);
+    componentsGroup.add(magMesh);
+    componentMeshMap.set("comp_mag_01", magMat);
+
+    // E. Solid Polymer SMD Capacitors
     const capMat = new THREE.MeshStandardMaterial({ color: 0xe2e8f0, metalness: 0.95, roughness: 0.1 });
-    const capList: THREE.Mesh[] = [];
     for (let c = 0; c < 8; c++) {
       const cap = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 0.3, 16), capMat);
       cap.position.set(-1.4 + (c % 4) * 0.32, 0.2, -1.6 + Math.floor(c / 4) * 0.4);
       componentsGroup.add(cap);
-      capList.push(cap);
     }
 
-    // E. Microcontroller & Flash Chips
-    const mcu = new THREE.Mesh(
-      new THREE.BoxGeometry(0.8, 0.1, 0.8),
-      new THREE.MeshStandardMaterial({ color: 0x090d16, roughness: 0.2, metalness: 0.7 })
-    );
+    // F. Microcontroller / Flash Chips
+    const mcuMat = new THREE.MeshStandardMaterial({ color: 0x090d16, roughness: 0.2, metalness: 0.7 });
+    const mcu = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.1, 0.8), mcuMat);
     mcu.position.set(0.9, 0.11, -1.2);
     componentsGroup.add(mcu);
+    componentMeshMap.set("comp_mcu_01", mcuMat);
 
-    // F. Heatsink Aluminum Fin Assembly
+    // G. Heatsink Aluminum Fin Assembly
     const heatsinkGroup = new THREE.Group();
     for (let h = 0; h < 6; h++) {
       const fin = new THREE.Mesh(
@@ -168,7 +230,6 @@ export default function ProcessingPcb3D({
       heatsinkGroup.add(fin);
     }
     componentsGroup.add(heatsinkGroup);
-
     pcbGroup.add(componentsGroup);
 
     // 4. Circuit Traces Layer
@@ -176,7 +237,7 @@ export default function ProcessingPcb3D({
     const traceMat = new THREE.MeshBasicMaterial({
       color: 0x38bdf8,
       transparent: true,
-      opacity: 0.6,
+      opacity: 0.65,
     });
     for (let t = 0; t < 24; t++) {
       const startX = (Math.random() - 0.5) * 5.6;
@@ -202,11 +263,12 @@ export default function ProcessingPcb3D({
       opacity: 0.8,
     });
     const detectedBoxes = [
-      { x: -0.6, y: 0.2, z: -0.4, w: 1.8, h: 0.5, d: 1.8, name: "CPU / SoC" },
-      { x: -1.8, y: 0.25, z: 0, w: 0.5, h: 0.5, d: 2.6, name: "RAM 1" },
-      { x: 1.8, y: 0.25, z: 0, w: 0.5, h: 0.5, d: 2.6, name: "RAM 2" },
-      { x: 0.9, y: 0.16, z: -1.2, w: 1.0, h: 0.3, d: 1.0, name: "Flash / MCU" },
-      { x: -0.1, y: 0.22, z: 1.1, w: 1.6, h: 0.45, d: 0.7, name: "VRM Inductors" },
+      { x: -0.6, y: 0.2, z: -0.4, w: 1.8, h: 0.5, d: 1.8, name: "comp_npu_01" },
+      { x: -1.8, y: 0.25, z: 0, w: 0.5, h: 0.5, d: 2.6, name: "comp_ram_1" },
+      { x: 1.8, y: 0.25, z: 0, w: 0.5, h: 0.5, d: 2.6, name: "comp_ram_2" },
+      { x: 0.9, y: 0.16, z: -1.2, w: 1.0, h: 0.3, d: 1.0, name: "comp_mcu_01" },
+      { x: 2.0, y: 0.25, z: -1.4, w: 1.4, h: 0.5, d: 1.0, name: "comp_mag_01" },
+      { x: -0.1, y: 0.22, z: 1.1, w: 1.6, h: 0.45, d: 0.7, name: "comp_ind_01" },
     ];
 
     detectedBoxes.forEach((b) => {
@@ -264,6 +326,22 @@ export default function ProcessingPcb3D({
       camera.position.z = Math.max(4.0, Math.min(12.0, camera.position.z));
     };
 
+    // Camera control references
+    resetCameraRef.current = () => {
+      targetRotationX = 0.35;
+      targetRotationY = -0.45;
+      camera.position.copy(defaultPos);
+      camera.lookAt(0, 0, 0);
+    };
+
+    zoomInRef.current = () => {
+      camera.position.z = Math.max(4.0, camera.position.z - 1.0);
+    };
+
+    zoomOutRef.current = () => {
+      camera.position.z = Math.min(12.0, camera.position.z + 1.0);
+    };
+
     const domEl = renderer.domElement;
     domEl.addEventListener("mousedown", onMouseDown);
     window.addEventListener("mousemove", onMouseMove);
@@ -299,13 +377,42 @@ export default function ProcessingPcb3D({
         scanBeam.visible = false;
       }
 
-      // Explode layer transition
-      const targetExplodeY = explodedRef.current ? 0.8 : 0;
+      // Explode / Layers transition
+      const targetExplodeY = propsRef.current.exploded ? 0.85 : 0;
       componentsGroup.position.y += (targetExplodeY - componentsGroup.position.y) * 0.1;
 
+      const targetLayerSpread = propsRef.current.showLayers ? 0.5 : 0.05;
+      layersGroup.children.forEach((child, i) => {
+        const destY = -targetLayerSpread * (i + 1);
+        child.position.y += (destY - child.position.y) * 0.1;
+      });
+
       // Visibility toggles
-      boxGroup.visible = showBoxesRef.current;
-      tracesGroup.visible = showTracesRef.current;
+      componentsGroup.visible = propsRef.current.showComponents;
+      boxGroup.visible = propsRef.current.showBoxes;
+      tracesGroup.visible = propsRef.current.showTraces;
+      layersGroup.visible = propsRef.current.showLayers;
+
+      // Component highlight & overlay styling
+      const activeHighlightId = propsRef.current.highlightComponentId;
+      const isHealth = propsRef.current.showHealthOverlay;
+      const isRul = propsRef.current.showRulOverlay;
+
+      componentMeshMap.forEach((mat, id) => {
+        if (activeHighlightId && (id === activeHighlightId || activeHighlightId.includes(id) || id.includes(activeHighlightId))) {
+          mat.emissive.setHex(0x38bdf8);
+          mat.emissiveIntensity = 0.9;
+        } else if (isHealth) {
+          mat.emissive.setHex(0x16a34a); // Green health overlay
+          mat.emissiveIntensity = 0.55;
+        } else if (isRul) {
+          mat.emissive.setHex(0x2563eb); // Cyan/blue RUL overlay
+          mat.emissiveIntensity = 0.55;
+        } else {
+          mat.emissive.setHex(0x2563eb);
+          mat.emissiveIntensity = 0.2;
+        }
+      });
 
       renderer.render(scene, camera);
     };
@@ -338,6 +445,33 @@ export default function ProcessingPcb3D({
   return (
     <div className="relative w-full h-full min-h-[380px] overflow-hidden select-none cursor-grab active:cursor-grabbing">
       <div ref={containerRef} className="w-full h-full" />
+
+      {/* Floating 3D Control Pad */}
+      <div className="absolute bottom-3 right-3 flex items-center gap-1.5 p-1 rounded-xl bg-white/90 backdrop-blur-md border border-[#E2E8F0] shadow-sm z-20">
+        <button
+          onClick={() => zoomInRef.current?.()}
+          className="p-1.5 rounded-lg hover:bg-[#F1F5F9] text-[#475569] hover:text-[#0F172A] transition-colors cursor-pointer"
+          title="Zoom In"
+        >
+          <ZoomIn className="w-4 h-4" />
+        </button>
+        <button
+          onClick={() => zoomOutRef.current?.()}
+          className="p-1.5 rounded-lg hover:bg-[#F1F5F9] text-[#475569] hover:text-[#0F172A] transition-colors cursor-pointer"
+          title="Zoom Out"
+        >
+          <ZoomOut className="w-4 h-4" />
+        </button>
+        <div className="w-px h-4 bg-[#E2E8F0]" />
+        <button
+          onClick={() => resetCameraRef.current?.()}
+          className="p-1.5 rounded-lg hover:bg-[#EFF6FF] text-[#2563EB] transition-colors flex items-center gap-1 text-[11px] font-mono font-bold cursor-pointer"
+          title="Reset 3D Perspective"
+        >
+          <RotateCcw className="w-3.5 h-3.5" />
+          <span className="hidden sm:inline">Reset</span>
+        </button>
+      </div>
     </div>
   );
 }

@@ -10,10 +10,11 @@ import {
   ShieldCheck,
   CheckCircle2,
   X,
-  FileText,
+  Copy,
+  Check,
+  Info,
   Layers,
   Sparkles,
-  Info,
 } from "lucide-react";
 import { useAnalysisSession } from "@/lib/context/AnalysisSessionContext";
 
@@ -21,12 +22,54 @@ export default function ConsoleHeader() {
   const { session } = useAnalysisSession();
   const [helpOpen, setHelpOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  const sessionId = session.id || session.sessionId || "ECI-2026-7740";
+
+  const handleCopySession = () => {
+    navigator.clipboard.writeText(sessionId);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const getStatusBadge = () => {
+    switch (session.status) {
+      case "COMPLETED":
+        return (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[#ECFDF5] border border-[#A7F3D0] text-[#16A34A] text-[10px] font-mono font-bold">
+            <CheckCircle2 className="w-3 h-3" />
+            <span>ANALYSIS COMPLETE</span>
+          </span>
+        );
+      case "PROCESSING":
+        return (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[#EFF6FF] border border-[#BFDBFE] text-[#2563EB] text-[10px] font-mono font-bold">
+            <span className="w-1.5 h-1.5 rounded-full bg-[#2563EB] animate-ping" />
+            <span>INFERENCE ACTIVE</span>
+          </span>
+        );
+      case "CAPTURED":
+        return (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[#FFFBEB] border border-[#FDE68A] text-[#D97706] text-[10px] font-mono font-bold">
+            <span className="w-1.5 h-1.5 rounded-full bg-[#D97706]" />
+            <span>IMAGE CAPTURED</span>
+          </span>
+        );
+      default:
+        return (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[#F1F5F9] border border-[#E2E8F0] text-[#64748B] text-[10px] font-mono font-bold">
+            <span className="w-1.5 h-1.5 rounded-full bg-[#94A3B8]" />
+            <span>DRAFT INGEST</span>
+          </span>
+        );
+    }
+  };
 
   return (
     <>
       <header className="sticky top-0 z-40 h-16 bg-white border-b border-[#E2E8F0] px-4 sm:px-8 flex items-center justify-between shadow-[0_1px_3px_rgba(0,0,0,0.03)]">
         
-        {/* Left: Brand Identity */}
+        {/* Left: Brand Identity & Active Session */}
         <div className="flex items-center gap-6">
           <Link href="/" className="flex items-center gap-3 group">
             <div className="w-8 h-8 rounded-lg bg-[#2563EB] flex items-center justify-center text-white shadow-sm group-hover:bg-[#1D4ED8] transition-colors">
@@ -45,30 +88,45 @@ export default function ConsoleHeader() {
           <div className="hidden md:block h-5 w-px bg-[#E2E8F0]" />
 
           {/* Session Identification Badge */}
-          <div className="hidden md:flex items-center gap-2 px-3 py-1 rounded-full bg-[#F1F5F9] border border-[#E2E8F0] text-xs font-mono text-[#475569]">
-            <span className="w-1.5 h-1.5 rounded-full bg-[#16A34A]" />
-            <span className="font-semibold text-[#0F172A]">Analysis Session:</span>
-            <span className="text-[#2563EB] font-bold">#{session.sessionId}</span>
-            <span className="text-[10px] px-1.5 py-0.5 rounded bg-white text-[#64748B] border border-[#E2E8F0] uppercase">
-              {session.dataClassification}
-            </span>
+          <div className="hidden md:flex items-center gap-2 px-3 py-1 rounded-full bg-[#F8FAFC] border border-[#E2E8F0] text-xs font-mono text-[#475569]">
+            <span className="font-semibold text-[#0F172A]">Session:</span>
+            <button
+              onClick={handleCopySession}
+              className="text-[#2563EB] font-bold hover:underline flex items-center gap-1 cursor-pointer"
+              title="Click to copy Session ID"
+            >
+              #{sessionId}
+              {copied ? <Check className="w-3 h-3 text-[#16A34A]" /> : <Copy className="w-3 h-3 text-[#94A3B8]" />}
+            </button>
+            <span className="text-[#CBD5E1]">·</span>
+            {session.sourceType === "sample" || session.dataClassification === "sample" ? (
+              <span className="text-[10px] px-2 py-0.5 rounded bg-amber-50 text-amber-700 border border-amber-200 uppercase font-bold tracking-wider">
+                DEMO DATASET
+              </span>
+            ) : (
+              <span className="text-[10px] px-2 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200 uppercase font-bold tracking-wider">
+                LIVE INGEST
+              </span>
+            )}
+            {getStatusBadge()}
           </div>
         </div>
 
-        {/* Center: Workspace Label */}
+        {/* Center: Device Breadcrumb */}
         <div className="hidden lg:flex items-center gap-2 text-xs font-medium text-[#475569]">
-          <span className="font-semibold text-[#0F172A]">Intelligence Workspace</span>
+          <span className="font-semibold text-[#0F172A]">Workspace</span>
           <span className="text-[#CBD5E1]">/</span>
-          <span className="text-[#2563EB] font-mono font-medium">{session.deviceName}</span>
+          <span className="text-[#2563EB] font-mono font-bold">{session.deviceName}</span>
+          <span className="text-[#94A3B8]">({session.deviceType})</span>
         </div>
 
-        {/* Right: Actions & User */}
+        {/* Right: Actions, Help & User */}
         <div className="flex items-center gap-3">
           
           {/* Help Button */}
           <button
             onClick={() => setHelpOpen(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-[#475569] hover:text-[#0F172A] hover:bg-[#F1F5F9] transition-colors"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-[#475569] hover:text-[#0F172A] hover:bg-[#F1F5F9] transition-colors cursor-pointer"
             title="Scientific Methodology & Help"
           >
             <HelpCircle className="w-4 h-4 text-[#64748B]" />
@@ -79,7 +137,7 @@ export default function ConsoleHeader() {
           <div className="relative">
             <button
               onClick={() => setNotifOpen(!notifOpen)}
-              className="p-2 rounded-lg text-[#64748B] hover:text-[#0F172A] hover:bg-[#F1F5F9] transition-colors relative"
+              className="p-2 rounded-lg text-[#64748B] hover:text-[#0F172A] hover:bg-[#F1F5F9] transition-colors relative cursor-pointer"
               title="System Notifications"
             >
               <Bell className="w-4 h-4" />
@@ -99,15 +157,15 @@ export default function ConsoleHeader() {
                   <div className="flex items-start gap-2.5">
                     <CheckCircle2 className="w-4 h-4 text-[#16A34A] mt-0.5 flex-shrink-0" />
                     <div>
-                      <p className="font-semibold text-[#0F172A]">Spectro-Spatial Engine Ready</p>
+                      <p className="font-semibold text-[#0F172A]">Spectro-Spatial Engine Active</p>
                       <p className="text-[11px] text-[#64748B]">YOLOv11 50-micron weights loaded.</p>
                     </div>
                   </div>
                   <div className="flex items-start gap-2.5">
                     <ShieldCheck className="w-4 h-4 text-[#2563EB] mt-0.5 flex-shrink-0" />
                     <div>
-                      <p className="font-semibold text-[#0F172A]">Polygon Testnet Synced</p>
-                      <p className="text-[11px] text-[#64748B]">Ready for ERC-721 passport minting.</p>
+                      <p className="font-semibold text-[#0F172A]">Product Passport Prepared</p>
+                      <p className="text-[11px] text-[#64748B]">ERC-721 metadata synthesized.</p>
                     </div>
                   </div>
                 </div>
@@ -165,7 +223,7 @@ export default function ConsoleHeader() {
                 <h4 className="font-bold text-[#0F172A] mb-1">Scientific Transparency Protocol</h4>
                 <p>
                   EcoIntel enforces strict transparency across all hardware assessments. Each data point is classified as either:
-                  <strong> Measured</strong>, <strong>Detected</strong>, <strong>Predicted</strong>, <strong>Estimated</strong>, or <strong>Simulated</strong>. Demo datasets are explicitly flagged to preserve industrial integrity.
+                  <strong> Measured</strong>, <strong>Detected</strong>, <strong>Predicted</strong>, <strong>Estimated</strong>, or <strong>Simulated</strong>. Demo datasets are explicitly flagged to preserve industrial integrity without claiming laboratory chemical certification.
                 </p>
               </div>
 
