@@ -26,7 +26,7 @@ import {
 } from "lucide-react";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
-import { useAnalysisSession } from "@/lib/context/AnalysisSessionContext";
+import { AnalysisSessionProvider, useAnalysisSession } from "@/lib/context/AnalysisSessionContext";
 import { analysisService } from "@/lib/services/analysisService";
 import { DetectedComponent, AnalysisSession } from "@/lib/types/analysis";
 
@@ -1146,15 +1146,17 @@ function MarketplaceCreateContent() {
 
 export default function MarketplaceCreatePage() {
   return (
-    <Suspense
-      fallback={
-        <div className="min-h-screen bg-[#F7F9FC] flex flex-col items-center justify-center">
-          <div className="w-10 h-10 rounded-full border-2 border-[#2563EB] border-t-transparent animate-spin mb-3" />
-          <span className="font-mono text-xs text-[#64748B]">Loading Marketplace Studio...</span>
-        </div>
-      }
-    >
-      <MarketplaceCreateContent />
-    </Suspense>
+    <AnalysisSessionProvider>
+      <Suspense
+        fallback={
+          <div className="min-h-screen bg-[#F7F9FC] flex flex-col items-center justify-center">
+            <div className="w-10 h-10 rounded-full border-2 border-[#2563EB] border-t-transparent animate-spin mb-3" />
+            <span className="font-mono text-xs text-[#64748B]">Loading Marketplace Studio...</span>
+          </div>
+        }
+      >
+        <MarketplaceCreateContent />
+      </Suspense>
+    </AnalysisSessionProvider>
   );
 }

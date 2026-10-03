@@ -365,10 +365,34 @@ export function AnalysisSessionProvider({ children }: { children: React.ReactNod
   );
 }
 
+const defaultFallbackContext: AnalysisContextType = {
+  session: defaultRouterSession,
+  activeStep: 3,
+  setActiveStep: () => {},
+  resultsTab: "overview",
+  setResultsTab: () => {},
+  isAnalyzing: false,
+  pipelineStep: 0,
+  liveDetections: [],
+  selectedComponent: defaultRouterSession.detection.components[0] || null,
+  setSelectedComponent: () => {},
+  loadSample: () => {},
+  loadSessionById: async () => {},
+  setImageUpload: () => {},
+  setCameraCapture: () => {},
+  runAnalysis: async () => {},
+  updateRulSimulation: () => {},
+  resetSession: () => {},
+  isMarketplaceModalOpen: false,
+  setIsMarketplaceModalOpen: () => {},
+  marketplaceComponent: null,
+  openMarketplaceListing: () => {},
+};
+
 export function useAnalysisSession() {
   const context = useContext(AnalysisContext);
   if (!context) {
-    throw new Error("useAnalysisSession must be used within an AnalysisSessionProvider");
+    return defaultFallbackContext;
   }
   return context;
 }
