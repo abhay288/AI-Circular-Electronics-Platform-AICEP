@@ -165,7 +165,13 @@ export default function MarketplacePage() {
                   </div>
 
                   <div className="pt-4 border-t border-slate-200 flex items-center justify-between">
-                    <span className="font-mono font-extrabold text-xl text-[#0F172A]">{item.price}</span>
+                    <span className="font-mono font-extrabold text-xl text-[#0F172A]">
+                      {item.price?.startsWith("₹")
+                        ? item.price
+                        : item.priceUSD
+                        ? `₹${Math.round(item.priceUSD < 500 ? item.priceUSD * 86.5 : item.priceUSD).toLocaleString("en-IN")}`
+                        : item.price?.replace("$", "₹") || "₹1,450"}
+                    </span>
                     <button className="px-5 py-2.5 rounded-full bg-[#0F172A] hover:bg-[#1E293B] text-white text-xs font-mono font-bold inline-flex items-center gap-2 transition-colors cursor-pointer">
                       <span>Buy Capsule</span>
                       <ArrowRight className="w-3.5 h-3.5" />

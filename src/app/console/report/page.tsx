@@ -256,7 +256,7 @@ function CompleteReportContent() {
             <div>
               <span className="text-[#64748B] block">Market Recovery:</span>
               <span className="font-heading text-2xl font-bold text-[#0F172A]">
-                ${session.materialRecovery?.totalEstimatedMarketValueUSD?.toFixed(2) || "9.80"}
+                ₹{Math.round((session.materialRecovery?.totalEstimatedMarketValueUSD || 18.70) * 86.5).toLocaleString("en-IN")}
               </span>
             </div>
             <div>
@@ -421,8 +421,8 @@ function CompleteReportContent() {
                   <th className="py-2.5 px-3">Metal Commodity</th>
                   <th className="py-2.5 px-3">Symbol</th>
                   <th className="py-2.5 px-3">Yield (Grams)</th>
-                  <th className="py-2.5 px-3">Market Rate</th>
-                  <th className="py-2.5 px-3">Estimated Value (USD)</th>
+                  <th className="py-2.5 px-3">Market Rate (₹/g)</th>
+                  <th className="py-2.5 px-3">Estimated Value (₹ INR)</th>
                   <th className="py-2.5 px-3">Confidence</th>
                 </tr>
               </thead>
@@ -432,8 +432,8 @@ function CompleteReportContent() {
                     <td className="py-2.5 px-3 font-bold text-[#0F172A]">{m.metal}</td>
                     <td className="py-2.5 px-3 font-bold">{m.symbol}</td>
                     <td className="py-2.5 px-3">{m.yieldGrams} g</td>
-                    <td className="py-2.5 px-3 text-[#64748B]">${m.marketRateUSD}/g</td>
-                    <td className="py-2.5 px-3 font-bold text-[#B88900]">${m.estimatedValueUSD.toFixed(2)}</td>
+                    <td className="py-2.5 px-3 text-[#64748B]">₹{Math.round(m.marketRateUSD * 86.5).toLocaleString("en-IN")}/g</td>
+                    <td className="py-2.5 px-3 font-bold text-[#B88900]">₹{Math.round(m.estimatedValueUSD * 86.5).toLocaleString("en-IN")}</td>
                     <td className="py-2.5 px-3 text-[#16A34A]">{m.confidencePercent || 94}%</td>
                   </tr>
                 ))}

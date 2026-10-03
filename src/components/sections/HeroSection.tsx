@@ -127,7 +127,7 @@ export default function HeroSection() {
               <FloatingBadge
                 icon={<Coins className="w-4 h-4 text-[#C9A227]" />}
                 label="Metal Value"
-                value="$18.70"
+                value="₹1,617"
                 variant="gold"
               />
             </div>

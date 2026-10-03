@@ -52,6 +52,12 @@ export async function GET(req: NextRequest) {
             : comp.type.toLowerCase().includes("memory")
             ? 22.0
             : 12.5,
+        estimatedValueINR:
+          comp.type.toLowerCase().includes("processor") || comp.type.toLowerCase().includes("cpu")
+            ? 3025
+            : comp.type.toLowerCase().includes("memory")
+            ? 1900
+            : 1080,
       };
     });
 

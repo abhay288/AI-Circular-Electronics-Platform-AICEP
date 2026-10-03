@@ -112,7 +112,7 @@ export default function MarketplaceSection() {
                     <div className="pt-2 flex items-center justify-between">
                       <div>
                         <span className="font-heading text-xl font-bold text-white">
-                          ${item.priceUSD.toLocaleString()}
+                          ₹{Math.round(item.priceUSD * 86.5).toLocaleString("en-IN")}
                         </span>
                         <span className="text-xs font-mono text-[#8A97B5] block">
                           {item.priceETH}

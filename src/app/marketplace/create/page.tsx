@@ -131,7 +131,7 @@ function MarketplaceCreateContent() {
   const [listingTitle, setListingTitle] = useState("");
   const [listingDescription, setListingDescription] = useState("");
   const [listingCondition, setListingCondition] = useState("Grade A+ (Tested & Certified)");
-  const [listingPrice, setListingPrice] = useState("28.40");
+  const [listingPrice, setListingPrice] = useState("2450");
   const [listingQuantity, setListingQuantity] = useState("1");
   const [listingLocation, setListingLocation] = useState("EcoIntel Circular Inspection Lab 01");
   const [listingShipping, setListingShipping] = useState("Worldwide Courier / Anti-Static ESD Packaging");
@@ -273,7 +273,7 @@ function MarketplaceCreateContent() {
         `Certified recovered ${single.name} (${single.type}) desoldered from ${activeSession?.deviceName || "host PCB"}. Validated with ${single.health}% operational health and ${single.remainingLifeYears} years remaining lifespan.`
       );
       const el = evaluateEligibility(single);
-      setListingPrice(el.estimatedValueUSD.toFixed(2));
+      setListingPrice(Math.round(el.estimatedValueUSD * 86.5).toString());
       setListingQuantity("1");
       setListingCondition(
         single.health >= 92 ? "Grade A+ (Tested & Certified)" : "Grade A (Good Operational)"
@@ -285,7 +285,7 @@ function MarketplaceCreateContent() {
       setListingDescription(
         `Batch listing of ${selectedComponents.length} verified hardware components recovered from ${activeSession?.deviceName || "inspection PCB"}. Average health: ${summaryMetrics.avgHealth}%, cumulative RUL: ${summaryMetrics.totalRul} years. All components isolated and pin integrity inspected.`
       );
-      setListingPrice(summaryMetrics.estimatedValue.toFixed(2));
+      setListingPrice(Math.round(summaryMetrics.estimatedValue * 86.5).toString());
       setListingQuantity(selectedComponents.length.toString());
       setListingCondition(
         summaryMetrics.avgHealth >= 92 ? "Grade A+ (Tested & Certified)" : "Grade A (Good Operational)"
@@ -856,7 +856,7 @@ function MarketplaceCreateContent() {
                             <div className="p-2 rounded-xl bg-[#F8FAFC]">
                               <span className="text-[10px] text-[#64748B] block">Est. Recovery</span>
                               <strong className="text-sm text-[#0F172A]">
-                                ${eligibility.estimatedValueUSD.toFixed(2)}
+                                ₹{Math.round(eligibility.estimatedValueUSD * 86.5).toLocaleString("en-IN")}
                               </strong>
                             </div>
                           </div>
@@ -969,7 +969,7 @@ function MarketplaceCreateContent() {
                   <div className="flex justify-between items-center p-2.5 rounded-xl bg-[#F8FAFC]">
                     <span className="text-[#64748B]">Estimated Recovery Value</span>
                     <strong className="text-[#0F172A] text-sm font-bold">
-                      ${summaryMetrics.estimatedValue.toFixed(2)}
+                      ₹{Math.round(summaryMetrics.estimatedValue * 86.5).toLocaleString("en-IN")}
                     </strong>
                   </div>
 
@@ -1028,18 +1028,18 @@ function MarketplaceCreateContent() {
                   <div className="grid grid-cols-2 gap-3">
                     <div>
                       <label className="text-[11px] font-mono text-[#64748B] block mb-1">
-                        Price (USD):
+                        Price (₹ INR):
                       </label>
                       <div className="relative">
-                        <DollarSign className="w-3.5 h-3.5 text-[#94A3B8] absolute left-3 top-2.5" />
+                        <span className="font-bold text-xs text-[#94A3B8] absolute left-3 top-2.5">₹</span>
                         <input
                           type="number"
-                          step="0.01"
-                          min="0.1"
+                          step="1"
+                          min="1"
                           value={listingPrice}
                           onChange={(e) => setListingPrice(e.target.value)}
                           required
-                          className="w-full pl-8 pr-3 py-2 rounded-xl border border-[#CBD5E1] text-xs font-mono focus:outline-none focus:border-[#2563EB] bg-white"
+                          className="w-full pl-7 pr-3 py-2 rounded-xl border border-[#CBD5E1] text-xs font-mono focus:outline-none focus:border-[#2563EB] bg-white"
                         />
                       </div>
                     </div>

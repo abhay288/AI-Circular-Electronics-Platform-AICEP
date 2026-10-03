@@ -618,7 +618,7 @@ function ConsoleResultsContent() {
                 <div className="p-3 rounded-xl bg-[#F8FAFC] border border-[#E2E8F0] text-xs font-mono space-y-1">
                   <div className="flex justify-between">
                     <span className="text-[#64748B]">Estimated Value:</span>
-                    <strong className="text-[#B88900]">${session.materialRecovery?.totalEstimatedMarketValueUSD?.toFixed(2) || "9.80"}</strong>
+                    <strong className="text-[#B88900]">₹{Math.round((session.materialRecovery?.totalEstimatedMarketValueUSD || 18.70) * 86.5).toLocaleString("en-IN")}</strong>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-[#64748B]">Recovery Yield:</span>
@@ -1516,7 +1516,7 @@ NET 'ETH_12V_IN' COMP 'DC_JACK':1 COMP 'BUCK_STEPDOWN':VIN;`}
             <div className="text-right">
               <span className="text-xs font-mono text-[#64748B] block">Total Recovery Yield</span>
               <span className="font-heading text-2xl font-bold text-[#B88900]">
-                ${session.materialRecovery?.totalEstimatedMarketValueUSD?.toFixed(2) || "9.80"} USD
+                ₹{Math.round((session.materialRecovery?.totalEstimatedMarketValueUSD || 18.70) * 86.5).toLocaleString("en-IN")} INR
               </span>
             </div>
           </div>
@@ -1555,7 +1555,7 @@ NET 'ETH_12V_IN' COMP 'DC_JACK':1 COMP 'BUCK_STEPDOWN':VIN;`}
                     <div>
                       <h4 className="font-heading text-sm font-bold text-[#0F172A]">{metal.metal}</h4>
                       <span className="text-[10px] font-mono text-[#64748B]">
-                        Rate: ${metal.marketRateUSD}/g
+                        Rate: ₹{Math.round(metal.marketRateUSD * 86.5).toLocaleString("en-IN")}/g
                       </span>
                     </div>
                   </div>
@@ -1572,7 +1572,7 @@ NET 'ETH_12V_IN' COMP 'DC_JACK':1 COMP 'BUCK_STEPDOWN':VIN;`}
                   </div>
                   <div className="p-3 rounded-xl bg-[#F8FAFC] border border-[#E2E8F0]">
                     <span className="text-[10px] text-[#64748B] block">EST. VALUE</span>
-                    <strong className="text-base text-[#B88900]">${metal.estimatedValueUSD.toFixed(2)}</strong>
+                    <strong className="text-base text-[#B88900]">₹{Math.round(metal.estimatedValueUSD * 86.5).toLocaleString("en-IN")}</strong>
                   </div>
                   <div className="p-3 rounded-xl bg-[#F8FAFC] border border-[#E2E8F0]">
                     <span className="text-[10px] text-[#64748B] block">CONFIDENCE</span>

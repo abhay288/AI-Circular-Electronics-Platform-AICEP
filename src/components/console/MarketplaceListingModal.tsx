@@ -23,7 +23,7 @@ export default function MarketplaceListingModal() {
     session,
   } = useAnalysisSession();
 
-  const [price, setPrice] = useState<number>(18.5);
+  const [price, setPrice] = useState<number>(1600);
   const [condition, setCondition] = useState<string>("Grade A+ (Certified Reusable)");
   const [facility, setFacility] = useState<string>("EcoIntel Circular Lab 01");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -162,13 +162,14 @@ export default function MarketplaceListingModal() {
             {/* Price Input */}
             <div>
               <label className="block font-semibold text-[#0F172A] mb-1.5">
-                Listing Price (USD)
+                Listing Price (₹ INR)
               </label>
               <div className="relative">
-                <DollarSign className="absolute left-3 top-2.5 w-4 h-4 text-[#64748B]" />
+                <span className="absolute left-3.5 top-2 font-bold text-sm text-[#64748B]">₹</span>
                 <input
                   type="number"
-                  step="0.10"
+                  step="1"
+                  min="1"
                   value={price}
                   onChange={(e) => setPrice(parseFloat(e.target.value) || 0)}
                   className="w-full pl-9 pr-4 py-2 rounded-xl border border-[#CBD5E1] font-mono text-sm text-[#0F172A] focus:outline-none focus:border-[#2563EB]"
