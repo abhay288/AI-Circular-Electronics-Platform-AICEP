@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import {
   Cpu,
@@ -92,9 +93,16 @@ export default function Navbar() {
           }`}
         >
           {/* Brand Logo */}
-          <Link href="/" className="flex items-center gap-3.5 group">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-[#2563EB] to-[#3B82F6] flex items-center justify-center text-white shadow-md shadow-blue-500/30 group-hover:scale-105 transition-transform duration-200">
-              <Cpu className="w-5 h-5" />
+          <Link href="/" className="flex items-center gap-3 group">
+            <div className="relative w-9 h-9 rounded-xl flex items-center justify-center group-hover:scale-105 transition-transform duration-200">
+              <Image
+                src="/logo.png"
+                alt="EcoIntel Logo"
+                width={36}
+                height={36}
+                className="w-9 h-9 object-contain drop-shadow-[0_2px_8px_rgba(37,99,235,0.4)]"
+                priority
+              />
             </div>
             <div className="flex flex-col">
               <span className="font-heading text-lg font-bold tracking-tight text-white group-hover:text-[#60A5FA] transition-colors">

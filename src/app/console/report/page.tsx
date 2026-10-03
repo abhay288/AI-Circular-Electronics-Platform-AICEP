@@ -2,6 +2,7 @@
 
 import React, { useState, Suspense } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { useSearchParams } from "next/navigation";
 import {
   FileText,
@@ -203,8 +204,15 @@ function CompleteReportContent() {
         <div className="border-b border-[#E2E8F0] pb-8 flex flex-col sm:flex-row sm:items-start justify-between gap-6">
           <div className="space-y-2">
             <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-xl bg-[#2563EB] flex items-center justify-center text-white font-bold">
-                <Cpu className="w-5 h-5" />
+              <div className="relative w-10 h-10 rounded-xl flex items-center justify-center">
+                <Image
+                  src="/logo.png"
+                  alt="EcoIntel Logo"
+                  width={40}
+                  height={40}
+                  className="w-10 h-10 object-contain"
+                  priority
+                />
               </div>
               <div>
                 <span className="font-heading text-lg font-bold text-[#0F172A] block leading-tight">

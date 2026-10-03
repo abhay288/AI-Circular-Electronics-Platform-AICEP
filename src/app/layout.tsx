@@ -42,6 +42,14 @@ export const metadata: Metadata = {
       "AI-powered operating platform to detect, diagnose, and recover maximum value from electronic waste sustainably.",
     type: "website",
   },
+  icons: {
+    icon: [
+      { url: "/favicon.ico" },
+      { url: "/logo.png", type: "image/png" },
+    ],
+    shortcut: "/favicon.ico",
+    apple: "/logo.png",
+  },
 };
 
 export default function RootLayout({

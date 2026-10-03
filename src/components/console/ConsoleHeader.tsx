@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import {
   Cpu,
   HelpCircle,
@@ -72,8 +73,15 @@ export default function ConsoleHeader() {
         {/* Left: Brand Identity & Active Session */}
         <div className="flex items-center gap-6">
           <Link href="/" className="flex items-center gap-3 group">
-            <div className="w-8 h-8 rounded-lg bg-[#2563EB] flex items-center justify-center text-white shadow-sm group-hover:bg-[#1D4ED8] transition-colors">
-              <Cpu className="w-4.5 h-4.5" />
+            <div className="relative w-8 h-8 rounded-lg flex items-center justify-center group-hover:scale-105 transition-transform duration-200">
+              <Image
+                src="/logo.png"
+                alt="EcoIntel Logo"
+                width={32}
+                height={32}
+                className="w-8 h-8 object-contain drop-shadow-[0_2px_6px_rgba(37,99,235,0.3)]"
+                priority
+              />
             </div>
             <div className="flex flex-col">
               <span className="font-heading text-base font-bold tracking-tight text-[#0F172A] leading-tight">

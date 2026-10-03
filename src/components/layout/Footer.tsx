@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { Cpu, Mail, ArrowUpRight, ShieldCheck } from "lucide-react";
+import Image from "next/image";
+import { Mail, ArrowUpRight, ShieldCheck } from "lucide-react";
 
 export default function Footer() {
   return (
@@ -15,8 +16,14 @@ export default function Footer() {
           {/* Brand Column */}
           <div className="md:col-span-4 flex flex-col gap-6">
             <Link href="/" className="flex items-center gap-3 w-fit group">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-[#2563EB] to-[#3B82F6] flex items-center justify-center text-white shadow-lg shadow-blue-500/20 group-hover:scale-105 transition-transform duration-200">
-                <Cpu className="w-5 h-5" />
+              <div className="relative w-10 h-10 rounded-xl flex items-center justify-center group-hover:scale-105 transition-transform duration-200">
+                <Image
+                  src="/logo.png"
+                  alt="EcoIntel Logo"
+                  width={40}
+                  height={40}
+                  className="w-10 h-10 object-contain drop-shadow-[0_2px_10px_rgba(37,99,235,0.3)]"
+                />
               </div>
               <div>
                 <span className="font-heading text-xl font-bold text-white block leading-tight">EcoIntel</span>
