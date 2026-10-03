@@ -33,9 +33,13 @@ import {
   Box,
   Eye,
   Radio,
+  Camera,
+  Image as ImageIcon,
+  LayoutGrid,
 } from "lucide-react";
 import { useAnalysisSession } from "@/lib/context/AnalysisSessionContext";
 import { DetectedComponent } from "@/lib/types/analysis";
+import RealPcbViewer from "@/components/console/RealPcbViewer";
 
 const ProcessingPcb3D = dynamic(
   () => import("@/components/3d/ProcessingPcb3D"),
@@ -96,6 +100,10 @@ function ConsoleResultsContent() {
   const [activeTab, setActiveTab] = useState<string>(normalizedTab);
   const [componentSearch, setComponentSearch] = useState("");
   const [componentFilter, setComponentFilter] = useState("all");
+
+  // Inspector Viewport Display Modes: "optical" (Real Hardware Scan) | "3d" (3D Digital Twin) | "split"
+  const [viewportMode, setViewportMode] = useState<"optical" | "3d" | "split">("optical");
+  const [showLabels, setShowLabels] = useState(true);
 
   // 3D Inspector Display Toggles
   const [show3DComponents, setShow3DComponents] = useState(true);
@@ -752,53 +760,154 @@ function ConsoleResultsContent() {
           {/* Top Split: 3D Inspector (Left) + Selected Component Info Panel (Right) */}
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
             
-            {/* Left: Interactive 3D Model with Overlays (7 Cols) */}
-            <div className="lg:col-span-7 bg-white rounded-3xl border border-[#E2E8F0] shadow-sm p-4 space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-mono font-bold text-[#0F172A]">
-                  Active Inspection Viewport
-                </span>
-                <div className="flex items-center gap-1.5 bg-[#F8FAFC] border border-[#E2E8F0] rounded-lg p-1 text-[10px] font-mono">
+            {/* Left: Active Inspection Viewport - Real Optical Scan & 3D Digital Twin (7 Cols) */}
+            <div className="lg:col-span-7 bg-white rounded-3xl border border-[#E2E8F0] shadow-sm p-4 sm:p-5 space-y-4">
+              
+              {/* Header Mode Switcher & Overlays */}
+              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#E2E8F0] pb-3">
+                <div className="flex items-center gap-1.5 bg-[#F8FAFC] border border-[#CBD5E1] p-1 rounded-xl text-xs font-mono">
                   <button
-                    onClick={() => setShow3DComponents(!show3DComponents)}
-                    className={`px-2 py-0.5 rounded ${show3DComponents ? "bg-[#EFF6FF] text-[#2563EB] font-bold" : "text-[#94A3B8]"}`}
+                    type="button"
+                    onClick={() => setViewportMode("optical")}
+                    className={`px-3 py-1.5 rounded-lg flex items-center gap-1.5 font-bold transition-all cursor-pointer ${
+                      viewportMode === "optical"
+                        ? "bg-[#2563EB] text-white shadow-xs"
+                        : "text-[#64748B] hover:text-[#0F172A]"
+                    }`}
                   >
-                    Components
+                    <Camera className="w-3.5 h-3.5" />
+                    <span>Real Optical Scan</span>
                   </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setViewportMode("3d")}
+                    className={`px-3 py-1.5 rounded-lg flex items-center gap-1.5 font-bold transition-all cursor-pointer ${
+                      viewportMode === "3d"
+                        ? "bg-[#0F172A] text-white shadow-xs"
+                        : "text-[#64748B] hover:text-[#0F172A]"
+                    }`}
+                  >
+                    <Box className="w-3.5 h-3.5" />
+                    <span>3D Digital Twin</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setViewportMode("split")}
+                    className={`px-2.5 py-1.5 rounded-lg flex items-center gap-1.5 font-bold transition-all cursor-pointer ${
+                      viewportMode === "split"
+                        ? "bg-[#0F172A] text-white shadow-xs"
+                        : "text-[#64748B] hover:text-[#0F172A]"
+                    }`}
+                    title="Side-by-Side Split View"
+                  >
+                    <LayoutGrid className="w-3.5 h-3.5" />
+                    <span className="hidden sm:inline">Split View</span>
+                  </button>
+                </div>
+
+                {/* Overlays / Toggles for Optical or 3D */}
+                <div className="flex items-center gap-1 bg-[#F8FAFC] border border-[#E2E8F0] rounded-lg p-1 text-[10px] font-mono">
                   <button
                     onClick={() => setShowBoxes(!showBoxes)}
-                    className={`px-2 py-0.5 rounded ${showBoxes ? "bg-[#EFF6FF] text-[#2563EB] font-bold" : "text-[#94A3B8]"}`}
+                    className={`px-2 py-0.5 rounded transition-colors cursor-pointer ${
+                      showBoxes ? "bg-[#EFF6FF] text-[#2563EB] font-bold" : "text-[#94A3B8]"
+                    }`}
                   >
                     Boxes
                   </button>
-                  <button
-                    onClick={() => setShowTraces(!showTraces)}
-                    className={`px-2 py-0.5 rounded ${showTraces ? "bg-[#EFF6FF] text-[#2563EB] font-bold" : "text-[#94A3B8]"}`}
-                  >
-                    Traces
-                  </button>
-                  <button
-                    onClick={() => setShowLayers(!showLayers)}
-                    className={`px-2 py-0.5 rounded ${showLayers ? "bg-[#2563EB] text-white font-bold" : "text-[#64748B]"}`}
-                  >
-                    Layers
-                  </button>
+                  {viewportMode === "optical" ? (
+                    <button
+                      onClick={() => setShowLabels(!showLabels)}
+                      className={`px-2 py-0.5 rounded transition-colors cursor-pointer ${
+                        showLabels ? "bg-[#EFF6FF] text-[#2563EB] font-bold" : "text-[#94A3B8]"
+                      }`}
+                    >
+                      Labels
+                    </button>
+                  ) : (
+                    <>
+                      <button
+                        onClick={() => setShow3DComponents(!show3DComponents)}
+                        className={`px-2 py-0.5 rounded transition-colors cursor-pointer ${
+                          show3DComponents ? "bg-[#EFF6FF] text-[#2563EB] font-bold" : "text-[#94A3B8]"
+                        }`}
+                      >
+                        IC Nodes
+                      </button>
+                      <button
+                        onClick={() => setShowTraces(!showTraces)}
+                        className={`px-2 py-0.5 rounded transition-colors cursor-pointer ${
+                          showTraces ? "bg-[#EFF6FF] text-[#2563EB] font-bold" : "text-[#94A3B8]"
+                        }`}
+                      >
+                        Traces
+                      </button>
+                      <button
+                        onClick={() => setShowLayers(!showLayers)}
+                        className={`px-2 py-0.5 rounded transition-colors cursor-pointer ${
+                          showLayers ? "bg-[#2563EB] text-white font-bold" : "text-[#64748B]"
+                        }`}
+                      >
+                        Layers
+                      </button>
+                    </>
+                  )}
                 </div>
               </div>
 
-              <div className="h-72 w-full bg-[#F8FAFC] rounded-2xl border border-[#E2E8F0] overflow-hidden relative">
-                <ProcessingPcb3D
-                  isScanning={false}
-                  highlightComponentId={selectedComponent?.id}
-                  exploded={showLayers}
-                  showComponents={show3DComponents}
-                  showTraces={showTraces}
+              {/* Viewport Content */}
+              {viewportMode === "optical" ? (
+                <RealPcbViewer
+                  imageUrl={session.imageUrl || session.image || "/images/samples/router_board.jpg"}
+                  components={componentsList}
+                  selectedComponent={selectedComponent}
+                  onSelectComponent={(comp) => setSelectedComponent(comp)}
                   showBoxes={showBoxes}
-                  showLayers={showLayers}
-                  showHealthOverlay={showHealthOverlay}
-                  showRulOverlay={showRulOverlay}
+                  showLabels={showLabels}
                 />
-              </div>
+              ) : viewportMode === "3d" ? (
+                <div className="h-80 sm:h-96 w-full bg-[#F8FAFC] rounded-2xl border border-[#E2E8F0] overflow-hidden relative">
+                  <ProcessingPcb3D
+                    imageUrl={session.imageUrl || session.image || "/images/samples/router_board.jpg"}
+                    isScanning={false}
+                    highlightComponentId={selectedComponent?.id}
+                    exploded={showLayers}
+                    showComponents={show3DComponents}
+                    showTraces={showTraces}
+                    showBoxes={showBoxes}
+                    showLayers={showLayers}
+                    showHealthOverlay={showHealthOverlay}
+                    showRulOverlay={showRulOverlay}
+                  />
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <RealPcbViewer
+                    imageUrl={session.imageUrl || session.image || "/images/samples/router_board.jpg"}
+                    components={componentsList}
+                    selectedComponent={selectedComponent}
+                    onSelectComponent={(comp) => setSelectedComponent(comp)}
+                    showBoxes={showBoxes}
+                    showLabels={showLabels}
+                  />
+                  <div className="h-80 sm:h-96 w-full bg-[#F8FAFC] rounded-2xl border border-[#E2E8F0] overflow-hidden relative">
+                    <ProcessingPcb3D
+                      imageUrl={session.imageUrl || session.image || "/images/samples/router_board.jpg"}
+                      isScanning={false}
+                      highlightComponentId={selectedComponent?.id}
+                      exploded={showLayers}
+                      showComponents={show3DComponents}
+                      showTraces={showTraces}
+                      showBoxes={showBoxes}
+                      showLayers={showLayers}
+                      showHealthOverlay={showHealthOverlay}
+                      showRulOverlay={showRulOverlay}
+                    />
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Right: Selected Component Details (5 Cols) */}

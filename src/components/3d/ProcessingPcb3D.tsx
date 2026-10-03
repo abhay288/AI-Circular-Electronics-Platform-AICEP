@@ -5,6 +5,7 @@ import * as THREE from "three";
 import { RotateCcw, ZoomIn, ZoomOut, Move, Eye } from "lucide-react";
 
 export interface ProcessingPcb3DProps {
+  imageUrl?: string;
   isScanning?: boolean;
   highlightComponentId?: string | null;
   exploded?: boolean;
@@ -18,6 +19,7 @@ export interface ProcessingPcb3DProps {
 }
 
 export default function ProcessingPcb3D({
+  imageUrl = "/images/samples/router_board.jpg",
   isScanning = false,
   highlightComponentId = null,
   exploded = false,
@@ -106,12 +108,25 @@ export default function ProcessingPcb3D({
 
     const pcbGroup = new THREE.Group();
 
-    // 1. PCB Base Board
+    // 1. PCB Base Board with Real Photographic Texture
     const boardGeo = new THREE.BoxGeometry(6.8, 0.12, 5.0);
+    const textureLoader = new THREE.TextureLoader();
+    let pcbTexture: THREE.Texture | null = null;
+    try {
+      if (imageUrl) {
+        pcbTexture = textureLoader.load(imageUrl);
+        pcbTexture.wrapS = THREE.ClampToEdgeWrapping;
+        pcbTexture.wrapT = THREE.ClampToEdgeWrapping;
+      }
+    } catch (e) {
+      console.warn("Failed to load PCB texture:", e);
+    }
+
     const boardMat = new THREE.MeshStandardMaterial({
-      color: 0x0f291e, // Deep emerald solder mask
-      roughness: 0.28,
-      metalness: 0.15,
+      color: pcbTexture ? 0xffffff : 0x0f291e,
+      map: pcbTexture || null,
+      roughness: 0.32,
+      metalness: 0.12,
     });
     const boardMesh = new THREE.Mesh(boardGeo, boardMat);
     boardMesh.receiveShadow = true;
