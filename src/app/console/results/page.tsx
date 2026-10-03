@@ -77,7 +77,18 @@ function ConsoleResultsContent() {
     updateRulSimulation,
     openMarketplaceListing,
     setActiveStep,
+    loadSessionById,
   } = useAnalysisSession();
+
+  const queryAnalysisId = searchParams.get("analysisId") || searchParams.get("sessionId");
+  const effectiveAnalysisId = queryAnalysisId || session?.id || "ECI-2026-7740";
+
+  // Sync session with URL analysisId if provided
+  useEffect(() => {
+    if (queryAnalysisId && queryAnalysisId !== session.id) {
+      loadSessionById(queryAnalysisId);
+    }
+  }, [queryAnalysisId, session.id, loadSessionById]);
 
   const detailsRef = useRef<HTMLDivElement>(null);
 
@@ -114,7 +125,7 @@ function ConsoleResultsContent() {
 
   const handleTabChange = (tabId: string) => {
     setActiveTab(tabId);
-    const sessionParam = session?.id ? `&analysisId=${encodeURIComponent(session.id)}` : "";
+    const sessionParam = effectiveAnalysisId ? `&analysisId=${encodeURIComponent(effectiveAnalysisId)}` : "";
     router.push(`/console/results?tab=${tabId}${sessionParam}`);
   };
 
@@ -163,7 +174,7 @@ function ConsoleResultsContent() {
     return matchesSearch;
   });
 
-  const sessionIdParam = session?.id ? `?analysisId=${encodeURIComponent(session.id)}` : "";
+  const sessionIdParam = `?analysisId=${encodeURIComponent(effectiveAnalysisId)}`;
 
   // The 7 Real Result Tabs
   const tabs = [
@@ -839,13 +850,13 @@ function ConsoleResultsContent() {
                   </div>
 
                   <div className="pt-2">
-                    <button
-                      onClick={() => openMarketplaceListing(selectedComponent)}
-                      className="w-full py-2.5 rounded-xl bg-[#2563EB] hover:bg-[#1D4ED8] text-white font-semibold flex items-center justify-center gap-2 transition-colors cursor-pointer"
+                    <Link
+                      href={`/marketplace/create?analysisId=${encodeURIComponent(effectiveAnalysisId)}&componentId=${encodeURIComponent(selectedComponent.id)}`}
+                      className="w-full py-2.5 rounded-xl bg-[#2563EB] hover:bg-[#1D4ED8] text-white font-semibold flex items-center justify-center gap-2 transition-colors cursor-pointer shadow-sm shadow-blue-500/20"
                     >
                       <ShoppingCart className="w-3.5 h-3.5" />
                       <span>List this Component on Marketplace</span>
-                    </button>
+                    </Link>
                   </div>
                 </div>
               ) : (
@@ -918,15 +929,13 @@ function ConsoleResultsContent() {
                           </span>
                         </td>
                         <td className="py-3.5 px-4 text-right">
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              openMarketplaceListing(comp);
-                            }}
-                            className="px-2.5 py-1 rounded-lg bg-white hover:bg-[#EFF6FF] text-[#2563EB] border border-[#CBD5E1] text-[11px] font-bold transition-colors cursor-pointer"
+                          <Link
+                            href={`/marketplace/create?analysisId=${encodeURIComponent(effectiveAnalysisId)}&componentId=${encodeURIComponent(comp.id)}`}
+                            onClick={(e) => e.stopPropagation()}
+                            className="px-2.5 py-1 rounded-lg bg-white hover:bg-[#EFF6FF] text-[#2563EB] border border-[#CBD5E1] text-[11px] font-bold transition-colors cursor-pointer inline-block"
                           >
                             List
-                          </button>
+                          </Link>
                         </td>
                       </tr>
                     );
