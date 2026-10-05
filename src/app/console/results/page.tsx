@@ -201,10 +201,24 @@ function ConsoleResultsContent() {
       {/* ─── TOP HEADER & ACTIONS ─────────────────────────────────── */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-[#E2E8F0] pb-6">
         <div>
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#ECFDF5] border border-[#A7F3D0] text-xs font-mono font-bold text-[#16A34A] mb-1.5">
-            <CheckCircle2 className="w-3.5 h-3.5" />
-            <span>
-              {session.status === "COMPLETED" ? "EcoIntel Analysis Complete" : "Analysis In Progress"}
+          <div className="flex flex-wrap items-center gap-2 mb-1.5">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#ECFDF5] border border-[#A7F3D0] text-xs font-mono font-bold text-[#16A34A]">
+              <CheckCircle2 className="w-3.5 h-3.5" />
+              <span>
+                {session.status === "COMPLETED" ? "EcoIntel Analysis Complete" : "Analysis In Progress"}
+              </span>
+            </div>
+
+            <span
+              className={`px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold border ${
+                session.detection?.provider === "YOLO" || session.detection?.model?.includes("YOLO")
+                  ? "bg-blue-500/10 text-[#2563EB] border-blue-200"
+                  : "bg-amber-500/10 text-amber-700 border-amber-200"
+              }`}
+            >
+              {session.detection?.provider === "YOLO" || session.detection?.model?.includes("YOLO")
+                ? "AI INFERENCE"
+                : "DEMO DATASET"}
             </span>
           </div>
 
@@ -322,6 +336,7 @@ function ConsoleResultsContent() {
               showLayers={showLayers}
               showHealthOverlay={showHealthOverlay}
               showRulOverlay={showRulOverlay}
+              detectedComponents={componentsList}
               onSelectComponent={(compName, compData) => {
                 const match = componentsList.find(
                   (c) =>
@@ -892,6 +907,7 @@ function ConsoleResultsContent() {
                     showLayers={showLayers}
                     showHealthOverlay={showHealthOverlay}
                     showRulOverlay={showRulOverlay}
+                    detectedComponents={componentsList}
                   />
                 </div>
               ) : (
@@ -916,6 +932,7 @@ function ConsoleResultsContent() {
                       showLayers={showLayers}
                       showHealthOverlay={showHealthOverlay}
                       showRulOverlay={showRulOverlay}
+                      detectedComponents={componentsList}
                     />
                   </div>
                 </div>
@@ -1032,15 +1049,25 @@ function ConsoleResultsContent() {
                         <td className="py-3.5 px-4 text-[#475569]">{comp.type}</td>
                         <td className="py-3.5 px-4 font-bold text-[#16A34A]">{comp.confidence}%</td>
                         <td className="py-3.5 px-4">
-                          <span
-                            className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                              comp.health >= 90 ? "bg-[#DCFCE7] text-[#16A34A]" : "bg-[#FEF3C7] text-[#D97706]"
-                            }`}
-                          >
-                            {comp.health}%
-                          </span>
+                          {comp.health && comp.health > 0 ? (
+                            <span
+                              className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                                comp.health >= 90 ? "bg-[#DCFCE7] text-[#16A34A]" : "bg-[#FEF3C7] text-[#D97706]"
+                              }`}
+                            >
+                              {comp.health}%
+                            </span>
+                          ) : (
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-mono text-slate-500 bg-slate-100 border border-slate-200">
+                              Pending RUL
+                            </span>
+                          )}
                         </td>
-                        <td className="py-3.5 px-4 text-[#2563EB] font-bold">{comp.remainingLifeYears} Yrs</td>
+                        <td className="py-3.5 px-4 text-[#2563EB] font-bold">
+                          {comp.remainingLifeYears && comp.remainingLifeYears > 0
+                            ? `${comp.remainingLifeYears} Yrs`
+                            : "Pending Analysis"}
+                        </td>
                         <td className="py-3.5 px-4 text-[#64748B] max-w-[140px] truncate" title={comp.material}>
                           {comp.material}
                         </td>

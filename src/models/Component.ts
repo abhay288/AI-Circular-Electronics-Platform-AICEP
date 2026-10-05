@@ -1,22 +1,27 @@
 import mongoose, { Schema, Document, Model } from "mongoose";
 
+export interface IComponentBbox {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
 export interface IComponent extends Document {
   analysisId: string;
+  detectionResultId?: string;
   serialNumber?: string;
   type: string;
   name: string;
   manufacturer: string;
   partNumber: string;
   package: string;
-  boundingBox: {
-    x: number;
-    y: number;
-    width: number;
-    height: number;
-  };
   confidence: number;
+  boundingBox: IComponentBbox;
+  bbox?: IComponentBbox;
+  center?: { x: number; y: number };
+  condition: "UNKNOWN" | "MINT" | "GOOD" | "FAIR" | "DEGRADED" | "FAILED";
   healthScore: number;
-  condition: "MINT" | "GOOD" | "FAIR" | "DEGRADED" | "FAILED";
   estimatedRUL: {
     hours: number;
     years: number;
@@ -37,28 +42,39 @@ export interface IComponent extends Document {
 const ComponentSchema = new Schema<IComponent>(
   {
     analysisId: { type: String, required: true, index: true },
+    detectionResultId: { type: String, index: true },
     serialNumber: { type: String, sparse: true, index: true },
     type: { type: String, required: true, index: true },
     name: { type: String, required: true },
     manufacturer: { type: String, default: "Generic" },
     partNumber: { type: String, default: "N/A", index: true },
     package: { type: String, default: "SMD" },
+    confidence: { type: Number, default: 0.95 },
     boundingBox: {
       x: { type: Number, required: true },
       y: { type: Number, required: true },
       width: { type: Number, required: true },
       height: { type: Number, required: true },
     },
-    confidence: { type: Number, default: 0.95 },
-    healthScore: { type: Number, default: 90 },
+    bbox: {
+      x: { type: Number },
+      y: { type: Number },
+      width: { type: Number },
+      height: { type: Number },
+    },
+    center: {
+      x: { type: Number },
+      y: { type: Number },
+    },
     condition: {
       type: String,
-      enum: ["MINT", "GOOD", "FAIR", "DEGRADED", "FAILED"],
-      default: "GOOD",
+      enum: ["UNKNOWN", "MINT", "GOOD", "FAIR", "DEGRADED", "FAILED"],
+      default: "UNKNOWN",
     },
+    healthScore: { type: Number, default: 0 },
     estimatedRUL: {
-      hours: { type: Number, default: 45000 },
-      years: { type: Number, default: 5.2 },
+      hours: { type: Number, default: 0 },
+      years: { type: Number, default: 0 },
     },
     materialProfile: { type: Schema.Types.Mixed },
     marketplaceEligible: { type: Boolean, default: false, index: true },
@@ -69,6 +85,8 @@ const ComponentSchema = new Schema<IComponent>(
 );
 
 ComponentSchema.index({ analysisId: 1, marketplaceEligible: 1 });
+ComponentSchema.index({ analysisId: 1, type: 1 });
+ComponentSchema.index({ analysisId: 1, confidence: -1 });
 
 export const Component: Model<IComponent> =
   mongoose.models.Component ||

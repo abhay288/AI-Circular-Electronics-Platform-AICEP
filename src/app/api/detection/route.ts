@@ -1,64 +1,97 @@
 import { NextRequest, NextResponse } from "next/server";
-import { connectToDatabase } from "@/lib/db/mongodb";
-import { Component } from "@/lib/db/models/Component";
+import { connectDB } from "@/lib/db";
+import { detectionService } from "@/providers/detection/detection.provider";
 
 export async function POST(req: NextRequest) {
   try {
-    await connectToDatabase();
-    const formData = await req.formData();
-    const image = formData.get("image") as File;
+    await connectDB();
 
-    if (!image) {
-      return NextResponse.json({ error: "Image file is required for AI detection" }, { status: 400 });
+    const contentType = req.headers.get("content-type") || "";
+    let analysisId = `direct-${Date.now()}`;
+    let imageUrl = "";
+    let sampleId: string | undefined;
+
+    if (contentType.includes("multipart/form-data")) {
+      const formData = await req.formData();
+      const file = formData.get("image") as File | null;
+      analysisId = (formData.get("analysisId") as string) || analysisId;
+      sampleId = (formData.get("sampleId") as string) || undefined;
+
+      if (!file && !sampleId) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: {
+              code: "MISSING_IMAGE",
+              message: "Image file or sampleId is required for AI detection",
+            },
+          },
+          { status: 400 }
+        );
+      }
+
+      if (file) {
+        const buffer = Buffer.from(await file.arrayBuffer());
+        imageUrl = `data:${file.type || "image/jpeg"};base64,${buffer.toString("base64")}`;
+      }
+    } else if (contentType.includes("application/json")) {
+      const body = await req.json();
+      analysisId = body.analysisId || analysisId;
+      imageUrl = body.imageUrl || "";
+      sampleId = body.sampleId;
+
+      if (!imageUrl && !sampleId) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: {
+              code: "MISSING_IMAGE",
+              message: "imageUrl or sampleId is required in JSON payload",
+            },
+          },
+          { status: 400 }
+        );
+      }
     }
 
-    // Mock YOLOv11 / RT-DETR 50-micron spectro-spatial neural inference response
-    const detectedComponents = [
-      {
-        serialNumber: `comp_lm358_${Date.now()}_1`,
-        name: "LM358 Dual Op-Amp IC",
-        type: "CustomIC",
-        manufacturer: "Texas Instruments",
-        confidenceScore: 0.992,
-        healthScore: 92,
-        remainingUsefulLifeHours: 56000,
-        status: "detected",
-      },
-      {
-        serialNumber: `comp_atmega328p_${Date.now()}_2`,
-        name: "ATmega328P Microcontroller",
-        type: "CustomIC",
-        manufacturer: "Microchip Tech",
-        confidenceScore: 0.987,
-        healthScore: 88,
-        remainingUsefulLifeHours: 48000,
-        status: "detected",
-      },
-      {
-        serialNumber: `comp_cap_220uf_${Date.now()}_3`,
-        name: "Solid Polymer Capacitor 220uF",
-        type: "Capacitor",
-        manufacturer: "Nichicon",
-        confidenceScore: 0.975,
-        healthScore: 95,
-        remainingUsefulLifeHours: 62000,
-        status: "detected",
-      },
-    ];
-
-    // Save to Database
-    const savedComponents = await Component.insertMany(detectedComponents);
+    const detectionOutput = await detectionService.detect({
+      analysisId,
+      imageUrl: imageUrl || "/images/samples/router_board.jpg",
+      sampleId,
+      sourceType: sampleId ? "SAMPLE" : "UPLOAD",
+    });
 
     return NextResponse.json({
       success: true,
-      jobId: `job_det_${Date.now()}`,
-      status: "COMPLETED",
-      model: "YOLOv11-SpectroSpatial-v4.2",
-      inferenceTimeMs: 42,
-      componentsCount: savedComponents.length,
-      components: savedComponents,
+      data: {
+        analysisId,
+        totalDetected: detectionOutput.totalDetected,
+        confidenceAverage: detectionOutput.confidenceAverage || detectionOutput.confidenceAvg,
+        processingTimeMs: detectionOutput.processingTimeMs,
+        model: detectionOutput.model,
+        version: detectionOutput.version,
+        provider: detectionOutput.provider,
+        status: detectionOutput.status,
+        quality: detectionOutput.quality,
+        warnings: detectionOutput.warnings,
+        components: detectionOutput.components,
+      },
     });
   } catch (error: any) {
-    return NextResponse.json({ error: error.message || "Detection pipeline failure" }, { status: 500 });
+    console.error("[POST /api/detection Error]:", error.message);
+    const code = error.message?.includes("AI_SERVICE_UNAVAILABLE")
+      ? "AI_SERVICE_UNAVAILABLE"
+      : "DETECTION_FAILED";
+
+    return NextResponse.json(
+      {
+        success: false,
+        error: {
+          code,
+          message: error.message || "Component detection could not be completed.",
+        },
+      },
+      { status: 500 }
+    );
   }
 }

@@ -5,12 +5,43 @@ import { DetectionResult } from "@/models/DetectionResult";
 import { AnalysisSession } from "@/models/AnalysisSession";
 import { successResponse, errorResponse } from "@/lib/api-response";
 
-export async function GET(req: NextRequest, { params }: { params: Promise<{ analysisId: string }> }) {
+export async function GET(
+  req: NextRequest,
+  { params }: { params: Promise<{ analysisId: string }> }
+) {
   try {
     await connectDB();
     const { analysisId } = await params;
+    const { searchParams } = new URL(req.url);
 
-    const components = await Component.find({ analysisId });
+    const typeFilter = searchParams.get("type");
+    const minConfidence = searchParams.get("minConfidence");
+    const search = searchParams.get("search");
+
+    // Construct query filter
+    const query: Record<string, any> = { analysisId };
+
+    if (typeFilter) {
+      query.type = new RegExp(`^${typeFilter}$`, "i");
+    }
+
+    if (minConfidence) {
+      const confNum = parseFloat(minConfidence);
+      if (!isNaN(confNum)) {
+        query.confidence = { $gte: confNum };
+      }
+    }
+
+    if (search) {
+      query.$or = [
+        { name: new RegExp(search, "i") },
+        { partNumber: new RegExp(search, "i") },
+        { manufacturer: new RegExp(search, "i") },
+        { serialNumber: new RegExp(search, "i") },
+      ];
+    }
+
+    let components = await Component.find(query).sort({ confidence: -1 });
     const detection = await DetectionResult.findOne({ analysisId });
 
     if (!components.length && !detection) {
@@ -19,10 +50,31 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ anal
         $or: [{ analysisId }, { sessionId: analysisId }],
       });
       if (session?.detectionResult) {
+        let sessionComps = session.detectionResult.components || [];
+
+        if (typeFilter) {
+          sessionComps = sessionComps.filter(
+            (c: any) => c.type?.toLowerCase() === typeFilter.toLowerCase()
+          );
+        }
+        if (minConfidence) {
+          const confNum = parseFloat(minConfidence);
+          sessionComps = sessionComps.filter((c: any) => (c.confidence || 0) >= confNum);
+        }
+        if (search) {
+          const s = search.toLowerCase();
+          sessionComps = sessionComps.filter(
+            (c: any) =>
+              c.name?.toLowerCase().includes(s) ||
+              c.partNumber?.toLowerCase().includes(s) ||
+              c.manufacturer?.toLowerCase().includes(s)
+          );
+        }
+
         return successResponse({
-          analysisId,
-          totalDetected: session.detectionResult.componentsCount || session.detectionResult.components?.length || 0,
-          components: session.detectionResult.components || [],
+          total: sessionComps.length,
+          totalDetected: sessionComps.length,
+          components: sessionComps,
           confidenceAvg: session.detectionResult.confidenceAvg,
           model: session.detectionResult.model,
         });
@@ -32,6 +84,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ anal
 
     return successResponse({
       analysisId,
+      total: components.length,
       totalDetected: components.length,
       components,
       detectionMetadata: detection,

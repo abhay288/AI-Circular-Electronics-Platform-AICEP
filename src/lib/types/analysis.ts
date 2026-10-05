@@ -39,10 +39,17 @@ export interface DetectedComponent {
 
 export interface DetectionData {
   model: string;
+  provider?: "MOCK" | "YOLO" | "RT-DETR" | string;
   inferenceTimeMs: number;
   confidenceAvg: number;
   componentsCount: number;
   components: DetectedComponent[];
+  quality?: {
+    quality: string;
+    score: number;
+    warnings: string[];
+  };
+  warnings?: string[];
 }
 
 export interface PcbAnalysisData {

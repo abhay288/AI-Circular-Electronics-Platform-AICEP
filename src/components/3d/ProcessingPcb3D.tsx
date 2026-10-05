@@ -17,6 +17,8 @@ import {
   Sparkles,
 } from "lucide-react";
 
+import { getComponent3dProfile } from "@/lib/taxonomy/componentTaxonomy";
+
 export interface ComponentInfoData {
   id: string;
   name: string;
@@ -39,6 +41,7 @@ export interface ProcessingPcb3DProps {
   showLayers?: boolean;
   showHealthOverlay?: boolean;
   showRulOverlay?: boolean;
+  detectedComponents?: any[];
   onSelectComponent?: (compName: string, compData?: ComponentInfoData) => void;
 }
 
@@ -53,6 +56,7 @@ export default function ProcessingPcb3D({
   showLayers = false,
   showHealthOverlay = false,
   showRulOverlay = false,
+  detectedComponents = [],
   onSelectComponent,
 }: ProcessingPcb3DProps) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -63,6 +67,7 @@ export default function ProcessingPcb3D({
   const panRightRef = useRef<(() => void) | null>(null);
 
   const [inspectedComponent, setInspectedComponent] = useState<ComponentInfoData | null>(null);
+  const [hoveredComponent, setHoveredComponent] = useState<ComponentInfoData | null>(null);
 
   // Dynamic prop refs for 60fps render loop
   const propsRef = useRef({
@@ -228,157 +233,200 @@ export default function ProcessingPcb3D({
       interactiveMeshes.push(mesh);
     };
 
-    // A. STM32 / CPU Core BGA Socket
-    const cpuSubstrate = new THREE.Mesh(
-      new THREE.BoxGeometry(1.6, 0.12, 1.6),
-      new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.3, metalness: 0.8 })
-    );
-    cpuSubstrate.position.set(-0.6, 0.12, -0.4);
+    if (detectedComponents && detectedComponents.length > 0) {
+      // Data-driven spatial reconstruction mapped from 2D bounding boxes
+      const boardW = 6.8;
+      const boardD = 5.0;
 
-    const cpuDieMat = new THREE.MeshStandardMaterial({
-      color: 0x0f172a,
-      roughness: 0.05,
-      metalness: 0.95,
-      emissive: 0x2563eb,
-      emissiveIntensity: 0.25,
-    });
-    const cpuDie = new THREE.Mesh(new THREE.BoxGeometry(1.1, 0.08, 1.1), cpuDieMat);
-    cpuDie.position.set(-0.6, 0.22, -0.4);
-    componentsGroup.add(cpuSubstrate);
-    componentsGroup.add(cpuDie);
+      detectedComponents.forEach((c: any, idx: number) => {
+        const box = c.boundingBox || c.bbox || c.coordinates || { x: 20 + (idx % 5) * 15, y: 20 + Math.floor(idx / 5) * 15, width: 8, height: 8 };
+        const normX = (box.x > 1 ? box.x / 100 : box.x) || 0.1;
+        const normY = (box.y > 1 ? box.y / 100 : box.y) || 0.1;
+        const normW = (box.width > 1 ? box.width / 100 : box.width) || 0.08;
+        const normH = (box.height > 1 ? box.height / 100 : box.height) || 0.08;
 
-    registerComponent(cpuDie, cpuDieMat, {
-      id: "comp_cpu_01",
-      name: "STM32F103 / Core SoC",
-      type: "ARM Cortex Microcontroller",
-      confidence: 98.4,
-      health: 94,
-      rulYears: 6.4,
-      condition: "Reusable",
-      passportStatus: "Ready",
-    });
+        const threeX = ((normX + normW / 2) - 0.5) * boardW;
+        const threeZ = ((normY + normH / 2) - 0.5) * boardD;
+        const sizeX = Math.max(0.18, normW * boardW);
+        const sizeZ = Math.max(0.18, normH * boardD);
 
-    // B. RAM Chips Array (DDR3 / Flash TSOP)
-    [-1.8, 1.8].forEach((rx, idx) => {
-      const ramMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.4, metalness: 0.6 });
-      const ramStick = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.28, 2.2), ramMat);
-      ramStick.position.set(rx, 0.2, 0);
-      componentsGroup.add(ramStick);
+        const profile = getComponent3dProfile(c.type || "IC");
+        const compMat = new THREE.MeshStandardMaterial({
+          color: profile.color,
+          roughness: profile.roughness,
+          metalness: profile.metalness,
+          emissive: 0x2563eb,
+          emissiveIntensity: 0.15,
+        });
 
-      registerComponent(ramStick, ramMat, {
-        id: `comp_ram_${idx + 1}`,
-        name: `Winbond W631GU6MB RAM #${idx + 1}`,
-        type: "DDR3 Synchronous DRAM",
-        confidence: 96.8,
-        health: 92,
-        rulYears: 5.8,
+        let mesh: THREE.Mesh;
+        if (c.type?.toLowerCase().includes("cap")) {
+          const radius = Math.min(sizeX, sizeZ) * 0.45;
+          mesh = new THREE.Mesh(new THREE.CylinderGeometry(radius, radius, profile.height, 16), compMat);
+        } else {
+          mesh = new THREE.Mesh(new THREE.BoxGeometry(sizeX, profile.height, sizeZ), compMat);
+        }
+
+        mesh.position.set(threeX, 0.06 + profile.height / 2, threeZ);
+        mesh.castShadow = true;
+        mesh.receiveShadow = true;
+        componentsGroup.add(mesh);
+
+        const compId = c.componentId || c.id || `CMP-${idx + 1}`;
+        registerComponent(mesh, compMat, {
+          id: compId,
+          name: c.name || `${c.type || "Component"} #${idx + 1}`,
+          type: c.type || "Component",
+          confidence: +(c.confidence > 1 ? c.confidence : (c.confidence || 0.95) * 100).toFixed(1),
+          health: c.healthScore || c.health || 0,
+          rulYears: c.estimatedRUL?.years || 0,
+          condition: c.condition === "UNKNOWN" ? "Refurbishable" : (c.condition || "Refurbishable"),
+          passportStatus: "Ready",
+        });
+      });
+      pcbGroup.add(componentsGroup);
+    } else {
+      // Fallback default mock board layout
+      // A. STM32 / CPU Core BGA Socket
+      const cpuSubstrate = new THREE.Mesh(
+        new THREE.BoxGeometry(1.6, 0.12, 1.6),
+        new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.3, metalness: 0.8 })
+      );
+      cpuSubstrate.position.set(-0.6, 0.12, -0.4);
+
+      const cpuDieMat = new THREE.MeshStandardMaterial({
+        color: 0x0f172a,
+        roughness: 0.05,
+        metalness: 0.95,
+        emissive: 0x2563eb,
+        emissiveIntensity: 0.25,
+      });
+      const cpuDie = new THREE.Mesh(new THREE.BoxGeometry(1.1, 0.08, 1.1), cpuDieMat);
+      cpuDie.position.set(-0.6, 0.22, -0.4);
+      componentsGroup.add(cpuSubstrate);
+      componentsGroup.add(cpuDie);
+
+      registerComponent(cpuDie, cpuDieMat, {
+        id: "comp_cpu_01",
+        name: "STM32F103 / Core SoC",
+        type: "ARM Cortex Microcontroller",
+        confidence: 98.4,
+        health: 94,
+        rulYears: 6.4,
         condition: "Reusable",
         passportStatus: "Ready",
       });
-    });
 
-    // C. Power Inductors & Ferrite Chokes
-    [
-      { x: -0.8, z: 1.1, id: "comp_ind_01", name: "Coilcraft 1.2uH Power Inductor" },
-      { x: -0.1, z: 1.1, id: "comp_ind_02", name: "Murata SMD Ferrite Choke" },
-      { x: 0.6, z: 1.1, id: "comp_ind_03", name: "Shielded SMPS Power Inductor" },
-    ].forEach((pos) => {
-      const chokeMat = new THREE.MeshStandardMaterial({ color: 0x334155, metalness: 0.85, roughness: 0.3 });
-      const choke = new THREE.Mesh(new THREE.BoxGeometry(0.48, 0.32, 0.48), chokeMat);
-      choke.position.set(pos.x, 0.22, pos.z);
-      componentsGroup.add(choke);
+      // B. RAM Chips Array (DDR3 / Flash TSOP)
+      [-1.8, 1.8].forEach((rx, idx) => {
+        const ramMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.4, metalness: 0.6 });
+        const ramStick = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.28, 2.2), ramMat);
+        ramStick.position.set(rx, 0.2, 0);
+        componentsGroup.add(ramStick);
 
-      registerComponent(choke, chokeMat, {
-        id: pos.id,
-        name: pos.name,
-        type: "Power Inductor",
-        confidence: 95.2,
-        health: 96,
-        rulYears: 8.1,
-        condition: "Reusable",
-        passportStatus: "Ready",
-      });
-    });
-
-    // D. LAN Magnetics / Transformers
-    const magMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, metalness: 0.7, roughness: 0.3 });
-    const magMesh = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.4, 0.8), magMat);
-    magMesh.position.set(2.0, 0.25, -1.4);
-    componentsGroup.add(magMesh);
-
-    registerComponent(magMesh, magMat, {
-      id: "comp_mag_01",
-      name: "Pulse Electronics RJ45 LAN Transformer",
-      type: "Ethernet Magnetics Module",
-      confidence: 97.1,
-      health: 89,
-      rulYears: 4.9,
-      condition: "Refurbishable",
-      passportStatus: "Ready",
-    });
-
-    // E. Solid Polymer SMD Capacitors (Aluminum Cans)
-    const capMat = new THREE.MeshStandardMaterial({ color: 0xe2e8f0, metalness: 0.95, roughness: 0.1 });
-    for (let c = 0; c < 8; c++) {
-      const cap = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.14, 0.32, 16), capMat);
-      cap.position.set(-1.4 + (c % 4) * 0.34, 0.2, -1.6 + Math.floor(c / 4) * 0.42);
-      componentsGroup.add(cap);
-
-      if (c === 0) {
-        registerComponent(cap, capMat, {
-          id: "comp_cap_bank",
-          name: "Nichicon 220uF Solid Polymer Capacitor",
-          type: "Electrolytic Decoupling Capacitor",
-          confidence: 93.6,
-          health: 91,
-          rulYears: 5.2,
+        registerComponent(ramStick, ramMat, {
+          id: `comp_ram_${idx + 1}`,
+          name: `Winbond W631GU6MB RAM #${idx + 1}`,
+          type: "DDR3 Synchronous DRAM",
+          confidence: 96.8,
+          health: 92,
+          rulYears: 5.8,
           condition: "Reusable",
           passportStatus: "Ready",
         });
+      });
+
+      // C. Power Inductors & Ferrite Chokes
+      [
+        { x: -0.8, z: 1.1, id: "comp_ind_01", name: "Coilcraft 1.2uH Power Inductor" },
+        { x: -0.1, z: 1.1, id: "comp_ind_02", name: "Murata SMD Ferrite Choke" },
+        { x: 0.6, z: 1.1, id: "comp_ind_03", name: "Shielded SMPS Power Inductor" },
+      ].forEach((pos) => {
+        const chokeMat = new THREE.MeshStandardMaterial({ color: 0x334155, metalness: 0.85, roughness: 0.3 });
+        const choke = new THREE.Mesh(new THREE.BoxGeometry(0.48, 0.32, 0.48), chokeMat);
+        choke.position.set(pos.x, 0.22, pos.z);
+        componentsGroup.add(choke);
+
+        registerComponent(choke, chokeMat, {
+          id: pos.id,
+          name: pos.name,
+          type: "Power Inductor",
+          confidence: 95.2,
+          health: 96,
+          rulYears: 8.1,
+          condition: "Reusable",
+          passportStatus: "Ready",
+        });
+      });
+
+      // D. LAN Magnetics / Transformers
+      const magMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, metalness: 0.7, roughness: 0.3 });
+      const magMesh = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.4, 0.8), magMat);
+      magMesh.position.set(2.0, 0.25, -1.4);
+      componentsGroup.add(magMesh);
+
+      registerComponent(magMesh, magMat, {
+        id: "comp_mag_01",
+        name: "Pulse Electronics RJ45 LAN Transformer",
+        type: "Ethernet Magnetics Module",
+        confidence: 97.1,
+        health: 89,
+        rulYears: 4.9,
+        condition: "Refurbishable",
+        passportStatus: "Ready",
+      });
+
+      // E. Solid Polymer SMD Capacitors
+      const capMat = new THREE.MeshStandardMaterial({ color: 0xe2e8f0, metalness: 0.95, roughness: 0.1 });
+      for (let c = 0; c < 8; c++) {
+        const cap = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.14, 0.32, 16), capMat);
+        cap.position.set(-1.4 + (c % 4) * 0.34, 0.2, -1.6 + Math.floor(c / 4) * 0.42);
+        componentsGroup.add(cap);
+
+        if (c === 0) {
+          registerComponent(cap, capMat, {
+            id: "comp_cap_bank",
+            name: "Nichicon 220uF Solid Polymer Capacitor",
+            type: "Electrolytic Decoupling Capacitor",
+            confidence: 93.6,
+            health: 91,
+            rulYears: 5.2,
+            condition: "Reusable",
+            passportStatus: "Ready",
+          });
+        }
       }
+
+      // F. Flash Memory / Microcontroller
+      const mcuMat = new THREE.MeshStandardMaterial({ color: 0x090d16, roughness: 0.2, metalness: 0.7 });
+      const mcu = new THREE.Mesh(new THREE.BoxGeometry(0.85, 0.12, 0.85), mcuMat);
+      mcu.position.set(0.9, 0.12, -1.2);
+      componentsGroup.add(mcu);
+
+      registerComponent(mcu, mcuMat, {
+        id: "comp_mcu_01",
+        name: "Macronix MX25L 128MB SPI NOR Flash",
+        type: "Flash Memory IC",
+        confidence: 97.8,
+        health: 95,
+        rulYears: 7.4,
+        condition: "Reusable",
+        passportStatus: "Ready",
+      });
+
+      // G. Heatsink Aluminum Fin Assembly
+      const heatsinkGroup = new THREE.Group();
+      for (let h = 0; h < 6; h++) {
+        const fin = new THREE.Mesh(
+          new THREE.BoxGeometry(0.04, 0.45, 1.2),
+          new THREE.MeshStandardMaterial({ color: 0x94a3b8, metalness: 0.9, roughness: 0.2 })
+        );
+        fin.position.set(0.6 + h * 0.12, 0.3, 0.2);
+        heatsinkGroup.add(fin);
+      }
+      componentsGroup.add(heatsinkGroup);
+      pcbGroup.add(componentsGroup);
     }
-
-    // F. Flash Memory / Microcontroller
-    const mcuMat = new THREE.MeshStandardMaterial({ color: 0x090d16, roughness: 0.2, metalness: 0.7 });
-    const mcu = new THREE.Mesh(new THREE.BoxGeometry(0.85, 0.12, 0.85), mcuMat);
-    mcu.position.set(0.9, 0.12, -1.2);
-    componentsGroup.add(mcu);
-
-    // QFP Pin Leads for realistic MCU look
-    const pinMat = new THREE.MeshStandardMaterial({ color: 0xd4d4d8, metalness: 0.9, roughness: 0.2 });
-    for (let p = -0.35; p <= 0.35; p += 0.12) {
-      const pinNorth = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.02, 0.12), pinMat);
-      pinNorth.position.set(0.9 + p, 0.08, -1.2 - 0.48);
-      componentsGroup.add(pinNorth);
-
-      const pinSouth = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.02, 0.12), pinMat);
-      pinSouth.position.set(0.9 + p, 0.08, -1.2 + 0.48);
-      componentsGroup.add(pinSouth);
-    }
-
-    registerComponent(mcu, mcuMat, {
-      id: "comp_mcu_01",
-      name: "Macronix MX25L 128MB SPI NOR Flash",
-      type: "Flash Memory IC",
-      confidence: 97.8,
-      health: 95,
-      rulYears: 7.4,
-      condition: "Reusable",
-      passportStatus: "Ready",
-    });
-
-    // G. Heatsink Aluminum Fin Assembly
-    const heatsinkGroup = new THREE.Group();
-    for (let h = 0; h < 6; h++) {
-      const fin = new THREE.Mesh(
-        new THREE.BoxGeometry(0.04, 0.45, 1.2),
-        new THREE.MeshStandardMaterial({ color: 0x94a3b8, metalness: 0.9, roughness: 0.2 })
-      );
-      fin.position.set(0.6 + h * 0.12, 0.3, 0.2);
-      heatsinkGroup.add(fin);
-    }
-    componentsGroup.add(heatsinkGroup);
-    pcbGroup.add(componentsGroup);
 
     // 4. Circuit Traces Layer
     const tracesGroup = new THREE.Group();
@@ -477,6 +525,29 @@ export default function ProcessingPcb3D({
         targetRotationY += deltaX * 0.008;
         targetRotationX += deltaY * 0.008;
         targetRotationX = Math.max(-0.2, Math.min(1.2, targetRotationX));
+      } else {
+        // Hover raycast detection
+        const rect = renderer.domElement.getBoundingClientRect();
+        if (
+          e.clientX >= rect.left &&
+          e.clientX <= rect.right &&
+          e.clientY >= rect.top &&
+          e.clientY <= rect.bottom
+        ) {
+          mouseCoord.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+          mouseCoord.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+          raycaster.setFromCamera(mouseCoord, camera);
+          const intersects = raycaster.intersectObjects(interactiveMeshes, true);
+          if (intersects.length > 0) {
+            const hitMesh = intersects[0].object as THREE.Mesh;
+            const compData = hitMesh.userData as ComponentInfoData;
+            if (compData && compData.name) {
+              setHoveredComponent(compData);
+            }
+          } else {
+            setHoveredComponent(null);
+          }
+        }
       }
     };
 
@@ -651,10 +722,27 @@ export default function ProcessingPcb3D({
       }
       renderer.dispose();
     };
-  }, [imageUrl, isScanning]);
+  }, [imageUrl, isScanning, detectedComponents]);
 
   return (
     <div className="relative w-full h-full min-h-[380px] select-none">
+      {/* 3D Reconstruction Estimation Disclaimer */}
+      <div className="absolute top-3 left-1/2 -translate-x-1/2 z-20 pointer-events-none px-3 py-1 rounded-full bg-slate-900/85 backdrop-blur-md border border-slate-700/60 text-[10px] font-mono text-slate-300 shadow-md flex items-center gap-1.5 whitespace-nowrap">
+        <span className="w-1.5 h-1.5 rounded-full bg-sky-400 animate-pulse" />
+        <span>3D spatial reconstruction — estimated from 2D detection</span>
+      </div>
+
+      {/* Compact Hover Tooltip */}
+      {hoveredComponent && !inspectedComponent && (
+        <div className="absolute top-3 left-3 z-30 pointer-events-none px-3 py-1.5 rounded-xl bg-slate-950/90 text-white backdrop-blur-md border border-sky-500/40 text-[11px] font-mono shadow-xl flex items-center gap-2 animate-in fade-in duration-150">
+          <span className="font-bold text-sky-400">{hoveredComponent.type}</span>
+          <span className="text-slate-500">·</span>
+          <span className="text-slate-300 font-mono text-[10px]">{hoveredComponent.id}</span>
+          <span className="text-slate-500">·</span>
+          <span className="text-emerald-400 font-bold">Conf {hoveredComponent.confidence}%</span>
+        </div>
+      )}
+
       {/* 3D WebGL Canvas */}
       <div ref={containerRef} className="w-full h-full cursor-grab active:cursor-grabbing" />
 

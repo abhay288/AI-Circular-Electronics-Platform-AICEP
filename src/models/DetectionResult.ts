@@ -1,25 +1,42 @@
 import mongoose, { Schema, Model } from "mongoose";
 
+export interface IDetectionBbox {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+export interface IDetectionItem {
+  classId: number;
+  className: string;
+  confidence: number;
+  bbox: IDetectionBbox;
+  normalizedBbox: IDetectionBbox;
+}
+
+export interface IImageQuality {
+  quality: "EXCELLENT" | "GOOD" | "FAIR" | "POOR";
+  score: number;
+  warnings: string[];
+}
+
 export interface IDetectionResult {
   analysisId: string;
-  components: Array<{
-    componentId: string;
-    type: string;
-    name: string;
-    manufacturer: string;
-    partNumber: string;
-    package: string;
-    boundingBox: { x: number; y: number; width: number; height: number };
-    confidence: number;
-    condition: string;
-    healthScore: number;
-    marketplaceEligible: boolean;
-  }>;
+  assetId?: string;
+  modelName: string;
+  modelVersion: string;
+  datasetVersion?: string;
+  imageWidth: number;
+  imageHeight: number;
   totalDetected: number;
-  confidenceAvg: number;
+  detections: IDetectionItem[];
+  components: Array<any>;
+  confidenceAverage: number;
+  confidenceAvg?: number; // legacy alias
   processingTimeMs: number;
-  model: string;
-  version: string;
+  quality: IImageQuality;
+  warnings: string[];
   provider: "MOCK" | "YOLO" | "RT-DETR";
   status: "DEMO" | "PROD";
   createdAt?: Date;
@@ -29,12 +46,24 @@ export interface IDetectionResult {
 const DetectionResultSchema = new Schema<IDetectionResult>(
   {
     analysisId: { type: String, required: true, unique: true, index: true },
-    components: { type: Schema.Types.Mixed, default: [] },
+    assetId: { type: String, index: true },
+    modelName: { type: String, default: "EcoIntel-PCB-YOLO" },
+    modelVersion: { type: String, default: "v0.1.0" },
+    datasetVersion: { type: String, default: "pcb-components-v1" },
+    imageWidth: { type: Number, default: 1920 },
+    imageHeight: { type: Number, default: 1080 },
     totalDetected: { type: Number, default: 0 },
+    detections: { type: Schema.Types.Mixed, default: [] },
+    components: { type: Schema.Types.Mixed, default: [] },
+    confidenceAverage: { type: Number, default: 0 },
     confidenceAvg: { type: Number, default: 0 },
     processingTimeMs: { type: Number, default: 0 },
-    model: { type: String, default: "YOLOv11-Circular-Ewaste" },
-    version: { type: String, default: "2.4.0" },
+    quality: {
+      quality: { type: String, default: "GOOD" },
+      score: { type: Number, default: 0.9 },
+      warnings: { type: [String], default: [] },
+    },
+    warnings: { type: [String], default: [] },
     provider: {
       type: String,
       enum: ["MOCK", "YOLO", "RT-DETR"],

@@ -1,20 +1,99 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
-import SectionHeader from "@/components/ui/SectionHeader";
 import TechBadge from "@/components/ui/TechBadge";
-import { Cpu, Upload, CheckCircle2, ShieldCheck, ArrowRight, Activity } from "lucide-react";
+import { Cpu, Upload, CheckCircle2, ShieldCheck, ArrowRight, Activity, Crosshair, AlertCircle, Loader2 } from "lucide-react";
+
+interface DisplayComponent {
+  id: string;
+  name: string;
+  package: string;
+  mfr: string;
+  health: string;
+  rul: string;
+  conf: string;
+  status: string;
+  box: { x: number; y: number; width: number; height: number };
+}
+
+const INITIAL_CHIPS: DisplayComponent[] = [
+  { id: "LM358", name: "LM358 Dual Op-Amp IC", package: "SOP-8", mfr: "Texas Instruments", health: "Pending Analysis", rul: "Pending Analysis", conf: "99.2%", status: "Demo Base", box: { x: 25, y: 25, width: 22, height: 18 } },
+  { id: "ATmega328P", name: "ATmega328P Microcontroller", package: "TQFP-32", mfr: "Microchip Tech", health: "Pending Analysis", rul: "Pending Analysis", conf: "98.7%", status: "Demo Base", box: { x: 60, y: 35, width: 24, height: 22 } },
+  { id: "Cap220uF", name: "Solid Polymer Capacitor", package: "SMD-6.3", mfr: "Nichicon", health: "Pending Analysis", rul: "Pending Analysis", conf: "97.5%", status: "Demo Base", box: { x: 20, y: 65, width: 16, height: 16 } },
+];
 
 export default function DetectionPage() {
-  const [selectedChip, setSelectedChip] = useState("LM358");
+  const [chips, setChips] = useState<DisplayComponent[]>(INITIAL_CHIPS);
+  const [selectedChipId, setSelectedChipId] = useState<string>("LM358");
+  const [imageUrl, setImageUrl] = useState<string>("/images/samples/router_board.jpg");
+  const [isProcessing, setIsProcessing] = useState<boolean>(false);
+  const [modelMeta, setModelMeta] = useState<{ model: string; version: string; provider: string }>({
+    model: "EcoIntel-PCB-YOLO",
+    version: "v0.1.0",
+    provider: "DEMO",
+  });
+  const [warnings, setWarnings] = useState<string[]>([]);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  const detectedChips = [
-    { id: "LM358", name: "LM358 Dual Op-Amp IC", package: "SOP-8", mfr: "Texas Instruments", health: "92%", rul: "6.4 Yrs", conf: "99.2%", status: "Polygon Verified" },
-    { id: "ATmega328P", name: "ATmega328P Microcontroller", package: "TQFP-32", mfr: "Microchip Tech", health: "88%", rul: "5.2 Yrs", conf: "98.7%", status: "Polygon Verified" },
-    { id: "Cap220uF", name: "Solid Polymer Capacitor", package: "SMD-6.3", mfr: "Nichicon", health: "95%", rul: "8.0 Yrs", conf: "97.5%", status: "Polygon Verified" },
-  ];
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const selectedChip = chips.find((c) => c.id === selectedChipId) || chips[0];
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const previewUrl = URL.createObjectURL(file);
+    setImageUrl(previewUrl);
+    setIsProcessing(true);
+    setErrorMsg(null);
+
+    const formData = new FormData();
+    formData.append("image", file);
+    formData.append("analysisId", `audit-${Date.now()}`);
+
+    try {
+      const res = await fetch("/api/detection", {
+        method: "POST",
+        body: formData,
+      });
+
+      const json = await res.json();
+      if (!res.ok || !json.success) {
+        throw new Error(json.error?.message || "Detection failed.");
+      }
+
+      const data = json.data;
+      setModelMeta({
+        model: data.model || "EcoIntel-PCB-YOLO",
+        version: data.version || "v0.1.0",
+        provider: data.provider || "YOLO",
+      });
+      setWarnings(data.warnings || []);
+
+      if (data.components && data.components.length > 0) {
+        const mapped: DisplayComponent[] = data.components.map((c: any, idx: number) => ({
+          id: c.componentId || `CMP-${idx + 1}`,
+          name: c.name,
+          package: c.package || "SMD",
+          mfr: c.manufacturer || "Identified via AI",
+          health: c.healthScore > 0 ? `${c.healthScore}%` : "Pending Analysis",
+          rul: c.estimatedRUL?.years > 0 ? `${c.estimatedRUL.years} Yrs` : "Pending Analysis",
+          conf: `${(c.confidence > 1 ? c.confidence : c.confidence * 100).toFixed(1)}%`,
+          status: data.status === "PROD" ? "AI Verified" : "Demo Base",
+          box: c.boundingBox || { x: 10 + (idx % 4) * 20, y: 10 + Math.floor(idx / 4) * 20, width: 12, height: 12 },
+        }));
+        setChips(mapped);
+        setSelectedChipId(mapped[0].id);
+      }
+    } catch (err: any) {
+      setErrorMsg(err.message);
+    } finally {
+      setIsProcessing(false);
+    }
+  };
 
   return (
     <main className="relative flex flex-col min-h-screen bg-[#F1F5F9]">
@@ -26,13 +105,13 @@ export default function DetectionPage() {
           <div className="flex flex-col gap-4">
             <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-blue-500/10 border border-blue-500/30 text-[#60A5FA] text-xs font-mono font-bold w-fit">
               <Cpu className="w-4 h-4" />
-              <span>MODULE 01 · YOLOv11 & RT-DETR 50-MICRON AI VISION</span>
+              <span>MODULE 01 · YOLO & VISION INFERENCE ENGINE</span>
             </div>
             <h1 className="font-heading text-4xl sm:text-6xl font-extrabold tracking-tight">
               AI Component Detection
             </h1>
             <p className="text-slate-300 text-base max-w-2xl leading-relaxed">
-              Sub-millimeter spectro-spatial neural vision pipeline detecting microchips, SMD capacitors, MOSFETs, and relays from high-volume e-waste streams.
+              Automated neural vision pipeline detecting microchips, capacitors, connectors, MOSFETs, and relays for circular electronics recycling.
             </p>
           </div>
         </div>
@@ -47,79 +126,136 @@ export default function DetectionPage() {
             <div className="lg:col-span-7 glass-card p-8 space-y-6">
               <div className="flex items-center justify-between">
                 <span className="font-mono text-xs font-bold text-[#2563EB]">INTERACTIVE PCB INSPECTION WORKBENCH</span>
-                <TechBadge label="99.2% Vision Confidence" variant="blue" />
+                <TechBadge
+                  label={modelMeta.provider === "YOLO" ? "Real AI Inference" : "Demo Base"}
+                  variant={modelMeta.provider === "YOLO" ? "blue" : "neutral"}
+                />
               </div>
+
+              {errorMsg && (
+                <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-xs font-mono text-red-700 flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 shrink-0" />
+                  <span>{errorMsg}</span>
+                </div>
+              )}
+
+              {warnings.length > 0 && (
+                <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-xs font-mono text-amber-700 flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 shrink-0" />
+                  <span>Quality Warnings: {warnings.join(", ")}</span>
+                </div>
+              )}
 
               {/* PCB Inspection Display Frame */}
               <div className="relative h-[380px] rounded-2xl bg-gradient-to-br from-[#0F172A] to-[#1E293B] border border-slate-800 flex items-center justify-center p-6 text-center text-white overflow-hidden shadow-inner">
-                
-                {/* Bounding Box Highlights */}
-                <div className="absolute top-1/4 left-1/4 p-3 rounded-xl border-2 border-[#16A34A] bg-[#16A34A]/20 cursor-pointer animate-pulse" onClick={() => setSelectedChip("LM358")}>
-                  <span className="font-mono text-[10px] font-bold text-[#4ADE80]">LM358 (99.2%)</span>
-                </div>
+                {imageUrl && (
+                  <img
+                    src={imageUrl}
+                    alt="PCB Scan"
+                    className="max-h-full max-w-full object-contain rounded-lg opacity-85"
+                  />
+                )}
 
-                <div className="absolute top-1/3 right-1/4 p-4 rounded-xl border-2 border-[#2563EB] bg-[#2563EB]/20 cursor-pointer" onClick={() => setSelectedChip("ATmega328P")}>
-                  <span className="font-mono text-[10px] font-bold text-[#60A5FA]">ATmega328P (98.7%)</span>
-                </div>
-
-                <div className="flex flex-col items-center space-y-3 pointer-events-none">
-                  <Cpu className="w-12 h-12 text-[#60A5FA] animate-bounce" />
-                  <span className="font-heading font-extrabold text-lg">Hover / Click Component Bounding Box</span>
-                  <span className="text-xs text-slate-400 font-mono">50 Micron Spectro-Spatial Neural Feed Online</span>
-                </div>
+                {isProcessing ? (
+                  <div className="absolute inset-0 bg-black/60 backdrop-blur-xs flex flex-col items-center justify-center text-white gap-3 z-30">
+                    <Loader2 className="w-8 h-8 text-[#38BDF8] animate-spin" />
+                    <span className="font-mono text-xs font-bold">Executing YOLO Neural Inference...</span>
+                  </div>
+                ) : (
+                  chips.map((chip) => {
+                    const isSelected = selectedChipId === chip.id;
+                    return (
+                      <div
+                        key={chip.id}
+                        onClick={() => setSelectedChipId(chip.id)}
+                        style={{
+                          left: `${chip.box.x}%`,
+                          top: `${chip.box.y}%`,
+                          width: `${chip.box.width}%`,
+                          height: `${chip.box.height}%`,
+                        }}
+                        className={`absolute rounded-md cursor-pointer transition-all ${
+                          isSelected
+                            ? "border-2 border-[#38BDF8] bg-sky-500/30 ring-2 ring-sky-400/50 shadow-lg z-20"
+                            : "border border-[#16A34A] bg-[#16A34A]/20 hover:border-sky-400 z-10"
+                        }`}
+                      >
+                        <span className="absolute -top-5 left-0 whitespace-nowrap px-1.5 py-0.5 rounded text-[9px] font-mono font-bold bg-slate-900/90 text-white shadow pointer-events-none">
+                          {chip.name.split(" ")[0]} ({chip.conf})
+                        </span>
+                      </div>
+                    );
+                  })
+                )}
               </div>
 
               {/* Upload Drop Zone */}
-              <div className="border-2 border-dashed border-[#BFDBFE] rounded-2xl p-6 text-center bg-[#EFF6FF]/40 hover:bg-[#EFF6FF] transition-colors cursor-pointer flex flex-col items-center gap-2">
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={handleFileUpload}
+              />
+              <div
+                onClick={() => fileInputRef.current?.click()}
+                className="border-2 border-dashed border-[#BFDBFE] rounded-2xl p-6 text-center bg-[#EFF6FF]/40 hover:bg-[#EFF6FF] transition-colors cursor-pointer flex flex-col items-center gap-2"
+              >
                 <Upload className="w-6 h-6 text-[#2563EB]" />
-                <span className="text-xs font-bold text-[#0F172A]">Upload Custom PCB Batch Image (JPG / PNG / TIFF)</span>
-                <span className="text-[10px] font-mono text-[#64748B]">Supports high-resolution 4K optical & X-ray spectrometry feeds</span>
+                <span className="text-xs font-bold text-[#0F172A]">Upload Custom PCB Batch Image (JPG / PNG)</span>
+                <span className="text-[10px] font-mono text-[#64748B]">Sends to FastAPI YOLO Component Detector</span>
               </div>
             </div>
 
             {/* Right Selected Component Inspector Panel */}
             <div className="lg:col-span-5 glass-card p-8 space-y-6">
-              <span className="font-mono text-xs font-bold text-[#2563EB]">COMPONENT TELEMETRY INSPECTOR</span>
+              <div className="flex items-center justify-between">
+                <span className="font-mono text-xs font-bold text-[#2563EB]">COMPONENT TELEMETRY INSPECTOR</span>
+                <span className="text-xs font-mono text-slate-500">{chips.length} Components</span>
+              </div>
               
-              {detectedChips.filter(c => c.id === selectedChip || selectedChip === "LM358").slice(0, 1).map((chip) => (
-                <div key={chip.id} className="space-y-4">
+              {selectedChip && (
+                <div className="space-y-4">
                   <div className="flex items-center justify-between">
-                    <h3 className="font-heading text-xl font-bold text-[#0F172A]">{chip.name}</h3>
-                    <TechBadge label={chip.status} variant="green" />
+                    <h3 className="font-heading text-xl font-bold text-[#0F172A]">{selectedChip.name}</h3>
+                    <TechBadge label={selectedChip.status} variant="green" />
                   </div>
 
                   <div className="grid grid-cols-2 gap-3 pt-2">
                     <div className="p-4 rounded-xl bg-white border border-[#E2E8F0]">
+                      <span className="text-[10px] font-mono text-[#64748B] block">Component ID</span>
+                      <span className="font-mono font-bold text-xs text-[#0F172A] truncate block">{selectedChip.id}</span>
+                    </div>
+                    <div className="p-4 rounded-xl bg-white border border-[#E2E8F0]">
                       <span className="text-[10px] font-mono text-[#64748B] block">Package Type</span>
-                      <span className="font-mono font-bold text-sm text-[#0F172A]">{chip.package}</span>
+                      <span className="font-mono font-bold text-sm text-[#0F172A]">{selectedChip.package}</span>
                     </div>
                     <div className="p-4 rounded-xl bg-white border border-[#E2E8F0]">
                       <span className="text-[10px] font-mono text-[#64748B] block">Manufacturer</span>
-                      <span className="font-mono font-bold text-sm text-[#0F172A]">{chip.mfr}</span>
+                      <span className="font-mono font-bold text-sm text-[#0F172A]">{selectedChip.mfr}</span>
                     </div>
                     <div className="p-4 rounded-xl bg-white border border-[#E2E8F0]">
                       <span className="text-[10px] font-mono text-[#64748B] block">Health Score</span>
-                      <span className="font-mono font-bold text-sm text-[#16A34A]">{chip.health}</span>
-                    </div>
-                    <div className="p-4 rounded-xl bg-white border border-[#E2E8F0]">
-                      <span className="text-[10px] font-mono text-[#64748B] block">Remaining Life</span>
-                      <span className="font-mono font-bold text-sm text-[#2563EB]">{chip.rul}</span>
+                      <span className="font-mono font-bold text-xs text-slate-500">{selectedChip.health}</span>
                     </div>
                   </div>
 
                   <div className="p-4 rounded-xl bg-[#EFF6FF] border border-[#BFDBFE] flex items-center justify-between text-xs font-mono">
                     <span className="text-[#2563EB] font-bold">Detection Model Confidence</span>
-                    <span className="font-extrabold text-[#0F172A]">{chip.conf}</span>
+                    <span className="font-extrabold text-[#0F172A]">{selectedChip.conf}</span>
                   </div>
                 </div>
-              ))}
+              )}
 
               <div className="pt-4 border-t border-slate-200">
-                <span className="text-xs font-mono text-[#64748B] block mb-3">Model Architecture Pipeline</span>
-                <div className="flex gap-2">
-                  <span className="px-3 py-1 rounded-full bg-white border text-[10px] font-mono text-[#0F172A] font-bold">YOLOv11-x</span>
-                  <span className="px-3 py-1 rounded-full bg-white border text-[10px] font-mono text-[#0F172A] font-bold">RT-DETR-L</span>
-                  <span className="px-3 py-1 rounded-full bg-white border text-[10px] font-mono text-[#0F172A] font-bold">SAM Segmentation</span>
+                <span className="text-xs font-mono text-[#64748B] block mb-3">Active Model Metadata</span>
+                <div className="flex flex-wrap gap-2 text-xs font-mono">
+                  <span className="px-3 py-1 rounded-full bg-white border text-[10px] font-mono text-[#0F172A] font-bold">
+                    {modelMeta.model}
+                  </span>
+                  <span className="px-3 py-1 rounded-full bg-white border text-[10px] font-mono text-[#0F172A] font-bold">
+                    {modelMeta.version}
+                  </span>
                 </div>
               </div>
             </div>

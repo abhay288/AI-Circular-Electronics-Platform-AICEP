@@ -1,0 +1,22 @@
+# EcoIntel Circular Electronics PCB Component Detection Dataset YAML
+path: datasets/pcb-components
+train: images/train
+val: images/val
+test: images/test
+
+names:
+  0: IC
+  1: Resistor
+  2: Capacitor
+  3: Diode
+  4: Transistor
+  5: MOSFET
+  6: Inductor
+  7: Connector
+  8: Crystal
+  9: Sensor
+  10: Relay
+  11: Voltage_Regulator
+  12: LED
+  13: Fuse
+  14: Transformer

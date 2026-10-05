@@ -16,7 +16,7 @@ import { Report } from "@/models/Report";
 import { AuditLog } from "@/models/AuditLog";
 import { generateReportId } from "@/lib/id-generator";
 
-import { MockDetectionProvider } from "@/providers/detection/detection.provider";
+import { detectionService } from "@/providers/detection/detection.provider";
 import { MockPCBProvider } from "@/providers/pcb/pcb.provider";
 import { MockRULProvider } from "@/providers/rul/rul.provider";
 import { DemoMaterialProvider } from "@/providers/materials/materials.provider";
@@ -24,7 +24,7 @@ import { MockRepairProvider } from "@/providers/repair/repair.provider";
 import { MockBlockchainProvider } from "@/providers/blockchain/blockchain.provider";
 
 export class AnalysisPipelineService {
-  private detectionProvider = new MockDetectionProvider();
+  private detectionService = detectionService;
   private pcbProvider = new MockPCBProvider();
   private rulProvider = new MockRULProvider();
   private materialProvider = new DemoMaterialProvider();
@@ -125,11 +125,12 @@ export class AnalysisPipelineService {
     session.progress = 15;
     await session.save();
 
-    const output = await this.detectionProvider.detect({
+    const output = await this.detectionService.detect({
       analysisId: session.analysisId,
-      imageUrl: session.imageUrl,
+      imageUrl: session.imageUrl || "/images/samples/router_board.jpg",
       sampleId: session.sampleId,
       mode: session.mode,
+      sourceType: session.sourceType,
     });
 
     // Idempotent upsert of DetectionResult
@@ -139,34 +140,62 @@ export class AnalysisPipelineService {
         analysisId: session.analysisId,
         components: output.components,
         totalDetected: output.totalDetected,
+        confidenceAverage: output.confidenceAverage || output.confidenceAvg,
         confidenceAvg: output.confidenceAvg,
         processingTimeMs: output.processingTimeMs,
+        modelName: output.model,
+        modelVersion: output.version,
+        datasetVersion: output.datasetVersion || "pcb-components-v1",
         model: output.model,
         version: output.version,
         provider: output.provider,
         status: output.status,
+        quality: output.quality || {
+          quality: "GOOD",
+          score: 0.9,
+          warnings: [],
+        },
+        warnings: output.warnings || [],
+        imageWidth: output.imageDimensions?.width || 1920,
+        imageHeight: output.imageDimensions?.height || 1080,
+        detections: output.detections || [],
       },
       { upsert: true, new: true }
     );
 
-    // Idempotent upsert of individual Component records
+    // Idempotent upsert of individual Component records with unique sequential IDs
     await Component.deleteMany({ analysisId: session.analysisId });
-    const componentDocs = output.components.map((c, idx) => ({
-      analysisId: session.analysisId,
-      serialNumber: `${session.analysisId}-${c.componentId || idx}-${Date.now()}`,
-      type: c.type,
-      name: c.name,
-      manufacturer: c.manufacturer,
-      partNumber: c.partNumber,
-      package: c.package,
-      boundingBox: c.boundingBox,
-      confidence: c.confidence,
-      healthScore: c.healthScore,
-      condition: c.condition,
-      marketplaceEligible: c.marketplaceEligible,
-      estimatedRUL: { hours: 45000, years: 5.2 },
-    }));
-    await Component.insertMany(componentDocs);
+    const componentDocs = output.components.map((c, idx) => {
+      const seq = String(idx + 1).padStart(3, "0");
+      const serialNum = `CMP-ECI-${session.analysisId.slice(-4).toUpperCase()}-${seq}`;
+      const centerCoord = c.center || {
+        x: +(c.boundingBox.x + c.boundingBox.width / 2).toFixed(2),
+        y: +(c.boundingBox.y + c.boundingBox.height / 2).toFixed(2),
+      };
+
+      return {
+        analysisId: session.analysisId,
+        detectionResultId: String(detectionDoc._id),
+        serialNumber: serialNum,
+        type: c.type,
+        name: c.name,
+        manufacturer: c.manufacturer,
+        partNumber: c.partNumber || `${c.type.toUpperCase()}-${seq}`,
+        package: c.package,
+        boundingBox: c.boundingBox,
+        bbox: c.boundingBox,
+        center: centerCoord,
+        confidence: c.confidence,
+        condition: "UNKNOWN" as const,
+        healthScore: 0,
+        estimatedRUL: { hours: 0, years: 0 },
+        marketplaceEligible: false,
+      };
+    });
+
+    if (componentDocs.length > 0) {
+      await Component.insertMany(componentDocs);
+    }
 
     session.detectionId = detectionDoc._id;
     session.detectionResult = {

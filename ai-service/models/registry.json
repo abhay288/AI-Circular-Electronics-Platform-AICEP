@@ -1,0 +1,79 @@
+{
+  "activeModelId": "model-yolo-base-01",
+  "models": [
+    {
+      "modelId": "model-yolo-base-01",
+      "name": "EcoIntel-PCB-YOLO",
+      "version": "v0.1.0-base",
+      "provider": "Ultralytics YOLO (Pretrained Base)",
+      "status": "PRETRAINED_BASE",
+      "isCustomTrained": false,
+      "trainingDate": null,
+      "datasetVersion": "pcb-components-v1-foundation",
+      "classes": [
+        "IC",
+        "Resistor",
+        "Capacitor",
+        "Diode",
+        "Transistor",
+        "MOSFET",
+        "Inductor",
+        "Connector",
+        "Crystal",
+        "Sensor",
+        "Relay",
+        "Voltage_Regulator",
+        "LED",
+        "Fuse",
+        "Transformer"
+      ],
+      "metrics": {
+        "mAP50": null,
+        "mAP50_95": null,
+        "precision": null,
+        "recall": null
+      },
+      "checkpointPath": "yolo11n.pt",
+      "active": true,
+      "createdAt": "2026-10-05T00:00:00.000Z",
+      "notes": "Pretrained base architecture ready for domain fine-tuning on custom circular electronics dataset."
+    },
+    {
+      "modelId": "model-ecointel-pcb-v1",
+      "name": "EcoIntel-PCB-YOLO-Trained",
+      "version": "v1.0.0",
+      "provider": "EcoIntel Fine-Tuned PyTorch",
+      "status": "PENDING_TRAINING",
+      "isCustomTrained": true,
+      "trainingDate": null,
+      "datasetVersion": "pcb-components-v1",
+      "classes": [
+        "IC",
+        "Resistor",
+        "Capacitor",
+        "Diode",
+        "Transistor",
+        "MOSFET",
+        "Inductor",
+        "Connector",
+        "Crystal",
+        "Sensor",
+        "Relay",
+        "Voltage_Regulator",
+        "LED",
+        "Fuse",
+        "Transformer"
+      ],
+      "metrics": {
+        "mAP50": null,
+        "mAP50_95": null,
+        "precision": null,
+        "recall": null
+      },
+      "checkpointPath": "ai-service/models/weights/best.pt",
+      "active": false,
+      "createdAt": null,
+      "notes": "Reserved for custom training run output via scripts/train_detector.py"
+    }
+  ]
+}
