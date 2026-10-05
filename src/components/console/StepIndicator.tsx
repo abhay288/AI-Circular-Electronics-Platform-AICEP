@@ -106,6 +106,7 @@ export default function StepIndicator() {
       case 1:
         return [
           "DETECTION_COMPLETE",
+          "PCB_COMPLETE",
           "PCB_ANALYSIS_COMPLETE",
           "RUL_COMPLETE",
           "MATERIAL_ANALYSIS_COMPLETE",
@@ -116,6 +117,7 @@ export default function StepIndicator() {
         ].includes(status);
       case 2:
         return [
+          "PCB_COMPLETE",
           "PCB_ANALYSIS_COMPLETE",
           "RUL_COMPLETE",
           "MATERIAL_ANALYSIS_COMPLETE",

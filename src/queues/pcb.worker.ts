@@ -198,12 +198,20 @@ export async function runPCBWorkerJob(payload: PCBJobPayload) {
     };
 
     session.status = "PCB_COMPLETE";
-    session.currentStage = "RUL"; // RUL queued, Phase 3 stops here
+    session.currentStage = "RUL"; // RUL queued
     session.stageStatuses.pcb = "completed";
     session.stageStatuses.rul = "pending";
     session.progress = Math.max(session.progress, 50);
     session.markModified("stageStatuses");
     await session.save();
+
+    // Trigger next pipeline stage: Health & RUL Prediction
+    const { enqueueRULJob } = await import("./rul.queue");
+    await enqueueRULJob({
+      analysisId: session.analysisId,
+      sampleId: session.sampleId,
+      sourceType: session.sourceType,
+    });
 
     return {
       success: true,

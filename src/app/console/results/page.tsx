@@ -41,6 +41,7 @@ import { useAnalysisSession } from "@/lib/context/AnalysisSessionContext";
 import { DetectedComponent } from "@/lib/types/analysis";
 import RealPcbViewer from "@/components/console/RealPcbViewer";
 import PcbIntelligenceWorkspace from "@/components/console/PcbIntelligenceWorkspace";
+import RulWorkspace from "@/components/console/RulWorkspace";
 
 const ProcessingPcb3D = dynamic(
   () => import("@/components/3d/ProcessingPcb3D"),
@@ -1105,258 +1106,31 @@ function ConsoleResultsContent() {
         />
       )}
 
-      {/* ─── TAB 3: HEALTH & RUL ─────────────────────────────────── */}
+      {/* ─── TAB 3: HEALTH ASSESSMENT & REMAINING USEFUL LIFE (RUL) ─── */}
       {activeTab === "rul" && (
-        <div className="space-y-6">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div>
-              <h2 className="font-heading text-xl font-extrabold text-[#0F172A]">
-                Remaining Useful Life (RUL) Modeling
-              </h2>
-              <p className="text-xs text-[#64748B]">
-                Physics-informed lifespan prediction based on thermal stress, input voltage, and operational cycles.
-              </p>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-mono px-3 py-1 rounded-full bg-white border border-[#E2E8F0] font-bold text-[#0F172A]">
-                Source: {isSimulated ? "Simulation Model" : "Measured + Estimated"}
-              </span>
-            </div>
-          </div>
-
-          {/* Large Health Visualization Banner */}
-          <div className="p-6 sm:p-8 rounded-3xl bg-white border border-[#E2E8F0] shadow-sm grid grid-cols-1 sm:grid-cols-3 gap-6 items-center">
-            <div className="space-y-1">
-              <span className="text-xs font-mono text-[#64748B]">Hardware Health</span>
-              <div className="flex items-baseline gap-2">
-                <span className="font-heading text-4xl sm:text-5xl font-extrabold text-[#16A34A]">
-                  {session.rulPrediction?.overallHealthScore || 93}%
-                </span>
-                <span className="text-xs font-mono font-bold text-[#16A34A]">Grade A+</span>
-              </div>
-              <span className="text-[10px] font-mono text-[#64748B] block">
-                Calculated with Arrhenius Degradation Model
-              </span>
-            </div>
-
-            <div className="space-y-1 sm:border-l sm:border-r border-[#E2E8F0] sm:px-6">
-              <span className="text-xs font-mono text-[#64748B]">Estimated Remaining Life</span>
-              <div className="font-heading text-4xl sm:text-5xl font-extrabold text-[#2563EB]">
-                {session.rulPrediction?.predictedYears || 7.2} Yrs
-              </div>
-              <span className="text-[10px] font-mono text-[#64748B] block">
-                ~{session.rulPrediction?.predictedHours?.toLocaleString() || "63,000"} Operating Hours
-              </span>
-            </div>
-
-            <div className="space-y-1">
-              <span className="text-xs font-mono text-[#64748B]">Prediction Confidence</span>
-              <div className="font-heading text-4xl sm:text-5xl font-extrabold text-[#0F172A]">
-                {((session.rulPrediction?.confidence || 0.95) * 100).toFixed(0)}%
-              </div>
-              <span className="text-[10px] font-mono text-[#16A34A] block">
-                Verified with IPC-9701 Thermal Fatigue
-              </span>
-            </div>
-          </div>
-
-          {/* Degradation Curve & Simulation Controls Split */}
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-            
-            {/* Left: Degradation Curve with Confidence Envelope (7 Cols) */}
-            <div className="lg:col-span-7 bg-white rounded-3xl border border-[#E2E8F0] shadow-sm p-6 space-y-4">
-              <div className="flex items-center justify-between border-b border-[#E2E8F0] pb-3">
-                <div>
-                  <span className="text-[10px] font-mono text-[#2563EB] font-bold uppercase tracking-wider">
-                    DEGRADATION TRAJECTORY
-                  </span>
-                  <h3 className="font-heading text-base font-bold text-[#0F172A]">
-                    Health vs. Operating Time
-                  </h3>
-                </div>
-                <div className="flex items-center gap-3 text-[10px] font-mono text-[#64748B]">
-                  <div className="flex items-center gap-1.5">
-                    <span className="w-2.5 h-1 bg-[#2563EB] rounded-full" />
-                    <span>Mean Prediction</span>
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <span className="w-2.5 h-2 bg-blue-100 rounded border border-blue-300" />
-                    <span>Confidence Interval</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* SVG Degradation Curve */}
-              <div className="w-full h-64 bg-[#F8FAFC] rounded-2xl border border-[#E2E8F0] p-4 flex flex-col justify-between relative">
-                <svg className="w-full h-full overflow-visible" viewBox="0 0 400 180">
-                  {/* Grid Lines */}
-                  <line x1="40" y1="20" x2="380" y2="20" stroke="#E2E8F0" strokeDasharray="3 3" />
-                  <line x1="40" y1="60" x2="380" y2="60" stroke="#E2E8F0" strokeDasharray="3 3" />
-                  <line x1="40" y1="100" x2="380" y2="100" stroke="#E2E8F0" strokeDasharray="3 3" />
-                  <line x1="40" y1="140" x2="380" y2="140" stroke="#E2E8F0" strokeDasharray="3 3" />
-
-                  {/* Axes */}
-                  <line x1="40" y1="160" x2="380" y2="160" stroke="#94A3B8" strokeWidth="1.5" />
-                  <line x1="40" y1="10" x2="40" y2="160" stroke="#94A3B8" strokeWidth="1.5" />
-
-                  {/* Confidence Envelope (Polygon) */}
-                  <polygon
-                    points="40,25 100,32 180,50 260,82 340,125 380,152 380,165 340,145 260,105 180,68 100,45 40,35"
-                    fill="#3B82F6"
-                    opacity="0.12"
-                  />
-
-                  {/* Upper Bound */}
-                  <path
-                    d="M 40 25 Q 180 48 380 152"
-                    fill="none"
-                    stroke="#93C5FD"
-                    strokeWidth="1.5"
-                    strokeDasharray="4 4"
-                  />
-
-                  {/* Mean Degradation Curve */}
-                  <path
-                    d="M 40 30 Q 180 58 380 158"
-                    fill="none"
-                    stroke="#2563EB"
-                    strokeWidth="3"
-                  />
-
-                  {/* Lower Bound */}
-                  <path
-                    d="M 40 35 Q 180 68 380 165"
-                    fill="none"
-                    stroke="#93C5FD"
-                    strokeWidth="1.5"
-                    strokeDasharray="4 4"
-                  />
-
-                  {/* Current Operating Point Pin */}
-                  <circle cx="120" cy="46" r="5" fill="#16A34A" stroke="#FFFFFF" strokeWidth="2" />
-                  <text x="130" y="44" fill="#16A34A" fontSize="10" fontFamily="monospace" fontWeight="bold">
-                    Now ({session.rulPrediction?.overallHealthScore || 93}%)
-                  </text>
-                </svg>
-
-                <div className="flex justify-between text-[10px] font-mono text-[#64748B] px-8">
-                  <span>Year 0 (Mfg)</span>
-                  <span>Year 2.5 (Current)</span>
-                  <span>Year 5.0</span>
-                  <span>Year 7.5</span>
-                  <span>Year 10.0 (End of Life)</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Right: Simulation Controls (5 Cols) */}
-            <div className="lg:col-span-5 bg-white rounded-3xl border border-[#E2E8F0] shadow-sm p-6 space-y-4">
-              <div className="flex items-center justify-between border-b border-[#E2E8F0] pb-3">
-                <div>
-                  <span className="text-[10px] font-mono text-[#2563EB] font-bold uppercase tracking-wider">
-                    SIMULATION LABORATORY
-                  </span>
-                  <h3 className="font-heading text-base font-bold text-[#0F172A]">
-                    Stress Parameters
-                  </h3>
-                </div>
-                {isSimulated && (
-                  <span className="px-2 py-0.5 rounded bg-amber-50 text-amber-700 border border-amber-200 text-[10px] font-mono font-bold">
-                    Simulated
-                  </span>
-                )}
-              </div>
-
-              <div className="space-y-3.5 text-xs font-mono">
-                {/* Temp */}
-                <div>
-                  <div className="flex justify-between mb-1">
-                    <span className="text-[#64748B]">Operating Temperature:</span>
-                    <strong className="text-[#0F172A]">{simTemp}°C</strong>
-                  </div>
-                  <input
-                    type="range"
-                    min="25"
-                    max="95"
-                    value={simTemp}
-                    onChange={(e) => setSimTemp(+e.target.value)}
-                    className="w-full accent-[#2563EB] cursor-pointer"
-                  />
-                </div>
-
-                {/* Voltage */}
-                <div>
-                  <div className="flex justify-between mb-1">
-                    <span className="text-[#64748B]">Input Voltage:</span>
-                    <strong className="text-[#0F172A]">{simVoltage.toFixed(1)}V</strong>
-                  </div>
-                  <input
-                    type="range"
-                    min="8"
-                    max="18"
-                    step="0.1"
-                    value={simVoltage}
-                    onChange={(e) => setSimVoltage(+e.target.value)}
-                    className="w-full accent-[#2563EB] cursor-pointer"
-                  />
-                </div>
-
-                {/* Operating Cycles */}
-                <div>
-                  <div className="flex justify-between mb-1">
-                    <span className="text-[#64748B]">Power Cycles:</span>
-                    <strong className="text-[#0F172A]">{simCycles.toLocaleString()}</strong>
-                  </div>
-                  <input
-                    type="range"
-                    min="500"
-                    max="15000"
-                    step="100"
-                    value={simCycles}
-                    onChange={(e) => setSimCycles(+e.target.value)}
-                    className="w-full accent-[#2563EB] cursor-pointer"
-                  />
-                </div>
-
-                {/* Board Age */}
-                <div>
-                  <div className="flex justify-between mb-1">
-                    <span className="text-[#64748B]">Board Age:</span>
-                    <strong className="text-[#0F172A]">{simAge.toFixed(1)} Years</strong>
-                  </div>
-                  <input
-                    type="range"
-                    min="0.5"
-                    max="8"
-                    step="0.5"
-                    value={simAge}
-                    onChange={(e) => setSimAge(+e.target.value)}
-                    className="w-full accent-[#2563EB] cursor-pointer"
-                  />
-                </div>
-
-                {/* Buttons */}
-                <div className="pt-2 flex items-center gap-2">
-                  <button
-                    onClick={handleApplyRulSimulation}
-                    className="flex-1 py-2.5 rounded-xl bg-[#2563EB] hover:bg-[#1D4ED8] text-white font-bold transition-colors cursor-pointer text-center"
-                  >
-                    Run Simulation
-                  </button>
-                  <button
-                    onClick={handleResetRulSimulation}
-                    className="px-3 py-2.5 rounded-xl border border-[#CBD5E1] hover:bg-[#F1F5F9] text-[#64748B] hover:text-[#0F172A] transition-colors cursor-pointer"
-                    title="Reset to Measured Values"
-                  >
-                    <RotateCcw className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-              </div>
-            </div>
-
-          </div>
-        </div>
+        <RulWorkspace
+          analysisId={effectiveAnalysisId}
+          initialSessionData={session}
+          onSelectComponent={(comp) => {
+            const mappedComp: DetectedComponent = {
+              id: comp.componentId || comp.id,
+              name: comp.name || comp.componentId,
+              type: comp.componentType || comp.type,
+              confidence: comp.confidence ? Math.round(comp.confidence > 1 ? comp.confidence : comp.confidence * 100) : 85,
+              health: comp.healthScore || 80,
+              remainingLifeHours: comp.estimatedRULHours || Math.round((comp.estimatedRULYears || 3.0) * 8760),
+              remainingLifeYears: comp.estimatedRULYears || 3.0,
+              material: "Silicon Die / Solder Joints",
+              coordinates: comp.boundingBox || comp.bbox || { x: 10, y: 10, width: 20, height: 20 },
+              status: comp.healthStatus || "Operational",
+              manufacturer: comp.manufacturer || "Generic",
+              package: comp.package || "SMD",
+              passportId: `DPP-${comp.componentId || comp.id}`,
+              repairRecommendation: comp.healthScore >= 75 ? "Direct Reuse" : comp.healthScore >= 50 ? "Refurbish" : "Recycle",
+            };
+            setSelectedComponent(mappedComp);
+          }}
+        />
       )}
 
       {/* ─── TAB 4: MATERIAL RECOVERY INTELLIGENCE ──────────────── */}

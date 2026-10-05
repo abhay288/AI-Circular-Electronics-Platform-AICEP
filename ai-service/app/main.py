@@ -195,3 +195,55 @@ async def analyze_pcb(
             },
         )
 
+@app.post("/rul/predict")
+async def predict_rul(
+    request: Request,
+    authorized: bool = Depends(verify_api_key)
+):
+    """
+    Computes explainable Health Assessment and Remaining Useful Life (RUL)
+    using physics-informed Arrhenius models and regression trees.
+    """
+    try:
+        body = await request.json()
+        from rul.schemas.rul_schemas import RULPredictionRequest
+        from rul.inference.predict_rul import rul_predictor
+
+        rul_req = RULPredictionRequest(**body)
+        prediction = rul_predictor.predict(rul_req)
+        return {
+            "success": True,
+            "data": prediction.model_dump()
+        }
+    except Exception as exc:
+        return JSONResponse(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            content={
+                "success": False,
+                "error": {
+                    "code": "RUL_PREDICTION_FAILED",
+                    "message": f"RUL prediction failed: {str(exc)}",
+                },
+            },
+        )
+
+@app.get("/rul/model-info")
+def get_rul_model_info():
+    """
+    Returns registered RUL model version, training metrics, and limitations.
+    """
+    import os, json
+    reg_path = os.path.join(os.path.dirname(__file__), "..", "rul", "registry", "model_registry.json")
+    if os.path.exists(reg_path):
+        with open(reg_path, "r") as f:
+            return {"success": True, "data": json.load(f)}
+    return {
+        "success": True,
+        "data": {
+            "model": "EcoIntel-Degradation-XGBoost",
+            "version": "v1.2.0",
+            "status": "VALIDATED_SYNTHETIC",
+        }
+    }
+
+

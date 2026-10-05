@@ -22,6 +22,8 @@ export interface IComponent extends Document {
   center?: { x: number; y: number };
   condition: "UNKNOWN" | "MINT" | "GOOD" | "FAIR" | "DEGRADED" | "FAILED";
   healthScore: number;
+  healthStatus?: string;
+  failureRisk?: string;
   estimatedRUL: {
     hours: number;
     years: number;
@@ -72,6 +74,8 @@ const ComponentSchema = new Schema<IComponent>(
       default: "UNKNOWN",
     },
     healthScore: { type: Number, default: 0 },
+    healthStatus: { type: String },
+    failureRisk: { type: String },
     estimatedRUL: {
       hours: { type: Number, default: 0 },
       years: { type: Number, default: 0 },

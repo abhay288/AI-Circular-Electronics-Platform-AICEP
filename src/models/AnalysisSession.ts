@@ -10,7 +10,10 @@ export type AnalysisStatus =
   | "PCB_ANALYSIS_PROCESSING"
   | "PCB_COMPLETE"
   | "PCB_ANALYSIS_FAILED"
+  | "RUL_QUEUED"
+  | "RUL_PROCESSING"
   | "RUL_COMPLETE"
+  | "RUL_FAILED"
   | "MATERIAL_COMPLETE"
   | "REPAIR_COMPLETE"
   | "PASSPORT_READY"
@@ -108,7 +111,10 @@ const AnalysisSessionSchema = new Schema<IAnalysisSession>(
         "PCB_ANALYSIS_PROCESSING",
         "PCB_COMPLETE",
         "PCB_ANALYSIS_FAILED",
+        "RUL_QUEUED",
+        "RUL_PROCESSING",
         "RUL_COMPLETE",
+        "RUL_FAILED",
         "MATERIAL_COMPLETE",
         "REPAIR_COMPLETE",
         "PASSPORT_READY",

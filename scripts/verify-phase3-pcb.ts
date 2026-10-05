@@ -151,6 +151,7 @@ async function runPhase3Audit() {
   if (failedCount > 0) {
     process.exit(1);
   }
+  process.exit(0);
 }
 
 runPhase3Audit().catch((err) => {

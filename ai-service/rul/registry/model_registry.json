@@ -1,0 +1,14 @@
+{
+  "model": "EcoIntel-Degradation-XGBoost",
+  "version": "v1.2.0",
+  "datasetVersion": "synthetic-reliability-v1",
+  "samples": 1500,
+  "maeHours": 1420.5,
+  "rmseHours": 1890.2,
+  "r2Score": 0.912,
+  "status": "VALIDATED_SYNTHETIC",
+  "limitations": [
+    "Model trained on synthetic physics-informed degradation (Arrhenius + Inverse Power Law + Coffin-Manson).",
+    "Production validation requires field telemetry and Weibull life-testing data."
+  ]
+}

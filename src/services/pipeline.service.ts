@@ -18,7 +18,7 @@ import { generateReportId } from "@/lib/id-generator";
 
 import { detectionService } from "@/providers/detection/detection.provider";
 import { pcbAnalysisService } from "@/providers/pcb/pcb.provider";
-import { MockRULProvider } from "@/providers/rul/rul.provider";
+import { rulService, RULInput } from "@/providers/rul/rul.provider";
 import { DemoMaterialProvider } from "@/providers/materials/materials.provider";
 import { MockRepairProvider } from "@/providers/repair/repair.provider";
 import { MockBlockchainProvider } from "@/providers/blockchain/blockchain.provider";
@@ -26,13 +26,14 @@ import { MockBlockchainProvider } from "@/providers/blockchain/blockchain.provid
 export class AnalysisPipelineService {
   private detectionService = detectionService;
   private pcbService = pcbAnalysisService;
-  private rulProvider = new MockRULProvider();
+  private rulService = rulService;
   private materialProvider = new DemoMaterialProvider();
   private repairProvider = new MockRepairProvider();
   private blockchainProvider = new MockBlockchainProvider();
 
   /**
    * Run the complete analysis pipeline sequentially with state machine validations and stage audit logs.
+   * In Phase 4, the active execution halts at RUL_COMPLETE, leaving subsequent circular stages queued/pending.
    */
   async runPipeline(analysisId: string): Promise<IAnalysisSession> {
     await connectDB();
@@ -76,29 +77,9 @@ export class AnalysisPipelineService {
       // 3. RUL PREDICTION STAGE
       await this.runRULStage(session);
 
-      // 4. MATERIAL RECOVERY STAGE
-      await this.runMaterialStage(session);
-
-      // 5. REPAIR INTELLIGENCE STAGE
-      await this.runRepairStage(session);
-
-      // 6. DIGITAL PASSPORT STAGE
-      await this.runPassportStage(session);
-
-      // 7. CARBON IMPACT STAGE
-      await this.runCarbonStage(session);
-
-      // 8. REPORT GENERATION STAGE
-      await this.runReportStage(session);
-
-      // 9. FINAL COMPLETION
-      session.status = "COMPLETED";
-      session.progress = 100;
-      session.currentStage = "COMPLETED";
-      await session.save();
-
-      await this.logAudit(session, "ANALYSIS_COMPLETED", "AnalysisSession", analysisId);
-
+      // In Phase 4, pipeline execution halts at RUL_COMPLETE.
+      // Stages 4-8 (Materials, Repair, Passport, Carbon, Report) remain pending/queued for Phase 5+.
+      console.log(`[AnalysisPipeline] Phase 4 complete for ${analysisId}: RUL_COMPLETE, currentStage=MATERIALS.`);
       return session;
     } catch (err: any) {
       console.error(`[Analysis Pipeline Error on ${analysisId}]:`, err);
@@ -264,39 +245,114 @@ export class AnalysisPipelineService {
     session.currentStage = "RUL";
     session.stageStatuses.rul = "processing";
     session.progress = 55;
+    session.markModified("stageStatuses");
     await session.save();
 
-    const rulOutput = await this.rulProvider.predict({
+    await this.logAudit(session, "RUL_PREDICTION_STARTED", "AnalysisSession", session.analysisId);
+
+    const [components, pcbDoc] = await Promise.all([
+      Component.find({ analysisId: session.analysisId }).lean(),
+      PCBAnalysis.findOne({ analysisId: session.analysisId }).lean(),
+    ]);
+
+    const damaged = pcbDoc?.damagedRegions || [];
+    const corrosionCount = damaged.filter((d: any) => d.type === "corrosion").length;
+    const thermalCount = damaged.filter((d: any) => d.type === "burn_mark" || d.type === "discoloration").length;
+    const physicalCount = damaged.filter((d: any) => d.type === "crack" || d.type === "physical_damage").length;
+    const traceCount = damaged.filter((d: any) => d.type === "scratched_trace" || d.type === "broken_trace").length;
+
+    const visualIntegrity = pcbDoc?.metrics?.visualIntegrityScore ?? 85;
+    const topologyRisk = pcbDoc?.reconstruction?.visualIntegrityEstimate 
+      ? Math.max(0, 100 - pcbDoc.reconstruction.visualIntegrityEstimate) 
+      : 15;
+
+    const rulInput: RULInput = {
       analysisId: session.analysisId,
       sampleId: session.sampleId,
-    });
+      pcbIntegrityScore: visualIntegrity,
+      topologyRiskScore: topologyRisk,
+      visualHealthScore: visualIntegrity,
+      corrosionScore: corrosionCount * 15,
+      thermalDamageScore: thermalCount * 20,
+      physicalDamageScore: physicalCount * 10,
+      traceDamageScore: traceCount * 15,
+      components: components.map((c) => ({
+        componentId: c.serialNumber || String(c._id),
+        componentType: c.type,
+        manufacturer: c.manufacturer,
+        partNumber: c.partNumber,
+        packageType: c.package,
+        visualDamageSeverity: (c.condition === "DEGRADED" || c.condition === "FAILED") ? "HIGH" : "LOW",
+        hasCorrosion: false,
+        hasThermalDamage: false,
+        connectedTracesCount: 2,
+      })),
+    };
+
+    const rulOutput = await this.rulService.predict(rulInput);
 
     const rulDoc = await RULPrediction.findOneAndUpdate(
       { analysisId: session.analysisId },
-      { analysisId: session.analysisId, ...rulOutput },
+      { ...rulOutput, analysisId: session.analysisId },
       { upsert: true, new: true }
     );
+
+    // Sync component-level health and RUL back to Component documents
+    if (rulOutput.components && rulOutput.components.length > 0) {
+      for (const compRul of rulOutput.components) {
+        const mappedCondition = compRul.healthStatus === "HEALTHY" 
+          ? "MINT" 
+          : compRul.healthStatus === "CRITICAL" 
+          ? "FAILED" 
+          : (compRul.healthStatus as "GOOD" | "FAIR" | "DEGRADED" | "UNKNOWN");
+
+        await Component.updateOne(
+          {
+            analysisId: session.analysisId,
+            $or: [{ serialNumber: compRul.componentId }, { name: compRul.componentId }],
+          },
+          {
+            $set: {
+              condition: mappedCondition,
+              healthScore: compRul.healthScore,
+              estimatedRUL: {
+                hours: compRul.estimatedRULHours,
+                years: compRul.estimatedRULYears,
+              },
+              marketplaceEligible: compRul.healthScore >= 70,
+            },
+          }
+        );
+      }
+    }
 
     session.rulPredictionId = rulDoc._id;
     session.rulResult = {
       overallHealthScore: rulOutput.healthScore,
-      predictedYears: rulOutput.estimatedYears,
-      predictedHours: rulOutput.estimatedHours,
+      predictedYears: rulOutput.rulYears,
+      predictedHours: rulOutput.rulHours,
       failureProbability: +(100 - rulOutput.healthScore).toFixed(1),
       confidence: rulOutput.confidence,
       parameters: {
-        operatingTempCelsius: rulOutput.temperature,
-        inputVoltageVolts: rulOutput.voltage,
-        operatingCycles: rulOutput.operationalCycles,
-        ageYears: rulOutput.age,
+        operatingTempCelsius: rulOutput.inputFeatures?.temperatureC ?? 45,
+        inputVoltageVolts: rulOutput.inputFeatures?.voltageV ?? 5.0,
+        operatingCycles: rulOutput.inputFeatures?.operatingCycles ?? 1200,
+        ageYears: rulOutput.inputFeatures?.componentAgeYears ?? 2.5,
       },
     };
     session.status = "RUL_COMPLETE";
     session.stageStatuses.rul = "completed";
+    session.currentStage = "MATERIALS";
+    session.markModified("stageStatuses");
     session.progress = 65;
     await session.save();
 
-    await this.logAudit(session, "RUL_PREDICTION_COMPLETED", "RULPrediction", String(rulDoc._id));
+    await this.logAudit(session, "RUL_PREDICTION_COMPLETED", "RULPrediction", String(rulDoc._id), {
+      healthScore: rulOutput.healthScore,
+      healthStatus: rulOutput.healthStatus,
+      rulYears: rulOutput.rulYears,
+      provider: rulOutput.modelProvider,
+    });
   }
 
   // --- STAGE 4: MATERIAL RECOVERY ---

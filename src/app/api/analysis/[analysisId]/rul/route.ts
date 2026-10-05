@@ -15,13 +15,22 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ anal
         $or: [{ analysisId }, { sessionId: analysisId }],
       });
       if (session?.rulResult) {
-        return successResponse({ analysisId, rul: session.rulResult });
+        return successResponse({
+          analysisId,
+          data: session.rulResult,
+          rul: session.rulResult,
+        });
       }
       return errorResponse("NOT_FOUND", "RUL prediction record not found", 404);
     }
 
-    return successResponse({ analysisId, rul });
+    return successResponse({
+      analysisId,
+      data: rul,
+      rul,
+    });
   } catch (error: any) {
     return errorResponse("INTERNAL_ERROR", error.message || "Failed to fetch RUL prediction", 500);
   }
 }
+

@@ -53,3 +53,26 @@ export const ReportGenerationSchema = z.object({
   format: z.enum(["PDF", "JSON", "CSV"]).default("PDF"),
   sections: z.array(z.string()).optional(),
 });
+
+export const RULPredictRequestSchema = z.object({
+  analysisId: z.string().min(1, "analysisId is required"),
+  componentId: z.string().optional(),
+  operatingHours: z.number().min(0).optional(),
+  operatingCycles: z.number().min(0).optional(),
+  temperatureC: z.number().min(-40).max(150).optional(),
+  voltageV: z.number().min(0).max(100).optional(),
+  currentA: z.number().min(0).max(50).optional(),
+  loadPercentage: z.number().min(0).max(100).optional(),
+  componentAgeYears: z.number().min(0).max(50).optional(),
+});
+
+export const RULScenarioSimulationSchema = z.object({
+  temperatureC: z.number().min(-40).max(150).optional(),
+  voltageV: z.number().min(0).max(100).optional(),
+  currentA: z.number().min(0).max(50).optional(),
+  loadPercentage: z.number().min(0).max(100).optional(),
+  operatingHours: z.number().min(0).optional(),
+  operatingCycles: z.number().min(0).optional(),
+  componentAgeYears: z.number().min(0).max(50).optional(),
+});
+

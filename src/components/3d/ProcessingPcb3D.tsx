@@ -25,8 +25,11 @@ export interface ComponentInfoData {
   type: string;
   confidence: number;
   health: number;
+  healthStatus?: string;
+  risk?: string;
+  failureRisk?: string;
   rulYears: number;
-  condition: "Reusable" | "Refurbishable" | "Replace";
+  condition: "Reusable" | "Refurbishable" | "Replace" | string;
   passportStatus: "Ready" | "Verified" | "Pending";
 }
 
@@ -224,12 +227,14 @@ export default function ProcessingPcb3D({
     // 3. Components Assembly Group (Explodable & Raycast-Interactive)
     const componentsGroup = new THREE.Group();
     const componentMeshMap = new Map<string, THREE.MeshStandardMaterial>();
+    const componentDataMap = new Map<string, ComponentInfoData>();
     const interactiveMeshes: THREE.Mesh[] = [];
 
     // Helper to register interactive components
     const registerComponent = (mesh: THREE.Mesh, mat: THREE.MeshStandardMaterial, data: ComponentInfoData) => {
       mesh.userData = data;
       componentMeshMap.set(data.id, mat);
+      componentDataMap.set(data.id, data);
       interactiveMeshes.push(mesh);
     };
 
@@ -272,14 +277,21 @@ export default function ProcessingPcb3D({
         mesh.receiveShadow = true;
         componentsGroup.add(mesh);
 
-        const compId = c.componentId || c.id || `CMP-${idx + 1}`;
+        const compId = c.componentId || c.id || c.serialNumber || `CMP-${idx + 1}`;
+        const calculatedHealth = c.healthScore ?? c.health ?? 82;
+        const calculatedStatus = c.condition === "MINT" ? "HEALTHY" : c.condition === "FAILED" ? "CRITICAL" : (c.condition || (calculatedHealth >= 90 ? "HEALTHY" : calculatedHealth >= 75 ? "GOOD" : calculatedHealth >= 50 ? "FAIR" : "DEGRADED"));
+        const calculatedRisk = c.failureRisk || (calculatedHealth >= 75 ? "LOW" : calculatedHealth >= 50 ? "MODERATE" : "HIGH");
+
         registerComponent(mesh, compMat, {
           id: compId,
           name: c.name || `${c.type || "Component"} #${idx + 1}`,
           type: c.type || "Component",
           confidence: +(c.confidence > 1 ? c.confidence : (c.confidence || 0.95) * 100).toFixed(1),
-          health: c.healthScore || c.health || 0,
-          rulYears: c.estimatedRUL?.years || 0,
+          health: calculatedHealth,
+          healthStatus: calculatedStatus,
+          risk: calculatedRisk,
+          failureRisk: calculatedRisk,
+          rulYears: c.estimatedRUL?.years ?? (+(calculatedHealth / 15).toFixed(1)),
           condition: c.condition === "UNKNOWN" ? "Refurbishable" : (c.condition || "Refurbishable"),
           passportStatus: "Ready",
         });
@@ -683,11 +695,33 @@ export default function ProcessingPcb3D({
           mat.emissive.setHex(0x38bdf8);
           mat.emissiveIntensity = 0.95;
         } else if (isHealth) {
-          mat.emissive.setHex(0x16a34a);
-          mat.emissiveIntensity = 0.55;
+          const compData = componentDataMap.get(id);
+          const h = compData?.health ?? 85;
+          if (h >= 90) {
+            mat.emissive.setHex(0x16a34a); // Green (HEALTHY)
+          } else if (h >= 75) {
+            mat.emissive.setHex(0x10b981); // Emerald (GOOD)
+          } else if (h >= 50) {
+            mat.emissive.setHex(0xeab308); // Yellow (FAIR)
+          } else if (h >= 25) {
+            mat.emissive.setHex(0xf97316); // Orange (DEGRADED)
+          } else {
+            mat.emissive.setHex(0xef4444); // Red (CRITICAL)
+          }
+          mat.emissiveIntensity = 0.75;
         } else if (isRul) {
-          mat.emissive.setHex(0x2563eb);
-          mat.emissiveIntensity = 0.55;
+          const compData = componentDataMap.get(id);
+          const r = compData?.rulYears ?? 3.0;
+          if (r >= 5.0) {
+            mat.emissive.setHex(0x2563eb); // Long life
+          } else if (r >= 2.5) {
+            mat.emissive.setHex(0x0284c7); // Moderate life
+          } else if (r >= 1.0) {
+            mat.emissive.setHex(0xd97706); // Near wear-out
+          } else {
+            mat.emissive.setHex(0xdc2626); // Critical EOL
+          }
+          mat.emissiveIntensity = 0.75;
         } else {
           mat.emissive.setHex(0x2563eb);
           mat.emissiveIntensity = 0.2;
@@ -792,7 +826,25 @@ export default function ProcessingPcb3D({
           </div>
 
           <div>
-            <h4 className="font-heading text-sm font-bold text-[#0F172A] truncate">
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] font-mono text-[#2563EB] font-bold">
+                {inspectedComponent.id}
+              </span>
+              <span
+                className={`text-[9px] font-mono font-bold px-1.5 py-0.5 rounded ${
+                  (inspectedComponent.healthStatus === "HEALTHY" || inspectedComponent.health >= 90)
+                    ? "bg-green-100 text-green-700"
+                    : (inspectedComponent.healthStatus === "GOOD" || inspectedComponent.health >= 75)
+                    ? "bg-emerald-100 text-emerald-700"
+                    : (inspectedComponent.healthStatus === "FAIR" || inspectedComponent.health >= 50)
+                    ? "bg-amber-100 text-amber-700"
+                    : "bg-red-100 text-red-700"
+                }`}
+              >
+                {inspectedComponent.healthStatus || (inspectedComponent.health >= 75 ? "GOOD" : "FAIR")}
+              </span>
+            </div>
+            <h4 className="font-heading text-sm font-bold text-[#0F172A] truncate mt-0.5">
               {inspectedComponent.name}
             </h4>
             <p className="text-[11px] text-[#64748B]">{inspectedComponent.type}</p>
@@ -800,14 +852,7 @@ export default function ProcessingPcb3D({
 
           <div className="grid grid-cols-2 gap-2 text-[11px] font-mono pt-1">
             <div className="p-2 rounded-xl bg-[#F8FAFC] border border-[#E2E8F0]">
-              <span className="text-[#64748B] block text-[9px]">AI Confidence</span>
-              <strong className="text-[#0F172A] text-xs">
-                {inspectedComponent.confidence}%
-              </strong>
-            </div>
-
-            <div className="p-2 rounded-xl bg-[#F8FAFC] border border-[#E2E8F0]">
-              <span className="text-[#64748B] block text-[9px]">Hardware Health</span>
+              <span className="text-[#64748B] block text-[9px]">Health Score</span>
               <strong className="text-[#16A34A] text-xs">
                 {inspectedComponent.health}%
               </strong>
@@ -816,20 +861,29 @@ export default function ProcessingPcb3D({
             <div className="p-2 rounded-xl bg-[#F8FAFC] border border-[#E2E8F0]">
               <span className="text-[#64748B] block text-[9px]">Estimated RUL</span>
               <strong className="text-[#2563EB] text-xs">
-                {inspectedComponent.rulYears} Years
+                {inspectedComponent.rulYears} Yrs
               </strong>
             </div>
 
             <div className="p-2 rounded-xl bg-[#F8FAFC] border border-[#E2E8F0]">
-              <span className="text-[#64748B] block text-[9px]">Condition</span>
+              <span className="text-[#64748B] block text-[9px]">Degradation Risk</span>
               <strong
                 className={`text-xs ${
-                  inspectedComponent.condition === "Reusable"
+                  inspectedComponent.risk === "LOW"
                     ? "text-[#16A34A]"
+                    : inspectedComponent.risk === "CRITICAL" || inspectedComponent.risk === "HIGH"
+                    ? "text-[#DC2626]"
                     : "text-[#D97706]"
                 }`}
               >
-                {inspectedComponent.condition}
+                {inspectedComponent.risk || (inspectedComponent.health >= 75 ? "LOW" : "MODERATE")}
+              </strong>
+            </div>
+
+            <div className="p-2 rounded-xl bg-[#F8FAFC] border border-[#E2E8F0]">
+              <span className="text-[#64748B] block text-[9px]">Model Confidence</span>
+              <strong className="text-[#0F172A] text-xs">
+                {inspectedComponent.confidence}%
               </strong>
             </div>
           </div>
