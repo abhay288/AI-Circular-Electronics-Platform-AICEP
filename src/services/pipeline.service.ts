@@ -151,8 +151,9 @@ export class AnalysisPipelineService {
 
     // Idempotent upsert of individual Component records
     await Component.deleteMany({ analysisId: session.analysisId });
-    const componentDocs = output.components.map((c) => ({
+    const componentDocs = output.components.map((c, idx) => ({
       analysisId: session.analysisId,
+      serialNumber: `${session.analysisId}-${c.componentId || idx}-${Date.now()}`,
       type: c.type,
       name: c.name,
       manufacturer: c.manufacturer,

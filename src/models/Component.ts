@@ -2,6 +2,7 @@ import mongoose, { Schema, Document, Model } from "mongoose";
 
 export interface IComponent extends Document {
   analysisId: string;
+  serialNumber?: string;
   type: string;
   name: string;
   manufacturer: string;
@@ -36,6 +37,7 @@ export interface IComponent extends Document {
 const ComponentSchema = new Schema<IComponent>(
   {
     analysisId: { type: String, required: true, index: true },
+    serialNumber: { type: String, sparse: true, index: true },
     type: { type: String, required: true, index: true },
     name: { type: String, required: true },
     manufacturer: { type: String, default: "Generic" },

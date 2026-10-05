@@ -51,6 +51,8 @@ async function connectWithURI(uri: string): Promise<typeof mongoose> {
       .connect(uri, opts)
       .then((m) => {
         console.log(`[EcoIntel DB] Successfully connected to MongoDB [readyState=${m.connection.readyState}]`);
+        // Silently drop legacy non-sparse index if present
+        m.connection.collection("components").dropIndex("serialNumber_1").catch(() => {});
         return m;
       })
       .catch((err) => {
