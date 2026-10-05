@@ -15,13 +15,10 @@ import {
   Leaf,
   Wrench,
   ArrowRight,
-  Maximize2,
   Eye,
-  Sliders,
   RotateCcw,
 } from "lucide-react";
 import { useAnalysisSession } from "@/lib/context/AnalysisSessionContext";
-import { analysisService } from "@/lib/services/analysisService";
 
 const ProcessingPcb3D = dynamic(
   () => import("@/components/3d/ProcessingPcb3D"),
@@ -43,8 +40,13 @@ function ConsoleProcessingContent() {
   const searchParams = useSearchParams();
   const queryAnalysisId = searchParams.get("analysisId") || searchParams.get("sessionId");
 
-  const { session, runAnalysis, setActiveStep, isAnalyzing, liveDetections } =
-    useAnalysisSession();
+  const {
+    session,
+    runAnalysis,
+    setActiveStep,
+    loadSessionById,
+    liveDetections,
+  } = useAnalysisSession();
 
   const [currentPipelineStep, setCurrentPipelineStep] = useState(1);
   const [exploded, setExploded] = useState(false);
@@ -52,24 +54,32 @@ function ConsoleProcessingContent() {
   const [showTraces, setShowTraces] = useState(true);
   const [hasCompleted, setHasCompleted] = useState(false);
 
+  // Exact 9 stages specified in Requirement 8
   const pipelineStages = [
-    { num: "01", name: "Image Acquisition & Optical Calibration", icon: Eye },
-    { num: "02", name: "Component Detection (YOLOv11 Spectro-Spatial)", icon: Cpu },
-    { num: "03", name: "PCB Topology & Trace Reconstruction", icon: Layers },
-    { num: "04", name: "Physics-Informed Health Assessment", icon: Activity },
-    { num: "05", name: "Remaining Useful Life (RUL) Prediction", icon: Clock },
-    { num: "06", name: "Precious Material Recovery Estimation", icon: Coins },
-    { num: "07", name: "AI Repair & Refurbishment Intelligence", icon: Wrench },
-    { num: "08", name: "Digital Product Passport Synthesis", icon: ShieldCheck },
-    { num: "09", name: "Scope 3 ESG & Carbon Life-Cycle Analysis", icon: Leaf },
+    { num: "01", name: "Image Processing", icon: Eye },
+    { num: "02", name: "Component Detection", icon: Cpu },
+    { num: "03", name: "PCB Intelligence", icon: Layers },
+    { num: "04", name: "Hardware Health", icon: Activity },
+    { num: "05", name: "Remaining Useful Life", icon: Clock },
+    { num: "06", name: "Material Recovery", icon: Coins },
+    { num: "07", name: "Repair Intelligence", icon: Wrench },
+    { num: "08", name: "Digital Passport", icon: ShieldCheck },
+    { num: "09", name: "Circular Impact", icon: Leaf },
   ];
 
   const sessionId = queryAnalysisId || session.id || "ECI-2026-7740";
 
+  // Load session if query param differs
+  useEffect(() => {
+    if (queryAnalysisId && queryAnalysisId !== session.id) {
+      loadSessionById(queryAnalysisId);
+    }
+  }, [queryAnalysisId, session.id, loadSessionById]);
+
   useEffect(() => {
     let isMounted = true;
 
-    // Trigger analysis progression
+    // Trigger progressive analysis run
     runAnalysis((step) => {
       if (isMounted) {
         setCurrentPipelineStep(step);
@@ -77,7 +87,6 @@ function ConsoleProcessingContent() {
     }).then(() => {
       if (isMounted) {
         setHasCompleted(true);
-        // Automatically route to results after brief delay
         setTimeout(() => {
           setActiveStep(3);
           router.push(`/console/results?analysisId=${encodeURIComponent(sessionId)}`);
@@ -94,31 +103,32 @@ function ConsoleProcessingContent() {
     const stepNumber = index + 1;
     if (stepNumber < currentPipelineStep) return "completed";
     if (stepNumber === currentPipelineStep) return "processing";
-    if (stepNumber === currentPipelineStep + 1) return "queued";
     return "waiting";
   };
 
   return (
     <div className="flex-1 py-8 px-4 sm:px-8 max-w-7xl mx-auto w-full space-y-8 flex flex-col justify-between">
-      
       {/* ─── TITLE & METADATA BAR ──────────────────────────────── */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="space-y-1">
           <div className="flex items-center gap-2">
             <span className="w-2.5 h-2.5 rounded-full bg-[#2563EB] animate-ping" />
             <span className="text-xs font-mono font-bold text-[#2563EB] tracking-wider uppercase">
-              AI INFERENCE IN PROGRESS
+              AI PROCESSING ACTIVE
             </span>
             <span className="text-xs font-mono text-[#64748B]">·</span>
             <span className="text-xs font-mono px-2 py-0.5 rounded bg-white border border-[#E2E8F0] font-semibold text-[#0F172A] uppercase">
-              {session.dataClassification === "sample" ? "Demonstration Dataset" : "Live Device Ingest"}
+              {session.sourceType === "sample" || session.dataClassification === "sample"
+                ? "DEMO DATASET"
+                : "LIVE DEVICE INGEST"}
             </span>
           </div>
           <h1 className="font-heading text-2xl sm:text-3xl font-extrabold text-[#0F172A] tracking-tight">
             Analyzing Your Electronic Hardware
           </h1>
           <p className="text-xs text-[#64748B]">
-            EcoIntel is building a digital intelligence profile of <strong className="text-[#0F172A]">{session.deviceName}</strong> ({session.deviceType}).
+            EcoIntel is building a digital intelligence profile of{" "}
+            <strong className="text-[#0F172A]">{session.deviceName}</strong> ({session.deviceType}).
           </p>
         </div>
 
@@ -130,9 +140,9 @@ function ConsoleProcessingContent() {
           </div>
           <div className="h-8 w-px bg-[#E2E8F0]" />
           <div className="text-right">
-            <p className="text-[10px] font-mono text-[#64748B] uppercase">Neural Inference</p>
+            <p className="text-[10px] font-mono text-[#64748B] uppercase">Pipeline Status</p>
             <p className="font-mono text-sm font-bold text-[#16A34A]">
-              {hasCompleted ? "Completed" : "Active (42ms)"}
+              {hasCompleted ? "Completed" : `Stage 0${currentPipelineStep} Active`}
             </p>
           </div>
         </div>
@@ -140,16 +150,14 @@ function ConsoleProcessingContent() {
 
       {/* ─── MAIN STAGE: 3D PCB SCANNER + LIVE DETECTION CARDS ──── */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch flex-1">
-        
         {/* 3D Visualizer Container (7 Cols) */}
         <div className="lg:col-span-7 bg-white rounded-3xl border border-[#E2E8F0] shadow-sm p-4 flex flex-col justify-between relative overflow-hidden min-h-[440px]">
-          
           {/* Top 3D Control Pill */}
           <div className="flex items-center justify-between z-10 px-2 pt-2">
             <div className="flex items-center gap-2">
               <span className="w-2 h-2 rounded-full bg-[#16A34A] animate-pulse" />
               <span className="font-mono text-xs font-bold text-[#0F172A]">
-                3D Substrate & Laser Reticle
+                Realistic 3D Hardware Telemetry
               </span>
             </div>
 
@@ -185,6 +193,7 @@ function ConsoleProcessingContent() {
           {/* Interactive Three.js Scene */}
           <div className="flex-1 w-full flex items-center justify-center my-2">
             <ProcessingPcb3D
+              imageUrl={session.imageUrl}
               isScanning={!hasCompleted}
               exploded={exploded}
               showTraces={showTraces}
@@ -196,7 +205,7 @@ function ConsoleProcessingContent() {
           <div className="bg-[#F8FAFC] border border-[#E2E8F0] rounded-2xl p-3 flex items-center justify-between text-xs font-mono">
             <div className="flex items-center gap-2 text-[#475569]">
               <RotateCcw className="w-3.5 h-3.5 text-[#2563EB]" />
-              <span>Rotate: Click & Drag · Zoom: Scroll</span>
+              <span>Rotate: Click & Drag · Zoom: Scroll · Pan: Right Drag</span>
             </div>
             <div className="text-[#2563EB] font-bold">
               {liveDetections.length} Components Segmented
@@ -206,12 +215,11 @@ function ConsoleProcessingContent() {
 
         {/* Right Stage: Pipeline Tracker + Live Detection Feed (5 Cols) */}
         <div className="lg:col-span-5 flex flex-col gap-6">
-          
           {/* Pipeline Tracker */}
           <div className="p-6 rounded-3xl bg-white border border-[#E2E8F0] shadow-sm space-y-4">
             <div className="flex items-center justify-between border-b border-[#E2E8F0] pb-3">
               <span className="font-heading text-xs font-bold text-[#0F172A] uppercase tracking-wider">
-                Inference Pipeline Progress
+                Processing Pipeline
               </span>
               <span className="text-xs font-mono font-bold text-[#2563EB]">
                 Stage {currentPipelineStep} / 9
@@ -231,9 +239,7 @@ function ConsoleProcessingContent() {
                         ? "bg-[#F0FDF4] border border-[#DCFCE7] text-[#16A34A]"
                         : status === "processing"
                         ? "bg-[#EFF6FF] border border-[#BFDBFE] text-[#2563EB] font-bold shadow-sm"
-                        : status === "queued"
-                        ? "bg-[#F8FAFC] border border-[#E2E8F0] text-[#64748B]"
-                        : "opacity-45 text-[#94A3B8]"
+                        : "opacity-45 text-[#94A3B8] border border-transparent"
                     }`}
                   >
                     <div className="flex items-center gap-2.5">
@@ -257,11 +263,9 @@ function ConsoleProcessingContent() {
 
                     <span className="text-[10px] uppercase font-bold tracking-wider">
                       {status === "completed"
-                        ? "Completed"
+                        ? "Complete"
                         : status === "processing"
                         ? "Processing"
-                        : status === "queued"
-                        ? "Queued"
                         : "Waiting"}
                     </span>
                   </div>
@@ -293,7 +297,7 @@ function ConsoleProcessingContent() {
                 liveDetections.map((comp, idx) => (
                   <div
                     key={comp.id || idx}
-                    className="p-2.5 rounded-xl bg-[#F8FAFC] border border-[#E2E8F0] flex items-center justify-between text-xs animate-fadeIn"
+                    className="p-2.5 rounded-xl bg-[#F8FAFC] border border-[#E2E8F0] flex items-center justify-between text-xs animate-in fade-in duration-200"
                   >
                     <div>
                       <p className="font-bold text-[#0F172A] text-xs">{comp.name}</p>
@@ -315,7 +319,7 @@ function ConsoleProcessingContent() {
               )}
             </div>
 
-            {/* Direct Bypass Button */}
+            {/* Direct Bypass / Jump to Results Button */}
             <div className="pt-2">
               <button
                 onClick={() => {
@@ -329,11 +333,8 @@ function ConsoleProcessingContent() {
               </button>
             </div>
           </div>
-
         </div>
-
       </div>
-
     </div>
   );
 }
@@ -344,7 +345,9 @@ export default function ConsoleProcessingPage() {
       fallback={
         <div className="flex-1 py-16 flex flex-col items-center justify-center">
           <div className="w-10 h-10 rounded-full border-2 border-[#2563EB] border-t-transparent animate-spin mb-3" />
-          <span className="font-mono text-xs font-bold text-[#0F172A]">Initializing Neural Inference...</span>
+          <span className="font-mono text-xs font-bold text-[#0F172A]">
+            Initializing Neural Inference Pipeline...
+          </span>
         </div>
       }
     >

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, Suspense } from "react";
+import React, { useState, useEffect, Suspense } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
@@ -38,10 +38,16 @@ const PassportCard3D = dynamic(
 
 function DigitalPassportContent() {
   const searchParams = useSearchParams();
-  const queryAnalysisId = searchParams.get("analysisId");
+  const queryAnalysisId = searchParams.get("analysisId") || searchParams.get("sessionId");
 
-  const { session, openMarketplaceListing } = useAnalysisSession();
+  const { session, openMarketplaceListing, loadSessionById } = useAnalysisSession();
   const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    if (queryAnalysisId && queryAnalysisId !== session.id) {
+      loadSessionById(queryAnalysisId);
+    }
+  }, [queryAnalysisId, session.id, loadSessionById]);
 
   const passport = session.passport || session.passportResult || {
     passportId: `ECO-PASSPORT-2026-${session.id.split("-").pop() || "7740"}`,

@@ -1,12 +1,13 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect } from "react";
+import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
 import { SAMPLE_DATASETS } from "@/lib/data/sampleDatasets";
 import {
   AnalysisSession,
   AnalysisStatus,
   DetectedComponent,
-  DataClassification,
+  IngestDraft,
+  RecentSessionMeta,
 } from "@/lib/types/analysis";
 import {
   analysisService,
@@ -16,6 +17,17 @@ import {
 
 interface AnalysisContextType {
   session: AnalysisSession;
+  isNewAnalysis: boolean;
+  selectedDraft: IngestDraft | null;
+  selectSampleDraft: (sampleId: string) => void;
+  setUploadDraft: (previewUrl: string, name: string, sizeBytes: number, dims?: string) => void;
+  setCameraDraft: (dataUrl: string, qualityInfo?: any) => void;
+  clearDraft: () => void;
+  startAnalysisFromDraft: () => Promise<string>;
+  recentSessions: RecentSessionMeta[];
+  refreshRecentSessions: () => void;
+  resetToNewAnalysis: () => void;
+
   activeStep: number;
   setActiveStep: (step: number) => void;
   resultsTab: string;
@@ -44,7 +56,10 @@ const STORAGE_KEY = "ecointel_active_analysis_session_v2";
 
 export function AnalysisSessionProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<AnalysisSession>(defaultRouterSession);
-  const [activeStep, setActiveStep] = useState<number>(3);
+  const [isNewAnalysis, setIsNewAnalysis] = useState<boolean>(true);
+  const [selectedDraft, setSelectedDraft] = useState<IngestDraft | null>(null);
+  const [recentSessions, setRecentSessions] = useState<RecentSessionMeta[]>([]);
+  const [activeStep, setActiveStep] = useState<number>(1);
   const [resultsTab, setResultsTab] = useState<string>("overview");
   const [isAnalyzing, setIsAnalyzing] = useState<boolean>(false);
   const [pipelineStep, setPipelineStep] = useState<number>(0);
@@ -55,76 +70,219 @@ export function AnalysisSessionProvider({ children }: { children: React.ReactNod
   const [isMarketplaceModalOpen, setIsMarketplaceModalOpen] = useState<boolean>(false);
   const [marketplaceComponent, setMarketplaceComponent] = useState<DetectedComponent | null>(null);
 
-  // Initialize from URL search param or localStorage on mount
+  const refreshRecentSessions = useCallback(() => {
+    const list = analysisService.getRecentSessions();
+    setRecentSessions(list);
+  }, []);
+
+  // Initialize from URL search param or route state
   useEffect(() => {
+    refreshRecentSessions();
+
     try {
       if (typeof window !== "undefined") {
         const urlParams = new URLSearchParams(window.location.search);
         const queryId = urlParams.get("analysisId") || urlParams.get("sessionId");
+        const pathname = window.location.pathname;
+
+        // If on the root capture page without a queryId, ensure NEW ANALYSIS state
+        if (pathname === "/console" && !queryId) {
+          setIsNewAnalysis(true);
+          setActiveStep(1);
+          return;
+        }
 
         if (queryId) {
+          setIsNewAnalysis(false);
           analysisService.getSession(queryId).then((sess) => {
             if (sess) {
               setSession(sess);
               if (sess.detection?.components?.length > 0) {
                 setSelectedComponent(sess.detection.components[0]);
               }
+              if (pathname.includes("processing")) {
+                setActiveStep(2);
+              } else if (pathname.includes("results")) {
+                setActiveStep(3);
+              } else if (pathname.includes("passport")) {
+                setActiveStep(7);
+              } else if (pathname.includes("report")) {
+                setActiveStep(8);
+              }
             }
           });
           return;
         }
 
-        const stored = localStorage.getItem(STORAGE_KEY);
-        if (stored) {
-          const parsed = JSON.parse(stored);
-          if (parsed && (parsed.id || parsed.sessionId)) {
-            // Normalize session structure if needed
-            const normalizedSession: AnalysisSession = {
-              ...defaultRouterSession,
-              ...parsed,
-              id: parsed.id || parsed.sessionId,
-              sessionId: parsed.id || parsed.sessionId,
-              detection: parsed.detection || parsed.detectionResult || defaultRouterSession.detection,
-              pcbAnalysis: parsed.pcbAnalysis || parsed.reconstructionResult || defaultRouterSession.pcbAnalysis,
-              rulPrediction: parsed.rulPrediction || parsed.rulResult || defaultRouterSession.rulPrediction,
-              materialRecovery: parsed.materialRecovery || parsed.metalResult || defaultRouterSession.materialRecovery,
-              repairAssessment: parsed.repairAssessment || parsed.repairResult || defaultRouterSession.repairAssessment,
-              passport: parsed.passport || parsed.passportResult || defaultRouterSession.passport,
-              carbonImpact: parsed.carbonImpact || parsed.carbonResult || defaultRouterSession.carbonImpact,
-              report: parsed.report || { reportId: `REP-${parsed.id || parsed.sessionId}`, isReady: true, generatedAt: new Date().toISOString(), version: "2.4.0" },
-              executiveSummary: parsed.executiveSummary || defaultRouterSession.executiveSummary,
-            };
-            setSession(normalizedSession);
-            if (normalizedSession.detection?.components?.length > 0) {
-              setSelectedComponent(normalizedSession.detection.components[0]);
+        // Only restore previous session if navigating directly to results/report/passport without param
+        if (
+          pathname.includes("results") ||
+          pathname.includes("processing") ||
+          pathname.includes("passport") ||
+          pathname.includes("report")
+        ) {
+          const stored = localStorage.getItem(STORAGE_KEY);
+          if (stored) {
+            const parsed = JSON.parse(stored);
+            if (parsed && (parsed.id || parsed.sessionId)) {
+              setSession(parsed);
+              setIsNewAnalysis(false);
+              if (parsed.detection?.components?.length > 0) {
+                setSelectedComponent(parsed.detection.components[0]);
+              }
             }
           }
+        } else {
+          // Default for /console is fresh new analysis
+          setIsNewAnalysis(true);
+          setActiveStep(1);
         }
       }
     } catch (e) {
       console.warn("Could not restore stored session:", e);
     }
-  }, []);
+  }, [refreshRecentSessions]);
 
   const persistSession = (newSession: AnalysisSession) => {
     setSession(newSession);
     analysisService.saveSession(newSession);
+    refreshRecentSessions();
   };
 
   const loadSessionById = async (sessionId: string) => {
     const fetched = await analysisService.getSession(sessionId);
     if (fetched) {
       setSession(fetched);
+      setIsNewAnalysis(false);
       if (fetched.detection?.components?.length > 0) {
         setSelectedComponent(fetched.detection.components[0]);
       }
+      refreshRecentSessions();
     }
   };
 
+  const selectSampleDraft = (sampleId: string) => {
+    const dataset =
+      SAMPLE_DATASETS[sampleId] ||
+      SAMPLE_DATASETS["router-board"] ||
+      SAMPLE_DATASETS["laptop-motherboard"];
+
+    const draft: IngestDraft = {
+      sourceType: "sample",
+      sampleId: dataset.id,
+      deviceName: dataset.name,
+      deviceType: dataset.deviceType,
+      datasetName: "EcoIntel Demonstration Dataset",
+      imageUrl: dataset.image,
+      imageQuality: {
+        quality: "good",
+        resolution: dataset.hardwareSpecs?.dimensions || "3840 x 2160 px",
+        lightingScore: 98,
+        visibilityPercent: 96,
+        estimatedComponentsVisible: dataset.componentCount,
+      },
+      status: "Ready for Analysis",
+    };
+
+    setSelectedDraft(draft);
+    setIsNewAnalysis(true);
+  };
+
+  const setUploadDraft = (
+    previewUrl: string,
+    name: string,
+    sizeBytes: number,
+    dims = "3024 x 4032 px"
+  ) => {
+    const cleanName = name.replace(/\.[^/.]+$/, "");
+    const draft: IngestDraft = {
+      sourceType: "upload",
+      deviceName: cleanName || "Uploaded Electronic PCB",
+      deviceType: "Electronic Circuit Assembly (PCB)",
+      datasetName: "Optical Hardware Ingest",
+      imageUrl: previewUrl,
+      fileName: name,
+      fileSizeBytes: sizeBytes,
+      imageQuality: {
+        quality: "good",
+        resolution: dims,
+        lightingScore: 94,
+        visibilityPercent: 92,
+        estimatedComponentsVisible: 38,
+      },
+      status: "Ready for Analysis",
+    };
+
+    setSelectedDraft(draft);
+    setIsNewAnalysis(true);
+  };
+
+  const setCameraDraft = (dataUrl: string, qualityInfo?: any) => {
+    const draft: IngestDraft = {
+      sourceType: "camera",
+      deviceName: "Realtime Optical Camera Ingest",
+      deviceType: "High-Resolution PCB Scan",
+      datasetName: "Live Optical Telemetry Ingest",
+      imageUrl: dataUrl,
+      imageQuality: qualityInfo || {
+        quality: "good",
+        resolution: "1920 x 1080 px",
+        lightingScore: 92,
+        visibilityPercent: 94,
+        estimatedComponentsVisible: 40,
+      },
+      status: "Ready for Analysis",
+    };
+
+    setSelectedDraft(draft);
+    setIsNewAnalysis(true);
+  };
+
+  const clearDraft = () => {
+    setSelectedDraft(null);
+  };
+
+  const startAnalysisFromDraft = async (): Promise<string> => {
+    const currentDraft =
+      selectedDraft || {
+        sourceType: "sample" as const,
+        sampleId: "router-board",
+        deviceName: "Router Board",
+        deviceType: "Networking Controller",
+        datasetName: "EcoIntel Demonstration Dataset",
+        imageUrl: "/images/samples/router_board.jpg",
+        imageQuality: {
+          quality: "good" as const,
+          resolution: "2400 x 1600 px",
+          lightingScore: 98,
+          visibilityPercent: 96,
+          estimatedComponentsVisible: 38,
+        },
+        status: "Ready for Analysis" as const,
+      };
+
+    const newSession = analysisService.createSessionFromDraft(currentDraft);
+    persistSession(newSession);
+    setIsNewAnalysis(false);
+    setSelectedDraft(null);
+    return newSession.id;
+  };
+
+  const resetToNewAnalysis = () => {
+    setIsNewAnalysis(true);
+    setSelectedDraft(null);
+    setActiveStep(1);
+    setResultsTab("overview");
+  };
+
   const loadSample = (sampleId: string) => {
-    const dataset = SAMPLE_DATASETS[sampleId] || SAMPLE_DATASETS["router-board"] || SAMPLE_DATASETS["laptop-motherboard"];
+    const dataset =
+      SAMPLE_DATASETS[sampleId] ||
+      SAMPLE_DATASETS["router-board"] ||
+      SAMPLE_DATASETS["laptop-motherboard"];
     const newSession = convertSampleToSession(dataset, "COMPLETED");
     setSelectedComponent(newSession.detection.components[0] || null);
+    setIsNewAnalysis(false);
     persistSession(newSession);
   };
 
@@ -134,75 +292,11 @@ export function AnalysisSessionProvider({ children }: { children: React.ReactNod
     sizeBytes: number,
     dims = "3024 x 4032 px"
   ) => {
-    const routerSample = SAMPLE_DATASETS["router-board"] || SAMPLE_DATASETS["laptop-motherboard"];
-    const id = `ECI-2026-${Math.floor(1000 + Math.random() * 9000)}`;
-    const baseSession = convertSampleToSession(routerSample, "CAPTURED", id);
-
-    const newSession: AnalysisSession = {
-      ...baseSession,
-      id,
-      sessionId: id,
-      deviceName: name.replace(/\.[^/.]+$/, ""),
-      deviceType: "Electronic Circuit Assembly (PCB)",
-      sourceType: "upload",
-      imageUrl: previewUrl,
-      image: previewUrl,
-      dataClassification: "detected",
-      status: "CAPTURED",
-      imageQuality: {
-        quality: "good",
-        resolution: dims,
-        lightingScore: 94,
-        visibilityPercent: 92,
-        estimatedComponentsVisible: 38,
-      },
-      report: {
-        ...baseSession.report,
-        reportId: `REP-UPL-${Date.now()}`,
-        isReady: false,
-      },
-      reportId: `REP-UPL-${Date.now()}`,
-      updatedAt: new Date().toISOString(),
-    };
-
-    persistSession(newSession);
-    setSelectedComponent(newSession.detection.components[0] || null);
+    setUploadDraft(previewUrl, name, sizeBytes, dims);
   };
 
   const setCameraCapture = (dataUrl: string, qualityInfo?: any) => {
-    const routerSample = SAMPLE_DATASETS["router-board"] || SAMPLE_DATASETS["laptop-motherboard"];
-    const id = `ECI-2026-${Math.floor(1000 + Math.random() * 9000)}`;
-    const baseSession = convertSampleToSession(routerSample, "CAPTURED", id);
-
-    const newSession: AnalysisSession = {
-      ...baseSession,
-      id,
-      sessionId: id,
-      deviceName: "Realtime Optical Camera Ingest",
-      deviceType: "High-Resolution PCB Scan",
-      sourceType: "camera",
-      imageUrl: dataUrl,
-      image: dataUrl,
-      dataClassification: "measured",
-      status: "CAPTURED",
-      imageQuality: qualityInfo || {
-        quality: "good",
-        resolution: "1920 x 1080 px",
-        lightingScore: 92,
-        visibilityPercent: 94,
-        estimatedComponentsVisible: 38,
-      },
-      report: {
-        ...baseSession.report,
-        reportId: `REP-CAM-${Date.now()}`,
-        isReady: false,
-      },
-      reportId: `REP-CAM-${Date.now()}`,
-      updatedAt: new Date().toISOString(),
-    };
-
-    persistSession(newSession);
-    setSelectedComponent(newSession.detection.components[0] || null);
+    setCameraDraft(dataUrl, qualityInfo);
   };
 
   const runAnalysis = async (onStepProgress?: (step: number) => void) => {
@@ -210,7 +304,6 @@ export function AnalysisSessionProvider({ children }: { children: React.ReactNod
     setPipelineStep(0);
     setLiveDetections([]);
 
-    // Update status to PROCESSING
     const processingSession: AnalysisSession = {
       ...session,
       status: "PROCESSING",
@@ -219,13 +312,13 @@ export function AnalysisSessionProvider({ children }: { children: React.ReactNod
     persistSession(processingSession);
 
     const steps: Array<{ name: string; status: AnalysisStatus }> = [
-      { name: "Image Acquisition & Calibration", status: "PROCESSING" },
-      { name: "Spectro-Spatial AI Detection (YOLOv11)", status: "DETECTION_COMPLETE" },
+      { name: "Image Acquisition & Optical Calibration", status: "PROCESSING" },
+      { name: "Component Detection (YOLOv11 Spectro-Spatial)", status: "DETECTION_COMPLETE" },
       { name: "PCB Topology & Trace Reconstruction", status: "PCB_ANALYSIS_COMPLETE" },
       { name: "Physics-Informed Health Assessment", status: "RUL_COMPLETE" },
       { name: "Remaining Useful Life (RUL) Modeling", status: "RUL_COMPLETE" },
       { name: "Precious Material Recovery Estimation", status: "MATERIAL_ANALYSIS_COMPLETE" },
-      { name: "Automated Diagnostic & Repair Mapping", status: "REPAIR_COMPLETE" },
+      { name: "AI Repair & Refurbishment Intelligence", status: "REPAIR_COMPLETE" },
       { name: "Digital Product Passport Synthesis", status: "PASSPORT_READY" },
       { name: "Life-Cycle ESG & Carbon Accounting", status: "REPORT_READY" },
     ];
@@ -236,18 +329,18 @@ export function AnalysisSessionProvider({ children }: { children: React.ReactNod
       setPipelineStep(i + 1);
       if (onStepProgress) onStepProgress(i + 1);
 
-      // Stream live detection cards during detection step
       if (i === 1) {
-        for (let c = 0; c < allComponents.length; c++) {
-          await new Promise((res) => setTimeout(res, 280));
-          setLiveDetections((prev) => [...prev, allComponents[c]]);
+        // Stream components progressive discovery
+        const stepComponents = allComponents.slice(0, 8);
+        for (let c = 0; c < stepComponents.length; c++) {
+          await new Promise((res) => setTimeout(res, 220));
+          setLiveDetections((prev) => [...prev, stepComponents[c]]);
         }
       } else {
-        await new Promise((res) => setTimeout(res, 450));
+        await new Promise((res) => setTimeout(res, 400));
       }
     }
 
-    // Complete session with COMPLETED status
     const completedSession: AnalysisSession = {
       ...session,
       status: "COMPLETED",
@@ -277,9 +370,14 @@ export function AnalysisSessionProvider({ children }: { children: React.ReactNod
     const ageFactor = Math.max(0.2, 1 - params.age / 12);
     const wearFactor = params.wear ? Math.max(0.3, 1 - params.wear / 100) : 0.92;
 
-    const predictedHours = Math.round(baseHours * tempFactor * voltageFactor * cyclesFactor * ageFactor * wearFactor);
+    const predictedHours = Math.round(
+      baseHours * tempFactor * voltageFactor * cyclesFactor * ageFactor * wearFactor
+    );
     const predictedYears = +(predictedHours / 8760).toFixed(1);
-    const healthScore = Math.min(100, Math.max(15, Math.round((predictedHours / baseHours) * 98)));
+    const healthScore = Math.min(
+      100,
+      Math.max(15, Math.round((predictedHours / baseHours) * 98))
+    );
 
     const updatedSession: AnalysisSession = {
       ...session,
@@ -323,14 +421,13 @@ export function AnalysisSessionProvider({ children }: { children: React.ReactNod
   };
 
   const resetSession = () => {
-    persistSession(defaultRouterSession);
-    setActiveStep(1);
-    setResultsTab("overview");
-    setSelectedComponent(defaultRouterSession.detection.components[0] || null);
+    resetToNewAnalysis();
   };
 
   const openMarketplaceListing = (component?: DetectedComponent | null) => {
-    setMarketplaceComponent(component || selectedComponent || session.detection.components[0] || null);
+    setMarketplaceComponent(
+      component || selectedComponent || session.detection?.components[0] || null
+    );
     setIsMarketplaceModalOpen(true);
   };
 
@@ -338,6 +435,16 @@ export function AnalysisSessionProvider({ children }: { children: React.ReactNod
     <AnalysisContext.Provider
       value={{
         session,
+        isNewAnalysis,
+        selectedDraft,
+        selectSampleDraft,
+        setUploadDraft,
+        setCameraDraft,
+        clearDraft,
+        startAnalysisFromDraft,
+        recentSessions,
+        refreshRecentSessions,
+        resetToNewAnalysis,
         activeStep,
         setActiveStep,
         resultsTab,
@@ -367,7 +474,17 @@ export function AnalysisSessionProvider({ children }: { children: React.ReactNod
 
 const defaultFallbackContext: AnalysisContextType = {
   session: defaultRouterSession,
-  activeStep: 3,
+  isNewAnalysis: true,
+  selectedDraft: null,
+  selectSampleDraft: () => {},
+  setUploadDraft: () => {},
+  setCameraDraft: () => {},
+  clearDraft: () => {},
+  startAnalysisFromDraft: async () => "ECI-2026-7740",
+  recentSessions: [],
+  refreshRecentSessions: () => {},
+  resetToNewAnalysis: () => {},
+  activeStep: 1,
   setActiveStep: () => {},
   resultsTab: "overview",
   setResultsTab: () => {},

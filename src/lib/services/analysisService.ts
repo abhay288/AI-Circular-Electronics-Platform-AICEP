@@ -239,6 +239,7 @@ export class AnalysisService {
     if (typeof window !== "undefined") {
       try {
         localStorage.setItem("ecointel_active_analysis_session_v2", JSON.stringify(session));
+        this.saveRecentSession(session);
       } catch (e) {
         console.warn("Local storage write error:", e);
       }
@@ -256,6 +257,100 @@ export class AnalysisService {
     }
 
     return session;
+  }
+
+  getRecentSessions(): import("@/lib/types/analysis").RecentSessionMeta[] {
+    if (typeof window === "undefined") return [];
+    try {
+      const stored = localStorage.getItem("ecointel_recent_sessions_v2");
+      if (stored) {
+        return JSON.parse(stored);
+      }
+    } catch (e) {
+      console.warn("Could not read recent sessions:", e);
+    }
+    // Default initial seeded sample for demonstration
+    return [
+      {
+        id: "ECI-2026-7740",
+        deviceName: "Router Board",
+        deviceType: "Networking Controller",
+        sourceType: "sample",
+        status: "COMPLETED",
+        createdAt: "2026-10-04T12:00:00.000Z",
+        updatedAt: "2026-10-04T12:05:00.000Z",
+        healthScore: 93,
+        componentCount: 38,
+        dataClassification: "sample",
+      },
+    ];
+  }
+
+  saveRecentSession(session: IAnalysisSession) {
+    if (typeof window === "undefined") return;
+    try {
+      const existing = this.getRecentSessions();
+      const meta: import("@/lib/types/analysis").RecentSessionMeta = {
+        id: session.id,
+        deviceName: session.deviceName,
+        deviceType: session.deviceType,
+        sourceType: session.sourceType,
+        status: session.status,
+        createdAt: session.createdAt || new Date().toISOString(),
+        updatedAt: session.updatedAt || new Date().toISOString(),
+        healthScore: session.rulPrediction?.overallHealthScore,
+        componentCount: session.detection?.components?.length,
+        dataClassification: session.dataClassification,
+      };
+
+      const filtered = existing.filter((item) => item.id !== session.id);
+      const updated = [meta, ...filtered].slice(0, 10);
+      localStorage.setItem("ecointel_recent_sessions_v2", JSON.stringify(updated));
+    } catch (e) {
+      console.warn("Could not save recent session:", e);
+    }
+  }
+
+  createSessionFromDraft(draft: import("@/lib/types/analysis").IngestDraft): IAnalysisSession {
+    const randomSuffix = Math.floor(1000 + Math.random() * 9000);
+    const newId = `ECI-2026-${randomSuffix}`;
+
+    if (draft.sourceType === "sample" && draft.sampleId) {
+      const dataset = SAMPLE_DATASETS[draft.sampleId] || SAMPLE_DATASETS["router-board"];
+      const session = convertSampleToSession(dataset, "CAPTURED", newId);
+      sessionCache.set(newId, session);
+      return session;
+    }
+
+    // For uploaded image or camera capture
+    const baseSample = SAMPLE_DATASETS["router-board"] || SAMPLE_DATASETS["laptop-motherboard"];
+    const baseSession = convertSampleToSession(baseSample, "CAPTURED", newId);
+
+    const isCamera = draft.sourceType === "camera";
+    const customSession: IAnalysisSession = {
+      ...baseSession,
+      id: newId,
+      sessionId: newId,
+      deviceName: draft.deviceName,
+      deviceType: draft.deviceType,
+      sourceType: draft.sourceType,
+      imageUrl: draft.imageUrl,
+      image: draft.imageUrl,
+      dataClassification: isCamera ? "measured" : "detected",
+      status: "CAPTURED",
+      imageQuality: draft.imageQuality,
+      report: {
+        ...baseSession.report,
+        reportId: `REP-${newId}`,
+        isReady: false,
+      },
+      reportId: `REP-${newId}`,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+
+    sessionCache.set(newId, customSession);
+    return customSession;
   }
 
   async getDetection(sessionId: string): Promise<DetectionData> {

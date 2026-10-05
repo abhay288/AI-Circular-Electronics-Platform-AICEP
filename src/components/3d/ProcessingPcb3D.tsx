@@ -1,8 +1,32 @@
 "use client";
 
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
-import { RotateCcw, ZoomIn, ZoomOut, Move, Eye } from "lucide-react";
+import {
+  RotateCcw,
+  ZoomIn,
+  ZoomOut,
+  Move,
+  Eye,
+  CheckCircle2,
+  X,
+  ExternalLink,
+  ShieldCheck,
+  Activity,
+  Layers,
+  Sparkles,
+} from "lucide-react";
+
+export interface ComponentInfoData {
+  id: string;
+  name: string;
+  type: string;
+  confidence: number;
+  health: number;
+  rulYears: number;
+  condition: "Reusable" | "Refurbishable" | "Replace";
+  passportStatus: "Ready" | "Verified" | "Pending";
+}
 
 export interface ProcessingPcb3DProps {
   imageUrl?: string;
@@ -15,7 +39,7 @@ export interface ProcessingPcb3DProps {
   showLayers?: boolean;
   showHealthOverlay?: boolean;
   showRulOverlay?: boolean;
-  onSelectComponent?: (compName: string) => void;
+  onSelectComponent?: (compName: string, compData?: ComponentInfoData) => void;
 }
 
 export default function ProcessingPcb3D({
@@ -35,6 +59,10 @@ export default function ProcessingPcb3D({
   const resetCameraRef = useRef<(() => void) | null>(null);
   const zoomInRef = useRef<(() => void) | null>(null);
   const zoomOutRef = useRef<(() => void) | null>(null);
+  const panLeftRef = useRef<(() => void) | null>(null);
+  const panRightRef = useRef<(() => void) | null>(null);
+
+  const [inspectedComponent, setInspectedComponent] = useState<ComponentInfoData | null>(null);
 
   // Dynamic prop refs for 60fps render loop
   const propsRef = useRef({
@@ -108,7 +136,7 @@ export default function ProcessingPcb3D({
 
     const pcbGroup = new THREE.Group();
 
-    // 1. PCB Base Board with Real Photographic Texture
+    // 1. PCB Base Board with FR4 Solder Mask
     const boardGeo = new THREE.BoxGeometry(6.8, 0.12, 5.0);
     const textureLoader = new THREE.TextureLoader();
     let pcbTexture: THREE.Texture | null = null;
@@ -132,7 +160,32 @@ export default function ProcessingPcb3D({
     boardMesh.receiveShadow = true;
     pcbGroup.add(boardMesh);
 
-    // 1b. Multi-Layer Substrate Slices (when showLayers is active)
+    // 1b. Mounting Screw Holes at 4 corners with Gold Annular Rings
+    const cornerOffsets = [
+      { x: -3.1, z: -2.2 },
+      { x: 3.1, z: -2.2 },
+      { x: -3.1, z: 2.2 },
+      { x: 3.1, z: 2.2 },
+    ];
+    const ringMat = new THREE.MeshStandardMaterial({
+      color: 0xd4af37,
+      metalness: 0.95,
+      roughness: 0.15,
+    });
+    cornerOffsets.forEach((pos) => {
+      const ring = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.18, 0.14, 16), ringMat);
+      ring.position.set(pos.x, 0.01, pos.z);
+      pcbGroup.add(ring);
+
+      const hole = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.11, 0.11, 0.16, 16),
+        new THREE.MeshBasicMaterial({ color: 0x05070a })
+      );
+      hole.position.set(pos.x, 0.01, pos.z);
+      pcbGroup.add(hole);
+    });
+
+    // 1c. Multi-Layer Substrate Slices (when showLayers is active)
     const layersGroup = new THREE.Group();
     const layerColors = [0x164e63, 0xd97706, 0x1e293b, 0xd97706];
     layerColors.forEach((col, idx) => {
@@ -163,13 +216,19 @@ export default function ProcessingPcb3D({
       pcbGroup.add(finger);
     }
 
-    // 3. Components Assembly Group (Explodable)
+    // 3. Components Assembly Group (Explodable & Raycast-Interactive)
     const componentsGroup = new THREE.Group();
-
-    // Component tracking list for interactive highlighting
     const componentMeshMap = new Map<string, THREE.MeshStandardMaterial>();
+    const interactiveMeshes: THREE.Mesh[] = [];
 
-    // A. CPU / SoC Core BGA Socket
+    // Helper to register interactive components
+    const registerComponent = (mesh: THREE.Mesh, mat: THREE.MeshStandardMaterial, data: ComponentInfoData) => {
+      mesh.userData = data;
+      componentMeshMap.set(data.id, mat);
+      interactiveMeshes.push(mesh);
+    };
+
+    // A. STM32 / CPU Core BGA Socket
     const cpuSubstrate = new THREE.Mesh(
       new THREE.BoxGeometry(1.6, 0.12, 1.6),
       new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.3, metalness: 0.8 })
@@ -183,33 +242,62 @@ export default function ProcessingPcb3D({
       emissive: 0x2563eb,
       emissiveIntensity: 0.25,
     });
-    const cpuDie = new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.06, 1.0), cpuDieMat);
-    cpuDie.position.set(-0.6, 0.21, -0.4);
+    const cpuDie = new THREE.Mesh(new THREE.BoxGeometry(1.1, 0.08, 1.1), cpuDieMat);
+    cpuDie.position.set(-0.6, 0.22, -0.4);
     componentsGroup.add(cpuSubstrate);
     componentsGroup.add(cpuDie);
-    componentMeshMap.set("comp_npu_01", cpuDieMat);
-    componentMeshMap.set("comp_cpu_01", cpuDieMat);
 
-    // B. RAM Chips Array
+    registerComponent(cpuDie, cpuDieMat, {
+      id: "comp_cpu_01",
+      name: "STM32F103 / Core SoC",
+      type: "ARM Cortex Microcontroller",
+      confidence: 98.4,
+      health: 94,
+      rulYears: 6.4,
+      condition: "Reusable",
+      passportStatus: "Ready",
+    });
+
+    // B. RAM Chips Array (DDR3 / Flash TSOP)
     [-1.8, 1.8].forEach((rx, idx) => {
       const ramMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.4, metalness: 0.6 });
-      const ramStick = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.35, 2.4), ramMat);
-      ramStick.position.set(rx, 0.22, 0);
+      const ramStick = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.28, 2.2), ramMat);
+      ramStick.position.set(rx, 0.2, 0);
       componentsGroup.add(ramStick);
-      componentMeshMap.set(`comp_ram_${idx + 1}`, ramMat);
+
+      registerComponent(ramStick, ramMat, {
+        id: `comp_ram_${idx + 1}`,
+        name: `Winbond W631GU6MB RAM #${idx + 1}`,
+        type: "DDR3 Synchronous DRAM",
+        confidence: 96.8,
+        health: 92,
+        rulYears: 5.8,
+        condition: "Reusable",
+        passportStatus: "Ready",
+      });
     });
 
     // C. Power Inductors & Ferrite Chokes
     [
-      { x: -0.8, z: 1.1, id: "comp_ind_01" },
-      { x: -0.1, z: 1.1, id: "comp_ind_02" },
-      { x: 0.6, z: 1.1, id: "comp_ind_03" },
+      { x: -0.8, z: 1.1, id: "comp_ind_01", name: "Coilcraft 1.2uH Power Inductor" },
+      { x: -0.1, z: 1.1, id: "comp_ind_02", name: "Murata SMD Ferrite Choke" },
+      { x: 0.6, z: 1.1, id: "comp_ind_03", name: "Shielded SMPS Power Inductor" },
     ].forEach((pos) => {
       const chokeMat = new THREE.MeshStandardMaterial({ color: 0x334155, metalness: 0.85, roughness: 0.3 });
       const choke = new THREE.Mesh(new THREE.BoxGeometry(0.48, 0.32, 0.48), chokeMat);
       choke.position.set(pos.x, 0.22, pos.z);
       componentsGroup.add(choke);
-      componentMeshMap.set(pos.id, chokeMat);
+
+      registerComponent(choke, chokeMat, {
+        id: pos.id,
+        name: pos.name,
+        type: "Power Inductor",
+        confidence: 95.2,
+        health: 96,
+        rulYears: 8.1,
+        condition: "Reusable",
+        passportStatus: "Ready",
+      });
     });
 
     // D. LAN Magnetics / Transformers
@@ -217,22 +305,67 @@ export default function ProcessingPcb3D({
     const magMesh = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.4, 0.8), magMat);
     magMesh.position.set(2.0, 0.25, -1.4);
     componentsGroup.add(magMesh);
-    componentMeshMap.set("comp_mag_01", magMat);
 
-    // E. Solid Polymer SMD Capacitors
+    registerComponent(magMesh, magMat, {
+      id: "comp_mag_01",
+      name: "Pulse Electronics RJ45 LAN Transformer",
+      type: "Ethernet Magnetics Module",
+      confidence: 97.1,
+      health: 89,
+      rulYears: 4.9,
+      condition: "Refurbishable",
+      passportStatus: "Ready",
+    });
+
+    // E. Solid Polymer SMD Capacitors (Aluminum Cans)
     const capMat = new THREE.MeshStandardMaterial({ color: 0xe2e8f0, metalness: 0.95, roughness: 0.1 });
     for (let c = 0; c < 8; c++) {
-      const cap = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 0.3, 16), capMat);
-      cap.position.set(-1.4 + (c % 4) * 0.32, 0.2, -1.6 + Math.floor(c / 4) * 0.4);
+      const cap = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.14, 0.32, 16), capMat);
+      cap.position.set(-1.4 + (c % 4) * 0.34, 0.2, -1.6 + Math.floor(c / 4) * 0.42);
       componentsGroup.add(cap);
+
+      if (c === 0) {
+        registerComponent(cap, capMat, {
+          id: "comp_cap_bank",
+          name: "Nichicon 220uF Solid Polymer Capacitor",
+          type: "Electrolytic Decoupling Capacitor",
+          confidence: 93.6,
+          health: 91,
+          rulYears: 5.2,
+          condition: "Reusable",
+          passportStatus: "Ready",
+        });
+      }
     }
 
-    // F. Microcontroller / Flash Chips
+    // F. Flash Memory / Microcontroller
     const mcuMat = new THREE.MeshStandardMaterial({ color: 0x090d16, roughness: 0.2, metalness: 0.7 });
-    const mcu = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.1, 0.8), mcuMat);
-    mcu.position.set(0.9, 0.11, -1.2);
+    const mcu = new THREE.Mesh(new THREE.BoxGeometry(0.85, 0.12, 0.85), mcuMat);
+    mcu.position.set(0.9, 0.12, -1.2);
     componentsGroup.add(mcu);
-    componentMeshMap.set("comp_mcu_01", mcuMat);
+
+    // QFP Pin Leads for realistic MCU look
+    const pinMat = new THREE.MeshStandardMaterial({ color: 0xd4d4d8, metalness: 0.9, roughness: 0.2 });
+    for (let p = -0.35; p <= 0.35; p += 0.12) {
+      const pinNorth = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.02, 0.12), pinMat);
+      pinNorth.position.set(0.9 + p, 0.08, -1.2 - 0.48);
+      componentsGroup.add(pinNorth);
+
+      const pinSouth = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.02, 0.12), pinMat);
+      pinSouth.position.set(0.9 + p, 0.08, -1.2 + 0.48);
+      componentsGroup.add(pinSouth);
+    }
+
+    registerComponent(mcu, mcuMat, {
+      id: "comp_mcu_01",
+      name: "Macronix MX25L 128MB SPI NOR Flash",
+      type: "Flash Memory IC",
+      confidence: 97.8,
+      health: 95,
+      rulYears: 7.4,
+      condition: "Reusable",
+      passportStatus: "Ready",
+    });
 
     // G. Heatsink Aluminum Fin Assembly
     const heatsinkGroup = new THREE.Group();
@@ -293,13 +426,12 @@ export default function ProcessingPcb3D({
     });
     pcbGroup.add(boxGroup);
 
-    // 6. Laser Scanning Line Beam (Passed horizontally)
+    // 6. Laser Scanning Line Beam (Passed horizontally during inspection)
     const scanBeamGeo = new THREE.BoxGeometry(0.04, 0.8, 5.2);
     const scanBeamMat = new THREE.MeshBasicMaterial({
       color: 0x3b82f6,
       transparent: true,
-      opacity: 0.65,
-      blending: THREE.AdditiveBlending,
+      opacity: 0.75,
     });
     const scanBeam = new THREE.Mesh(scanBeamGeo, scanBeamMat);
     scanBeam.position.set(-3.2, 0.4, 0);
@@ -307,58 +439,112 @@ export default function ProcessingPcb3D({
 
     scene.add(pcbGroup);
 
-    // Interaction handlers (Mouse drag rotate & wheel zoom)
+    // Interaction handlers (Mouse drag rotate, right-click pan, wheel zoom, click raycast)
     let isDragging = false;
+    let isRightDragging = false;
     let prevMouseX = 0;
     let prevMouseY = 0;
     let targetRotationX = 0.35;
     let targetRotationY = -0.45;
+    let targetPanX = 0;
+    let targetPanY = 0;
+
+    const raycaster = new THREE.Raycaster();
+    const mouseCoord = new THREE.Vector2();
 
     const onMouseDown = (e: MouseEvent) => {
-      isDragging = true;
+      if (e.button === 2 || e.button === 1) {
+        // Right click or middle click for Pan
+        isRightDragging = true;
+      } else {
+        isDragging = true;
+      }
       prevMouseX = e.clientX;
       prevMouseY = e.clientY;
     };
 
     const onMouseMove = (e: MouseEvent) => {
-      if (!isDragging) return;
+      if (!isDragging && !isRightDragging) return;
       const deltaX = e.clientX - prevMouseX;
       const deltaY = e.clientY - prevMouseY;
       prevMouseX = e.clientX;
       prevMouseY = e.clientY;
 
-      targetRotationY += deltaX * 0.008;
-      targetRotationX += deltaY * 0.008;
-      targetRotationX = Math.max(-0.2, Math.min(1.2, targetRotationX));
+      if (isRightDragging) {
+        targetPanX += deltaX * 0.008;
+        targetPanY -= deltaY * 0.008;
+      } else if (isDragging) {
+        targetRotationY += deltaX * 0.008;
+        targetRotationX += deltaY * 0.008;
+        targetRotationX = Math.max(-0.2, Math.min(1.2, targetRotationX));
+      }
     };
 
     const onMouseUp = () => {
       isDragging = false;
+      isRightDragging = false;
+    };
+
+    const onContextMenu = (e: MouseEvent) => {
+      e.preventDefault();
     };
 
     const onWheel = (e: WheelEvent) => {
       camera.position.z += e.deltaY * 0.005;
-      camera.position.z = Math.max(4.0, Math.min(12.0, camera.position.z));
+      camera.position.z = Math.max(3.8, Math.min(12.0, camera.position.z));
+    };
+
+    // Component Click Selection Raycaster
+    const onClick = (e: MouseEvent) => {
+      const rect = renderer.domElement.getBoundingClientRect();
+      mouseCoord.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+      mouseCoord.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+
+      raycaster.setFromCamera(mouseCoord, camera);
+      const intersects = raycaster.intersectObjects(interactiveMeshes, true);
+
+      if (intersects.length > 0) {
+        const hitMesh = intersects[0].object as THREE.Mesh;
+        const compData = hitMesh.userData as ComponentInfoData;
+        if (compData && compData.name) {
+          setInspectedComponent(compData);
+          if (onSelectComponent) {
+            onSelectComponent(compData.name, compData);
+          }
+        }
+      }
     };
 
     // Camera control references
     resetCameraRef.current = () => {
       targetRotationX = 0.35;
       targetRotationY = -0.45;
+      targetPanX = 0;
+      targetPanY = 0;
       camera.position.copy(defaultPos);
       camera.lookAt(0, 0, 0);
     };
 
     zoomInRef.current = () => {
-      camera.position.z = Math.max(4.0, camera.position.z - 1.0);
+      camera.position.z = Math.max(3.8, camera.position.z - 1.0);
     };
 
     zoomOutRef.current = () => {
       camera.position.z = Math.min(12.0, camera.position.z + 1.0);
     };
 
+    panLeftRef.current = () => {
+      targetPanX -= 0.5;
+    };
+
+    panRightRef.current = () => {
+      targetPanX += 0.5;
+    };
+
     const domEl = renderer.domElement;
     domEl.addEventListener("mousedown", onMouseDown);
+    domEl.addEventListener("contextmenu", onContextMenu);
+    domEl.addEventListener("click", onClick);
     window.addEventListener("mousemove", onMouseMove);
     window.addEventListener("mouseup", onMouseUp);
     domEl.addEventListener("wheel", onWheel, { passive: true });
@@ -377,6 +563,9 @@ export default function ProcessingPcb3D({
       }
       pcbGroup.rotation.x += (targetRotationX - pcbGroup.rotation.x) * 0.08;
       pcbGroup.rotation.y += (targetRotationY - pcbGroup.rotation.y) * 0.08;
+
+      pcbGroup.position.x += (targetPanX - pcbGroup.position.x) * 0.08;
+      pcbGroup.position.y += (targetPanY - pcbGroup.position.y) * 0.08;
 
       // Laser scan motion
       if (isScanning) {
@@ -414,14 +603,19 @@ export default function ProcessingPcb3D({
       const isRul = propsRef.current.showRulOverlay;
 
       componentMeshMap.forEach((mat, id) => {
-        if (activeHighlightId && (id === activeHighlightId || activeHighlightId.includes(id) || id.includes(activeHighlightId))) {
+        if (
+          activeHighlightId &&
+          (id === activeHighlightId ||
+            activeHighlightId.includes(id) ||
+            id.includes(activeHighlightId))
+        ) {
           mat.emissive.setHex(0x38bdf8);
-          mat.emissiveIntensity = 0.9;
+          mat.emissiveIntensity = 0.95;
         } else if (isHealth) {
-          mat.emissive.setHex(0x16a34a); // Green health overlay
+          mat.emissive.setHex(0x16a34a);
           mat.emissiveIntensity = 0.55;
         } else if (isRul) {
-          mat.emissive.setHex(0x2563eb); // Cyan/blue RUL overlay
+          mat.emissive.setHex(0x2563eb);
           mat.emissiveIntensity = 0.55;
         } else {
           mat.emissive.setHex(0x2563eb);
@@ -445,48 +639,131 @@ export default function ProcessingPcb3D({
 
     return () => {
       domEl.removeEventListener("mousedown", onMouseDown);
+      domEl.removeEventListener("contextmenu", onContextMenu);
+      domEl.removeEventListener("click", onClick);
       window.removeEventListener("mousemove", onMouseMove);
       window.removeEventListener("mouseup", onMouseUp);
       domEl.removeEventListener("wheel", onWheel);
       window.removeEventListener("resize", handleResize);
       cancelAnimationFrame(animId);
-      if (container.contains(renderer.domElement)) {
+      if (renderer.domElement.parentNode === container) {
         container.removeChild(renderer.domElement);
       }
       renderer.dispose();
     };
-  }, [isScanning]);
+  }, [imageUrl, isScanning]);
 
   return (
-    <div className="relative w-full h-full min-h-[380px] overflow-hidden select-none cursor-grab active:cursor-grabbing">
-      <div ref={containerRef} className="w-full h-full" />
+    <div className="relative w-full h-full min-h-[380px] select-none">
+      {/* 3D WebGL Canvas */}
+      <div ref={containerRef} className="w-full h-full cursor-grab active:cursor-grabbing" />
 
-      {/* Floating 3D Control Pad */}
-      <div className="absolute bottom-3 right-3 flex items-center gap-1.5 p-1 rounded-xl bg-white/90 backdrop-blur-md border border-[#E2E8F0] shadow-sm z-20">
+      {/* Floating 3D Navigation Controls (Rotate, Zoom, Pan, Reset) */}
+      <div className="absolute bottom-3 left-3 z-20 flex items-center gap-1.5 bg-white/90 backdrop-blur-md p-1.5 rounded-2xl border border-[#E2E8F0] shadow-md text-xs font-mono">
         <button
-          onClick={() => zoomInRef.current?.()}
-          className="p-1.5 rounded-lg hover:bg-[#F1F5F9] text-[#475569] hover:text-[#0F172A] transition-colors cursor-pointer"
-          title="Zoom In"
+          onClick={() => resetCameraRef.current?.()}
+          className="p-1.5 rounded-xl hover:bg-[#EFF6FF] text-[#475569] hover:text-[#2563EB] transition-colors"
+          title="Reset Camera View"
         >
-          <ZoomIn className="w-4 h-4" />
-        </button>
-        <button
-          onClick={() => zoomOutRef.current?.()}
-          className="p-1.5 rounded-lg hover:bg-[#F1F5F9] text-[#475569] hover:text-[#0F172A] transition-colors cursor-pointer"
-          title="Zoom Out"
-        >
-          <ZoomOut className="w-4 h-4" />
+          <RotateCcw className="w-3.5 h-3.5" />
         </button>
         <div className="w-px h-4 bg-[#E2E8F0]" />
         <button
-          onClick={() => resetCameraRef.current?.()}
-          className="p-1.5 rounded-lg hover:bg-[#EFF6FF] text-[#2563EB] transition-colors flex items-center gap-1 text-[11px] font-mono font-bold cursor-pointer"
-          title="Reset 3D Perspective"
+          onClick={() => zoomInRef.current?.()}
+          className="p-1.5 rounded-xl hover:bg-[#EFF6FF] text-[#475569] hover:text-[#2563EB] transition-colors"
+          title="Zoom In"
         >
-          <RotateCcw className="w-3.5 h-3.5" />
-          <span className="hidden sm:inline">Reset</span>
+          <ZoomIn className="w-3.5 h-3.5" />
         </button>
+        <button
+          onClick={() => zoomOutRef.current?.()}
+          className="p-1.5 rounded-xl hover:bg-[#EFF6FF] text-[#475569] hover:text-[#2563EB] transition-colors"
+          title="Zoom Out"
+        >
+          <ZoomOut className="w-3.5 h-3.5" />
+        </button>
+        <div className="w-px h-4 bg-[#E2E8F0]" />
+        <div className="px-2 text-[10px] text-[#64748B] hidden sm:block">
+          Left: Rotate · Right: Pan · Click: Inspect
+        </div>
       </div>
+
+      {/* Component Information Panel (Triggered on 3D Click) */}
+      {inspectedComponent && (
+        <div className="absolute top-3 right-3 z-30 w-72 bg-white/95 backdrop-blur-md rounded-2xl border border-[#E2E8F0] shadow-xl p-4 text-xs space-y-2.5 animate-in fade-in slide-in-from-right-4 duration-200">
+          <div className="flex items-center justify-between border-b border-[#E2E8F0] pb-2">
+            <span className="font-mono text-[10px] uppercase font-bold text-[#2563EB]">
+              3D COMPONENT INSPECTOR
+            </span>
+            <button
+              onClick={() => setInspectedComponent(null)}
+              className="p-1 text-[#94A3B8] hover:text-[#0F172A] rounded-lg"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
+
+          <div>
+            <h4 className="font-heading text-sm font-bold text-[#0F172A] truncate">
+              {inspectedComponent.name}
+            </h4>
+            <p className="text-[11px] text-[#64748B]">{inspectedComponent.type}</p>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2 text-[11px] font-mono pt-1">
+            <div className="p-2 rounded-xl bg-[#F8FAFC] border border-[#E2E8F0]">
+              <span className="text-[#64748B] block text-[9px]">AI Confidence</span>
+              <strong className="text-[#0F172A] text-xs">
+                {inspectedComponent.confidence}%
+              </strong>
+            </div>
+
+            <div className="p-2 rounded-xl bg-[#F8FAFC] border border-[#E2E8F0]">
+              <span className="text-[#64748B] block text-[9px]">Hardware Health</span>
+              <strong className="text-[#16A34A] text-xs">
+                {inspectedComponent.health}%
+              </strong>
+            </div>
+
+            <div className="p-2 rounded-xl bg-[#F8FAFC] border border-[#E2E8F0]">
+              <span className="text-[#64748B] block text-[9px]">Estimated RUL</span>
+              <strong className="text-[#2563EB] text-xs">
+                {inspectedComponent.rulYears} Years
+              </strong>
+            </div>
+
+            <div className="p-2 rounded-xl bg-[#F8FAFC] border border-[#E2E8F0]">
+              <span className="text-[#64748B] block text-[9px]">Condition</span>
+              <strong
+                className={`text-xs ${
+                  inspectedComponent.condition === "Reusable"
+                    ? "text-[#16A34A]"
+                    : "text-[#D97706]"
+                }`}
+              >
+                {inspectedComponent.condition}
+              </strong>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between pt-2 border-t border-[#F1F5F9]">
+            <span className="text-[10px] font-mono text-[#64748B] flex items-center gap-1">
+              <ShieldCheck className="w-3.5 h-3.5 text-[#2563EB]" />
+              Passport: <strong className="text-[#0F172A]">{inspectedComponent.passportStatus}</strong>
+            </span>
+            <button
+              onClick={() => {
+                if (onSelectComponent) {
+                  onSelectComponent(inspectedComponent.name, inspectedComponent);
+                }
+              }}
+              className="px-2.5 py-1 rounded-lg bg-[#EFF6FF] text-[#2563EB] font-bold text-[10px] hover:bg-[#2563EB] hover:text-white transition-colors"
+            >
+              Focus
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

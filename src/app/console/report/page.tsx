@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, Suspense } from "react";
+import React, { useState, useEffect, Suspense } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useSearchParams } from "next/navigation";
@@ -30,8 +30,15 @@ import { useAnalysisSession } from "@/lib/context/AnalysisSessionContext";
 
 function CompleteReportContent() {
   const searchParams = useSearchParams();
-  const { session, openMarketplaceListing } = useAnalysisSession();
+  const queryAnalysisId = searchParams.get("analysisId") || searchParams.get("sessionId");
+  const { session, openMarketplaceListing, loadSessionById } = useAnalysisSession();
   const [downloadSuccess, setDownloadSuccess] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (queryAnalysisId && queryAnalysisId !== session.id) {
+      loadSessionById(queryAnalysisId);
+    }
+  }, [queryAnalysisId, session.id, loadSessionById]);
 
   const isReportReady = session.status === "COMPLETED" || session.report?.isReady;
 

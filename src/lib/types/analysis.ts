@@ -228,3 +228,36 @@ export interface AnalysisSession {
   reportId?: string;
   image?: string;
 }
+
+export interface IngestDraft {
+  sourceType: "sample" | "upload" | "camera";
+  sampleId?: string;
+  deviceName: string;
+  deviceType: string;
+  datasetName: string;
+  imageUrl: string;
+  fileName?: string;
+  fileSizeBytes?: number;
+  imageQuality: {
+    quality: "good" | "acceptable" | "poor";
+    resolution: string;
+    lightingScore: number;
+    visibilityPercent: number;
+    estimatedComponentsVisible: number;
+  };
+  status: "Ready for Analysis" | "Validating";
+}
+
+export interface RecentSessionMeta {
+  id: string;
+  deviceName: string;
+  deviceType: string;
+  sourceType: "sample" | "upload" | "camera";
+  status: AnalysisStatus;
+  createdAt: string;
+  updatedAt: string;
+  healthScore?: number;
+  componentCount?: number;
+  dataClassification: DataClassification;
+}
+

@@ -133,8 +133,8 @@ function ConsoleResultsContent() {
 
   const handleTabChange = (tabId: string) => {
     setActiveTab(tabId);
-    const sessionParam = effectiveAnalysisId ? `&analysisId=${encodeURIComponent(effectiveAnalysisId)}` : "";
-    router.push(`/console/results?tab=${tabId}${sessionParam}`);
+    const sessionParam = effectiveAnalysisId ? `analysisId=${encodeURIComponent(effectiveAnalysisId)}&` : "";
+    router.push(`/console/results?${sessionParam}tab=${tabId}`);
   };
 
   const handleApplyRulSimulation = () => {
@@ -312,6 +312,7 @@ function ConsoleResultsContent() {
           {/* Interactive 3D Canvas */}
           <div className="flex-1 w-full flex items-center justify-center my-2 min-h-[340px]">
             <ProcessingPcb3D
+              imageUrl={session.imageUrl}
               isScanning={false}
               highlightComponentId={selectedComponent?.id}
               exploded={showLayers}
@@ -321,6 +322,17 @@ function ConsoleResultsContent() {
               showLayers={showLayers}
               showHealthOverlay={showHealthOverlay}
               showRulOverlay={showRulOverlay}
+              onSelectComponent={(compName, compData) => {
+                const match = componentsList.find(
+                  (c) =>
+                    c.name.toLowerCase().includes(compName.toLowerCase()) ||
+                    c.id === compData?.id ||
+                    (compData && c.type.toLowerCase().includes(compData.type.toLowerCase()))
+                );
+                if (match) {
+                  setSelectedComponent(match);
+                }
+              }}
             />
           </div>
 
