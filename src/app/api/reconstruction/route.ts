@@ -1,43 +1,78 @@
 import { NextRequest, NextResponse } from "next/server";
-import mongoose from "mongoose";
-import { connectToDatabase } from "@/lib/db/mongodb";
-import { PcbAnalysis } from "@/lib/db/models/PcbAnalysis";
+import { connectDB } from "@/lib/db";
+import { AnalysisSession } from "@/models/AnalysisSession";
+import { getAuthUser } from "@/lib/auth";
+import { enqueuePCBJob } from "@/queues/pcb.queue";
 
 export async function POST(req: NextRequest) {
   try {
-    await connectToDatabase();
+    await connectDB();
     const body = await req.json();
-    const { pcbId, netlistName, userId } = body;
+    const analysisId = body?.analysisId;
 
-    // Generative Graph Neural Topology (GGNT) reconstruction model simulation
-    const analysis = await PcbAnalysis.create({
-      scanId: pcbId || `pcb_rev_${Date.now()}`,
-      boardModel: "Enterprise Mainboard Rev 4.2",
-      originalImageUrl: "/images/pcb_scans/sample_scan.png",
-      reconstructedTopologyUrl: "/images/pcb_scans/topology.png",
-      damageSeverity: "moderate",
-      detectedComponentsCount: 18,
-      copperTraceIntegrityPercent: 86,
-      repairabilityScore: 92,
-      aiModelVersion: "GGNT-v1.0",
-      analyzedByUserId: userId || new mongoose.Types.ObjectId(), // mock user ID if missing
+    if (!analysisId) {
+      return NextResponse.json(
+        { success: false, error: { code: "MISSING_ANALYSIS_ID", message: "analysisId is required." } },
+        { status: 400 }
+      );
+    }
+
+    const session = await AnalysisSession.findOne({
+      $or: [{ analysisId }, { sessionId: analysisId }],
+    });
+
+    if (!session) {
+      return NextResponse.json(
+        { success: false, error: { code: "NOT_FOUND", message: `Analysis session '${analysisId}' was not found.` } },
+        { status: 404 }
+      );
+    }
+
+    // Auth verification
+    if (session.mode !== "DEMO" && session.userId) {
+      const user = await getAuthUser(req);
+      if (!user) {
+        return NextResponse.json(
+          { success: false, error: { code: "AUTH_REQUIRED", message: "Authentication required." } },
+          { status: 401 }
+        );
+      }
+      if (String(session.userId) !== user.userId && user.role !== "ADMIN") {
+        return NextResponse.json(
+          { success: false, error: { code: "FORBIDDEN", message: "Not authorized for this session." } },
+          { status: 403 }
+        );
+      }
+    }
+
+    // Enqueue PCB Reconstruction Job
+    const queueResult = await enqueuePCBJob({
+      analysisId: session.analysisId,
+      assetId: session.sourceFileId ? String(session.sourceFileId) : undefined,
+      sourceType: session.sourceType,
     });
 
     return NextResponse.json({
       success: true,
-      pcbId: analysis.scanId,
-      boardModel: analysis.boardModel,
-      layerCount: 6,
-      severedTracesRepaired: 14,
-      reconstructionConfidence: 1.0,
-      schematics: {
-        kicadFileUrl: `/downloads/schematics/${analysis.scanId}.kicad_pcb`,
-        gerberZipUrl: `/downloads/schematics/${analysis.scanId}_gerber.zip`,
-        netlistRaw: "NET 'VCC_3V3' COMP 'LM358':1 COMP 'ATmega328P':4;\nNET 'GND' COMP 'LM358':4 COMP 'Cap_220uF':2;",
+      data: {
+        analysisId: session.analysisId,
+        status: "PROCESSING",
+        stage: "PCB",
+        queued: queueResult.queued,
+        mode: queueResult.mode,
+        message: "PCB reconstruction analysis enqueued successfully.",
       },
-      reconstructedAt: analysis.createdAt,
     });
   } catch (error: any) {
-    return NextResponse.json({ error: error.message || "Reconstruction error" }, { status: 500 });
+    return NextResponse.json(
+      {
+        success: false,
+        error: {
+          code: "INTERNAL_ERROR",
+          message: "Failed to trigger PCB reconstruction.",
+        },
+      },
+      { status: 500 }
+    );
   }
 }

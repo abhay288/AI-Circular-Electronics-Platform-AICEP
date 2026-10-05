@@ -167,14 +167,14 @@ export async function runDetectionWorkerJob(payload: DetectionJobPayload) {
       },
     });
 
-    // Continue downstream pipeline if session is running full pipeline
+    // Trigger next pipeline stage: PCB Analysis
     if (session.status !== "FAILED") {
-      setImmediate(async () => {
-        try {
-          await analysisPipeline.runPipeline(analysisId);
-        } catch (pipeErr: any) {
-          console.error(`[DetectionWorker] Downstream pipeline error: ${pipeErr.message}`);
-        }
+      const { enqueuePCBJob } = await import("./pcb.queue");
+      await enqueuePCBJob({
+        analysisId,
+        detectionResultId: String(detectionDoc._id),
+        assetId: assetId || (session.sourceFileId ? String(session.sourceFileId) : undefined),
+        sourceType: (sourceType || session.sourceType) as any,
       });
     }
 

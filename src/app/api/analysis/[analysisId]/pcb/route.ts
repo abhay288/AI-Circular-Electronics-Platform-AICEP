@@ -1,27 +1,61 @@
-import { NextRequest } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/lib/db";
 import { PCBAnalysis } from "@/models/PCBAnalysis";
-import { AnalysisSession } from "@/models/AnalysisSession";
-import { successResponse, errorResponse } from "@/lib/api-response";
+import { requireAnalysisAccess } from "@/middleware/auth";
 
-export async function GET(req: NextRequest, { params }: { params: Promise<{ analysisId: string }> }) {
+export const GET = requireAnalysisAccess(async (req: NextRequest, session: any) => {
   try {
     await connectDB();
-    const { analysisId } = await params;
+    const analysisId = session.analysisId;
 
     const pcb = await PCBAnalysis.findOne({ analysisId });
     if (!pcb) {
-      const session = await AnalysisSession.findOne({
-        $or: [{ analysisId }, { sessionId: analysisId }],
-      });
-      if (session?.reconstructionResult) {
-        return successResponse({ analysisId, pcb: session.reconstructionResult });
+      if (session.reconstructionResult) {
+        return NextResponse.json({
+          success: true,
+          data: {
+            analysisId,
+            pcb: session.reconstructionResult,
+            metrics: {
+              componentsDetected: session.detectionResult?.componentsCount || 0,
+              visibleTraces: 0,
+              padsDetected: 0,
+              viasDetected: 0,
+              potentialConnections: 0,
+              damageRegionsCount: 0,
+              visualIntegrityScore: session.reconstructionResult.traceIntegrityPercent || 90,
+              topologyConfidence: 85,
+            },
+          },
+        });
       }
-      return errorResponse("NOT_FOUND", "PCB analysis record not found", 404);
+
+      return NextResponse.json(
+        {
+          success: false,
+          error: {
+            code: "PCB_ANALYSIS_NOT_FOUND",
+            message: `PCB analysis record for analysisId '${analysisId}' was not found.`,
+          },
+        },
+        { status: 404 }
+      );
     }
 
-    return successResponse({ analysisId, pcb });
+    return NextResponse.json({
+      success: true,
+      data: pcb,
+    });
   } catch (error: any) {
-    return errorResponse("INTERNAL_ERROR", error.message || "Failed to fetch PCB analysis", 500);
+    return NextResponse.json(
+      {
+        success: false,
+        error: {
+          code: "INTERNAL_ERROR",
+          message: "Failed to retrieve PCB analysis data.",
+        },
+      },
+      { status: 500 }
+    );
   }
-}
+});

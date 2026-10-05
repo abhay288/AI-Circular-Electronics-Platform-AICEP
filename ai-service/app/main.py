@@ -3,7 +3,7 @@ import requests
 from fastapi import FastAPI, Depends, HTTPException, Header, UploadFile, File, Form, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from typing import Optional
+from typing import Optional, List, Dict, Any
 
 from app.config import settings
 from app.schemas import (
@@ -125,3 +125,73 @@ async def detect_components(
                 },
             },
         )
+
+@app.post("/pcb-analysis")
+async def analyze_pcb(
+    request: Request,
+    file: Optional[UploadFile] = File(None),
+    analysisId: Optional[str] = Form(None),
+    authorized: bool = Depends(verify_api_key)
+):
+    """
+    Analyzes board geometry, traces, pads, vias, component associations,
+    visual damage regions, topology graph, and reconstruction estimate.
+    """
+    image_bytes: Optional[bytes] = None
+    detections: List[Dict[str, Any]] = []
+    current_analysis_id = analysisId or "ECI-PCB"
+
+    try:
+        content_type = request.headers.get("content-type", "")
+
+        if file is not None:
+            image_bytes = await file.read()
+        elif "application/json" in content_type:
+            body = await request.json()
+            image_url = body.get("imageUrl")
+            current_analysis_id = body.get("analysisId", current_analysis_id)
+            detections = body.get("detections", [])
+
+            if image_url:
+                if image_url.startswith("data:image"):
+                    import base64
+                    header, encoded = image_url.split(",", 1)
+                    image_bytes = base64.b64decode(encoded)
+                else:
+                    resp = requests.get(image_url, timeout=10)
+                    if resp.status_code != 200:
+                        raise HTTPException(status_code=400, detail=f"Failed to fetch image: {resp.status_code}")
+                    image_bytes = resp.content
+
+        if not image_bytes or len(image_bytes) == 0:
+            raise HTTPException(status_code=400, detail="No valid image data provided for PCB analysis.")
+
+        from app.inference.pcb_analyzer import pcb_analyzer
+        cv_img, _ = load_image_from_bytes(image_bytes)
+
+        # If detections weren't passed in, run detector first
+        if not detections:
+            det_result = detector.detect(cv_img)
+            detections = [d.model_dump() for d in det_result.detections]
+
+        analysis_result = pcb_analyzer.analyze(cv_img, detections, current_analysis_id)
+
+        return {
+            "success": True,
+            "data": analysis_result
+        }
+
+    except HTTPException:
+        raise
+    except Exception as exc:
+        return JSONResponse(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            content={
+                "success": False,
+                "error": {
+                    "code": "PCB_ANALYSIS_UNAVAILABLE",
+                    "message": f"PCB analysis could not be completed: {str(exc)}",
+                },
+            },
+        )
+

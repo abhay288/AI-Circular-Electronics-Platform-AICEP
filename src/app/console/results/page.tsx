@@ -40,6 +40,7 @@ import {
 import { useAnalysisSession } from "@/lib/context/AnalysisSessionContext";
 import { DetectedComponent } from "@/lib/types/analysis";
 import RealPcbViewer from "@/components/console/RealPcbViewer";
+import PcbIntelligenceWorkspace from "@/components/console/PcbIntelligenceWorkspace";
 
 const ProcessingPcb3D = dynamic(
   () => import("@/components/3d/ProcessingPcb3D"),
@@ -1096,193 +1097,12 @@ function ConsoleResultsContent() {
         </div>
       )}
 
-      {/* ─── TAB 2: PCB INTELLIGENCE & TOPOLOGY ─────────────────── */}
+      {/* ─── TAB 2: PCB INTELLIGENCE, TOPOLOGY & RECONSTRUCTION ─── */}
       {activeTab === "pcb" && (
-        <div className="space-y-6">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div>
-              <h2 className="font-heading text-xl font-extrabold text-[#0F172A]">
-                PCB Intelligence & Topology
-              </h2>
-              <p className="text-xs text-[#64748B]">
-                Circuit substrate reconstruction, copper layer continuity, and netlist extraction.
-              </p>
-            </div>
-
-            {/* View Mode Controls */}
-            <div className="flex items-center gap-1.5 bg-white border border-[#E2E8F0] rounded-xl p-1 text-xs font-mono">
-              <button
-                onClick={() => setPcbViewMode("original")}
-                className={`px-3 py-1.5 rounded-lg transition-colors cursor-pointer ${
-                  pcbViewMode === "original" ? "bg-[#0F172A] text-white font-bold" : "text-[#64748B] hover:text-[#0F172A]"
-                }`}
-              >
-                Original
-              </button>
-              <button
-                onClick={() => setPcbViewMode("detected")}
-                className={`px-3 py-1.5 rounded-lg transition-colors cursor-pointer ${
-                  pcbViewMode === "detected" ? "bg-[#2563EB] text-white font-bold" : "text-[#64748B] hover:text-[#0F172A]"
-                }`}
-              >
-                Detected
-              </button>
-              <button
-                onClick={() => setPcbViewMode("reconstructed")}
-                className={`px-3 py-1.5 rounded-lg transition-colors cursor-pointer ${
-                  pcbViewMode === "reconstructed" ? "bg-[#16A34A] text-white font-bold" : "text-[#64748B] hover:text-[#0F172A]"
-                }`}
-              >
-                Reconstructed
-              </button>
-              <button
-                onClick={() => setPcbViewMode("topology")}
-                className={`px-3 py-1.5 rounded-lg transition-colors cursor-pointer ${
-                  pcbViewMode === "topology" ? "bg-[#8B5CF6] text-white font-bold" : "text-[#64748B] hover:text-[#0F172A]"
-                }`}
-              >
-                Topology
-              </button>
-            </div>
-          </div>
-
-          {/* Honest Transparency Alert */}
-          <div className="p-3.5 rounded-2xl bg-amber-50/70 border border-amber-200 text-xs text-amber-900 flex items-start gap-2.5">
-            <Info className="w-4 h-4 text-amber-600 mt-0.5 flex-shrink-0" />
-            <div>
-              <strong>Reconstruction estimate:</strong> Circuit schematic recovery uses generative topological netlist heuristics. Do not treat demonstration netlists as exact factory schematics without full vector impedance verification.
-            </div>
-          </div>
-
-          {/* Main PCB Stage Grid */}
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-            
-            {/* Left: PCB Visualizer Screen (7 Cols) */}
-            <div className="lg:col-span-7 bg-white rounded-3xl border border-[#E2E8F0] shadow-sm p-6 space-y-4">
-              <div className="flex items-center justify-between border-b border-[#E2E8F0] pb-3">
-                <span className="font-mono text-xs font-bold text-[#0F172A] capitalize">
-                  {pcbViewMode} Hardware View
-                </span>
-                <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-[#F8FAFC] text-[#2563EB] font-bold border border-[#BFDBFE]">
-                  Substrate ID: {session.pcbAnalysis?.pcbId || "PCB-REC-NET-7740"}
-                </span>
-              </div>
-
-              {pcbViewMode === "original" ? (
-                <div className="h-80 w-full rounded-2xl overflow-hidden bg-slate-900 flex items-center justify-center relative">
-                  <img
-                    src={session.imageUrl || session.image || "/images/samples/router_board.jpg"}
-                    alt="Original PCB"
-                    className="w-full h-full object-contain"
-                  />
-                  <div className="absolute bottom-3 left-3 px-2 py-1 rounded bg-black/75 text-white font-mono text-[10px]">
-                    Raw High-Resolution Ingest
-                  </div>
-                </div>
-              ) : pcbViewMode === "topology" ? (
-                <div className="h-80 w-full rounded-2xl bg-[#0F172A] p-4 text-white font-mono text-xs overflow-y-auto space-y-2 border border-slate-800">
-                  <div className="text-[#38BDF8] font-bold pb-1 border-b border-slate-800">
-                    // Extracted Netlist Topology Graph (IEEE 1481 / KiCad Format)
-                  </div>
-                  <pre className="text-[11px] text-slate-300 leading-relaxed font-mono">
-                    {session.pcbAnalysis?.schematics?.netlistRaw ||
-`NET 'VCC_3V3' COMP 'MT7622':VCC COMP 'REG_3V3':OUT COMP 'CAP_C12':1;
-NET 'GND' COMP 'MT7622':GND COMP 'SWITCH_PHY':GND COMP 'RJ45_MAG':SHIELD;
-NET 'RGMII_RXD0' COMP 'MT7622':B08 COMP 'SWITCH_PHY':C12;
-NET 'RGMII_TXD0' COMP 'MT7622':D12 COMP 'SWITCH_PHY':A04;
-NET 'ETH_12V_IN' COMP 'DC_JACK':1 COMP 'BUCK_STEPDOWN':VIN;`}
-                  </pre>
-                </div>
-              ) : (
-                <div className="h-80 w-full bg-[#F8FAFC] rounded-2xl border border-[#E2E8F0] overflow-hidden relative">
-                  <ProcessingPcb3D
-                    isScanning={false}
-                    exploded={pcbViewMode === "reconstructed"}
-                    showTraces={true}
-                    showBoxes={pcbViewMode === "detected"}
-                  />
-                  <div className="absolute bottom-2 left-3 text-[10px] font-mono text-[#64748B]">
-                    {pcbViewMode === "detected" ? "YOLOv11 Bounding Boxes Active" : "Traces & Reconstructed Substrate"}
-                  </div>
-                </div>
-              )}
-
-              {/* Before ↓ After Reconstruction Comparison Bar */}
-              <div className="grid grid-cols-2 gap-3 pt-2">
-                <div className="p-3 rounded-xl bg-[#F8FAFC] border border-[#E2E8F0] text-xs font-mono">
-                  <span className="text-[#64748B] block text-[10px]">BEFORE SCAN</span>
-                  <strong className="text-[#0F172A]">Raw Unindexed Hardware</strong>
-                  <span className="text-[10px] text-[#64748B] block mt-0.5">Unknown component health & traces</span>
-                </div>
-                <div className="p-3 rounded-xl bg-[#F0FDF4] border border-[#DCFCE7] text-xs font-mono">
-                  <span className="text-[#16A34A] block text-[10px]">AFTER RECONSTRUCTION</span>
-                  <strong className="text-[#16A34A]">Mapped Digital Netlist</strong>
-                  <span className="text-[10px] text-[#16A34A] block mt-0.5">99.3% Reconstruction Confidence</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Right: Board Integrity & Metrics (5 Cols) */}
-            <div className="lg:col-span-5 bg-white rounded-3xl border border-[#E2E8F0] shadow-sm p-6 space-y-4">
-              <div className="border-b border-[#E2E8F0] pb-3">
-                <span className="text-[10px] font-mono text-[#2563EB] uppercase font-bold tracking-wider">
-                  SUBSTRATE METRICS
-                </span>
-                <h3 className="font-heading text-lg font-bold text-[#0F172A]">
-                  Board Integrity & Continuity
-                </h3>
-              </div>
-
-              <div className="space-y-3 text-xs font-mono">
-                <div className="p-3.5 rounded-xl bg-[#F0FDF4] border border-[#DCFCE7] flex items-center justify-between">
-                  <div>
-                    <span className="text-[#16A34A] text-[10px] block">BOARD INTEGRITY</span>
-                    <span className="font-heading text-2xl font-bold text-[#16A34A]">
-                      {session.pcbAnalysis?.traceIntegrityPercent || 98.9}%
-                    </span>
-                  </div>
-                  <span className="text-xs text-[#16A34A] font-bold">Grade A+ Intact</span>
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="p-3 rounded-xl bg-[#F8FAFC] border border-[#E2E8F0]">
-                    <span className="text-[#64748B] block text-[10px]">LAYER COUNT</span>
-                    <strong className="text-[#0F172A]">{session.pcbAnalysis?.layerCount || 4} Copper Planes</strong>
-                  </div>
-                  <div className="p-3 rounded-xl bg-[#F8FAFC] border border-[#E2E8F0]">
-                    <span className="text-[#64748B] block text-[10px]">SEVERED TRACES</span>
-                    <strong className="text-[#16A34A]">{session.pcbAnalysis?.severedTracesRepaired || 0} Damaged</strong>
-                  </div>
-                  <div className="p-3 rounded-xl bg-[#F8FAFC] border border-[#E2E8F0]">
-                    <span className="text-[#64748B] block text-[10px]">CONFIDENCE</span>
-                    <strong className="text-[#2563EB]">{((session.pcbAnalysis?.reconstructionConfidence || 0.993) * 100).toFixed(1)}%</strong>
-                  </div>
-                  <div className="p-3 rounded-xl bg-[#F8FAFC] border border-[#E2E8F0]">
-                    <span className="text-[#64748B] block text-[10px]">SUBSTRATE</span>
-                    <strong className="text-[#0F172A]">FR-4 Low-Loss</strong>
-                  </div>
-                </div>
-
-                <div className="pt-2 space-y-2">
-                  <a
-                    href={session.pcbAnalysis?.schematics?.gerberZipUrl || "#"}
-                    onClick={(e) => {
-                      if (!session.pcbAnalysis?.schematics?.gerberZipUrl) {
-                        e.preventDefault();
-                        alert("Exporting KiCad Netlist package...");
-                      }
-                    }}
-                    className="w-full py-2.5 px-4 rounded-xl bg-[#EFF6FF] hover:bg-[#DBEAFE] text-[#2563EB] border border-[#BFDBFE] font-bold text-xs flex items-center justify-center gap-2 transition-colors cursor-pointer"
-                  >
-                    <Download className="w-3.5 h-3.5" />
-                    <span>Export KiCad / Gerber Package</span>
-                  </a>
-                </div>
-              </div>
-            </div>
-
-          </div>
-        </div>
+        <PcbIntelligenceWorkspace
+          analysisId={effectiveAnalysisId}
+          initialSessionData={session}
+        />
       )}
 
       {/* ─── TAB 3: HEALTH & RUL ─────────────────────────────────── */}

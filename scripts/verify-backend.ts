@@ -158,7 +158,7 @@ async function runEndToEndVerification() {
 
   // PCBAnalysis
   const pcbDoc = await PCBAnalysis.findOne({ analysisId });
-  assert(!!pcbDoc && pcbDoc.layerCount > 0, "PCBAnalysis Document Persisted", `Layers: ${pcbDoc?.layerCount}, Traces: ${pcbDoc?.traceCount}`);
+  assert(!!pcbDoc && (pcbDoc.layerCount ?? 0) > 0, "PCBAnalysis Document Persisted", `Layers: ${pcbDoc?.layerCount}, Traces: ${pcbDoc?.traceCount}`);
 
   // RULPrediction
   const rulDoc = await RULPrediction.findOne({ analysisId });
