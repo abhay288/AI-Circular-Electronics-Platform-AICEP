@@ -1,10 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { connectToDatabase } from "@/lib/db/mongodb";
-import { User } from "@/lib/db/models/User";
+import { connectDB } from "@/lib/db";
+import { User } from "@/models/User";
+import { hashPassword, comparePassword } from "@/lib/auth";
+import { signAccessToken, signRefreshToken } from "@/lib/jwt";
 
 export async function POST(req: NextRequest) {
   try {
-    await connectToDatabase();
+    await connectDB();
     const body = await req.json();
     const { action, email, password, role, name, organization } = body;
 
@@ -13,27 +15,38 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: "Email and password are required" }, { status: 400 });
       }
 
-      // Mock production JWT token generation
-      const mockToken = `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eco_intel_user_${Date.now()}`;
-      
-      const user = await User.findOne({ email });
+      const user = await User.findOne({ email: email.toLowerCase() });
 
       if (!user) {
         return NextResponse.json({ error: "Invalid credentials" }, { status: 401 });
       }
 
+      const isMatch = await comparePassword(password, user.passwordHash);
+      if (!isMatch) {
+        return NextResponse.json({ error: "Invalid credentials" }, { status: 401 });
+      }
+
+      const tokenPayload = {
+        userId: String(user._id),
+        email: user.email,
+        role: user.role,
+        organizationId: user.organizationId ? String(user.organizationId) : undefined,
+      };
+
+      const token = signAccessToken(tokenPayload);
+      const refreshToken = signRefreshToken(tokenPayload);
+
       return NextResponse.json({
         success: true,
         message: "Authentication successful",
-        token: mockToken,
+        token,
+        refreshToken,
         user: {
           id: user._id,
           email: user.email,
           name: user.name,
           role: user.role,
-          organization: user.organization,
-          walletAddress: user.walletAddress,
-          verificationStatus: user.verificationStatus
+          organizationId: user.organizationId,
         },
       });
     }
@@ -43,22 +56,32 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: "Email, password, and name are required" }, { status: 400 });
       }
 
-      const existingUser = await User.findOne({ email });
+      const existingUser = await User.findOne({ email: email.toLowerCase() });
       if (existingUser) {
         return NextResponse.json({ error: "User already exists" }, { status: 400 });
       }
 
+      const passwordHash = await hashPassword(password);
+
       const user = await User.create({
-        email,
+        email: email.toLowerCase(),
         name,
-        role: role || "buyer",
-        organization,
-        verificationStatus: "pending"
+        passwordHash,
+        role: role ? role.toUpperCase() : "RESEARCHER",
       });
+
+      const tokenPayload = {
+        userId: String(user._id),
+        email: user.email,
+        role: user.role,
+      };
+
+      const token = signAccessToken(tokenPayload);
 
       return NextResponse.json({
         success: true,
         message: "Account created successfully",
+        token,
         user: {
           id: user._id,
           email: user.email,
@@ -68,7 +91,7 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    return NextResponse.json({ error: "Invalid action type" }, { status: 400 });
+    return NextResponse.json({ error: "Invalid action type. Expected 'login' or 'register'" }, { status: 400 });
   } catch (error: any) {
     return NextResponse.json({ error: error.message || "Authentication error" }, { status: 500 });
   }

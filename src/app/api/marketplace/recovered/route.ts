@@ -1,81 +1,39 @@
-import { NextRequest, NextResponse } from "next/server";
-import { analysisService } from "@/lib/services/analysisService";
+import { NextRequest } from "next/server";
+import { connectDB } from "@/lib/db";
+import { Component } from "@/models/Component";
+import { AnalysisSession } from "@/models/AnalysisSession";
+import { successResponse, errorResponse } from "@/lib/api-response";
 
 export async function GET(req: NextRequest) {
   try {
+    await connectDB();
     const { searchParams } = new URL(req.url);
-    const analysisId = searchParams.get("analysisId") || searchParams.get("sessionId");
+    const analysisId = searchParams.get("analysisId");
 
-    if (!analysisId) {
-      return NextResponse.json(
-        { success: false, error: "analysisId query parameter is required" },
-        { status: 400 }
-      );
+    const query: Record<string, any> = { marketplaceEligible: true };
+    if (analysisId) {
+      query.analysisId = analysisId;
     }
 
-    const session = await analysisService.getSession(analysisId);
+    let components = await Component.find(query);
 
-    if (!session) {
-      return NextResponse.json(
-        { success: false, error: "Analysis session not found" },
-        { status: 404 }
-      );
+    // If components not yet stored separately, extract from session embedded detection
+    if (!components.length && analysisId) {
+      const session = await AnalysisSession.findOne({
+        $or: [{ analysisId }, { sessionId: analysisId }],
+      });
+      if (session?.detectionResult?.components) {
+        components = session.detectionResult.components.filter(
+          (c: any) => c.health >= 70 && c.status?.toLowerCase() !== "critical"
+        );
+      }
     }
 
-    const components = session.detection?.components || [];
-
-    // Filter and score circular recovery eligibility
-    const recoveredComponents = components.map((comp) => {
-      const isEligible = (comp.health || 0) >= 80 && !comp.status?.toLowerCase().includes("critical");
-      return {
-        id: comp.id,
-        name: comp.name,
-        type: comp.type,
-        manufacturer: comp.manufacturer,
-        package: comp.package,
-        confidence: comp.confidence,
-        health: comp.health,
-        remainingLifeYears: comp.remainingLifeYears,
-        passportId: comp.passportId || session.passport?.passportId,
-        status: comp.status,
-        isEligible,
-        condition: comp.health >= 90 ? "Reusable" : comp.health >= 80 ? "Refurbishable" : "Not eligible",
-        recommendedAction:
-          comp.health >= 90
-            ? "Direct Secondary Reuse"
-            : comp.health >= 80
-            ? "Desolder Rework & Pin Reconditioning"
-            : "Recycling / Material Recovery",
-        estimatedValueUSD:
-          comp.type.toLowerCase().includes("processor") || comp.type.toLowerCase().includes("cpu")
-            ? 35.0
-            : comp.type.toLowerCase().includes("memory")
-            ? 22.0
-            : 12.5,
-        estimatedValueINR:
-          comp.type.toLowerCase().includes("processor") || comp.type.toLowerCase().includes("cpu")
-            ? 3025
-            : comp.type.toLowerCase().includes("memory")
-            ? 1900
-            : 1080,
-      };
-    });
-
-    const eligibleCount = recoveredComponents.filter((c) => c.isEligible).length;
-
-    return NextResponse.json({
-      success: true,
-      analysisId: session.id,
-      deviceName: session.deviceName,
-      deviceType: session.deviceType,
-      totalComponents: components.length,
-      eligibleComponentsCount: eligibleCount,
-      components: recoveredComponents,
+    return successResponse({
+      count: components.length,
+      recoveredEligibleComponents: components,
     });
   } catch (error: any) {
-    return NextResponse.json(
-      { success: false, error: error.message || "Failed to retrieve recovered components" },
-      { status: 500 }
-    );
+    return errorResponse("INTERNAL_ERROR", error.message || "Failed to fetch eligible marketplace components", 500);
   }
 }

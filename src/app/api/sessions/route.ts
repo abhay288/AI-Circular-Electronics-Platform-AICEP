@@ -14,7 +14,9 @@ export async function GET(req: NextRequest) {
     try {
       await connectToDatabase();
       if (sessionId) {
-        const session = await AnalysisSession.findOne({ sessionId });
+        const session = await AnalysisSession.findOne({
+          $or: [{ sessionId }, { analysisId: sessionId }],
+        });
         if (session) return NextResponse.json({ success: true, session });
       } else {
         const sessions = await AnalysisSession.find().sort({ createdAt: -1 }).limit(limit);
@@ -45,21 +47,24 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const sessionId = body.sessionId || `ECI-2026-${Math.floor(1000 + Math.random() * 9000)}`;
+    const sessionId = body.sessionId || body.analysisId || `ECI-2026-${Math.floor(1000 + Math.random() * 9000)}`;
+    const analysisId = body.analysisId || sessionId;
 
     const sessionPayload = {
       ...body,
       sessionId,
+      analysisId,
       updatedAt: new Date(),
       createdAt: body.createdAt || new Date(),
     };
 
     memorySessions.set(sessionId, sessionPayload);
+    memorySessions.set(analysisId, sessionPayload);
 
     try {
       await connectToDatabase();
       const updated = await AnalysisSession.findOneAndUpdate(
-        { sessionId },
+        { $or: [{ sessionId }, { analysisId }] },
         { $set: sessionPayload },
         { upsert: true, new: true }
       );

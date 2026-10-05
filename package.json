@@ -12,9 +12,11 @@
     "@react-three/drei": "^9.117.3",
     "@react-three/fiber": "^8.17.10",
     "@studio-freight/lenis": "^1.0.42",
+    "bcryptjs": "^3.0.3",
     "clsx": "^2.1.1",
     "framer-motion": "^11.11.17",
     "gsap": "^3.12.5",
+    "jsonwebtoken": "^9.0.3",
     "lucide-react": "^0.460.0",
     "mongodb": "^7.6.0",
     "mongoose": "^8.8.2",
@@ -22,9 +24,12 @@
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "tailwind-merge": "^2.5.4",
-    "three": "^0.170.0"
+    "three": "^0.170.0",
+    "zod": "^4.6.5"
   },
   "devDependencies": {
+    "@types/bcryptjs": "^2.4.6",
+    "@types/jsonwebtoken": "^9.0.10",
     "@types/node": "^20.17.6",
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",

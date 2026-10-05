@@ -11,7 +11,7 @@ export async function GET(
     try {
       await connectToDatabase();
       const session = await AnalysisSession.findOne({
-        $or: [{ sessionId: id }, { _id: id.match(/^[0-9a-fA-F]{24}$/) ? id : null }],
+        $or: [{ analysisId: id }, { sessionId: id }, { _id: id.match(/^[0-9a-fA-F]{24}$/) ? id : null }],
       });
       if (session) {
         return NextResponse.json({ success: true, session });
@@ -37,7 +37,7 @@ export async function PUT(
     try {
       await connectToDatabase();
       const updated = await AnalysisSession.findOneAndUpdate(
-        { $or: [{ sessionId: id }, { _id: id.match(/^[0-9a-fA-F]{24}$/) ? id : null }] },
+        { $or: [{ analysisId: id }, { sessionId: id }, { _id: id.match(/^[0-9a-fA-F]{24}$/) ? id : null }] },
         { $set: { ...body, updatedAt: new Date() } },
         { new: true, upsert: true }
       );
