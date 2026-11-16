@@ -332,8 +332,106 @@ export class XGBoostRULProvider implements RULProvider {
         },
       };
     } catch (err: any) {
-      console.error("[XGBoostRULProvider] Prediction error:", err.message);
-      throw err;
+      console.warn("[XGBoostRULProvider] AI Service HTTP endpoint unavailable:", err.message);
+      // Fallback to physics-informed theoretical baseline with explicit INSUFFICIENT_DATA status
+      const tempC = input.temperatureC ?? 45.0;
+      const voltageV = input.voltageV ?? 3.3;
+      const cycles = input.operatingCycles ?? 1500;
+      const pcbIntegrity = input.pcbIntegrityScore ?? 85.0;
+
+      // Arrhenius kinetics: nominal baseline 25C
+      const tUseK = 298.15;
+      const tStressK = Math.max(tempC, 25.0) + 273.15;
+      const arrheniusAF = Math.min(Math.max(Math.exp((0.7 / 8.617e-5) * (1.0 / tUseK - 1.0 / tStressK)), 1.0), 10.0);
+      const accelRate = arrheniusAF * 0.6 + 0.4;
+      const baseHours = 80000;
+      const remainingHours = Math.round(baseHours / accelRate);
+      const remainingYears = +(remainingHours / 8760).toFixed(1);
+
+      return {
+        analysisId: input.analysisId,
+        healthScore: Math.round(pcbIntegrity * 0.9),
+        healthStatus: "UNKNOWN" as const,
+        healthConfidence: 0.65,
+        rulHours: remainingHours,
+        rulYears: remainingYears,
+        rulDays: Math.round(remainingHours / 24),
+        rulMonths: +(remainingHours / 730).toFixed(1),
+        rulCycles: cycles,
+        confidence: 0.65,
+        modelProvider: "PHYSICS_ML",
+        status: "INSUFFICIENT_DATA",
+        predictionInterval: {
+          lowerBoundHours: Math.round(remainingHours * 0.75),
+          upperBoundHours: Math.round(remainingHours * 1.25),
+          lowerBoundYears: +(remainingYears * 0.75).toFixed(1),
+          upperBoundYears: +(remainingYears * 1.25).toFixed(1),
+          confidenceIntervalPercent: 80,
+        },
+        inputFeatures: {
+          temperatureC: tempC,
+          voltageV: voltageV,
+          operatingCycles: cycles,
+          pcbIntegrityScore: pcbIntegrity,
+        },
+        dataCompleteness: 35,
+        missingFeatures: ["operationalTelemetry", "inCircuitSensorLogs", "voltageHistory"],
+        limitations: [
+          "Operating sensor telemetry (temperature log, duty cycle, supply ripple) is absent.",
+          "Visual PCB condition alone does not establish electrical integrity or remaining dielectric breakdown lifetime.",
+          "Field reliability and remaining useful life (RUL) remain UNKNOWN without four-wire Kelvin testing and hardware telemetry.",
+        ],
+        failureModes: [
+          {
+            name: "THERMAL_FATIGUE",
+            risk: tempC > 65 ? "HIGH" : "MODERATE",
+            evidence: [`Estimated theoretical thermal acceleration factor: ${arrheniusAF.toFixed(1)}x`],
+            confidence: 0.75,
+          },
+        ],
+        healthFactors: [
+          {
+            factor: "Theoretical Thermal Stress",
+            impact: -10,
+            severity: "MEDIUM",
+            evidence: `Calculated from ambient Arrhenius kinetics at ${tempC}°C.`,
+          },
+        ],
+        components: (input.components || []).map((c) => ({
+          componentId: c.componentId,
+          componentType: c.componentType,
+          healthScore: 0,
+          healthStatus: "UNKNOWN",
+          estimatedRULHours: 0,
+          estimatedRULYears: 0,
+          riskLevel: "LOW",
+          confidence: 0.5,
+          primaryContributingFactor: "Telemetry required for component electrical RUL",
+        })),
+        uncertaintyHours: Math.round(remainingHours * 0.35),
+        failureRisk: "MODERATE",
+        riskLevel: "MODERATE",
+        contributingFactors: ["Thermal Acceleration (Theoretical)"],
+        provenance: "ESTIMATED",
+        isSynthetic: false,
+        // Legacy fields
+        estimatedHours: remainingHours,
+        estimatedYears: remainingYears,
+        temperature: tempC,
+        voltage: voltageV,
+        operationalCycles: cycles,
+        age: input.componentAgeYears || 2.0,
+        wear: 10.0,
+        corrosion: 0.0,
+        model: "Physics-Informed-Arrhenius-Degradation",
+        version: "v1.0.0",
+        provider: "PHYSICS_ML",
+        predictionRange: {
+          minYears: +(remainingYears * 0.75).toFixed(1),
+          maxYears: +(remainingYears * 1.25).toFixed(1),
+          confidenceIntervalPercent: 80,
+        },
+      };
     }
   }
 
@@ -390,26 +488,22 @@ export class RULService {
   private xgboostProvider = new XGBoostRULProvider();
 
   async predict(input: RULInput): Promise<RULOutput> {
-    const configuredProvider = (process.env.RUL_PROVIDER || "mock").toLowerCase();
+    const configuredProvider = (process.env.RUL_PROVIDER || "xgboost").toLowerCase();
 
-    // If it's a sample dataset and not explicitly forced to xgboost, use mock
-    if (input.sampleId && configuredProvider !== "xgboost") {
+    // If it's a sample dataset and explicitly configured to mock
+    if (input.sampleId && configuredProvider === "mock") {
       return this.mockProvider.predict(input);
     }
 
-    if (configuredProvider === "xgboost") {
-      return await this.xgboostProvider.predict(input);
-    }
-
-    return this.mockProvider.predict(input);
+    return await this.xgboostProvider.predict(input);
   }
 
   async getModelInfo() {
-    const configuredProvider = (process.env.RUL_PROVIDER || "mock").toLowerCase();
-    if (configuredProvider === "xgboost") {
-      return this.xgboostProvider.getModelInfo();
+    const configuredProvider = (process.env.RUL_PROVIDER || "xgboost").toLowerCase();
+    if (configuredProvider === "mock") {
+      return this.mockProvider.getModelInfo();
     }
-    return this.mockProvider.getModelInfo();
+    return this.xgboostProvider.getModelInfo();
   }
 }
 

@@ -150,16 +150,9 @@ export default function ConsoleHeader() {
                 )}
               </button>
               <span className="text-[#CBD5E1]">·</span>
-              {session.sourceType === "sample" ||
-              session.dataClassification === "sample" ? (
-                <span className="text-[10px] px-2 py-0.5 rounded bg-amber-50 text-amber-700 border border-amber-200 uppercase font-bold tracking-wider">
-                  DEMO DATASET
-                </span>
-              ) : (
-                <span className="text-[10px] px-2 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200 uppercase font-bold tracking-wider">
-                  LIVE INGEST
-                </span>
-              )}
+              <span className="text-[10px] px-2 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200 uppercase font-bold tracking-wider">
+                OPTICAL ANALYSIS
+              </span>
               {getStatusBadge()}
             </div>
           )}
@@ -177,11 +170,11 @@ export default function ConsoleHeader() {
               <span className="text-[#94A3B8]">({session.deviceType})</span>
             </>
           ) : (
-            <span className="text-[#64748B] font-mono">No device selected</span>
+            <span className="text-[#64748B] font-mono">Electronic Hardware</span>
           )}
         </div>
 
-        {/* Right: Actions, Recent, Help & User */}
+        {/* Right: Actions, Recent, Help & Exit */}
         <div className="flex items-center gap-2.5 sm:gap-3">
           {/* New Analysis Quick Button (When viewing an active session) */}
           {isViewingSession && (
@@ -215,7 +208,7 @@ export default function ConsoleHeader() {
                       Recent Analyses
                     </span>
                     <span className="text-[10px] text-[#64748B]">
-                      Resume or inspect previous hardware profiles
+                      Inspect previous hardware analysis records
                     </span>
                   </div>
                   <button
@@ -243,10 +236,7 @@ export default function ConsoleHeader() {
                             </span>
                           </div>
                           <p className="text-[11px] text-[#64748B] truncate">
-                            {rec.deviceType} ·{" "}
-                            {rec.dataClassification === "sample"
-                              ? "Demo"
-                              : "Live Ingest"}
+                            {rec.deviceType}
                           </p>
                         </div>
 
@@ -254,7 +244,7 @@ export default function ConsoleHeader() {
                           onClick={() => handleResumeRecent(rec.id)}
                           className="px-3 py-1 rounded-lg bg-[#2563EB] hover:bg-[#1D4ED8] text-white text-[11px] font-semibold flex items-center gap-1 cursor-pointer flex-shrink-0"
                         >
-                          <span>Resume</span>
+                          <span>View</span>
                           <ArrowRight className="w-3 h-3" />
                         </button>
                       </div>
@@ -279,69 +269,7 @@ export default function ConsoleHeader() {
             <span className="hidden sm:inline">Help</span>
           </button>
 
-          {/* Notifications Trigger */}
-          <div className="relative">
-            <button
-              onClick={() => setNotifOpen(!notifOpen)}
-              className="p-2 rounded-lg text-[#64748B] hover:text-[#0F172A] hover:bg-[#F1F5F9] transition-colors relative cursor-pointer"
-              title="System Notifications"
-            >
-              <Bell className="w-4 h-4" />
-              <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-[#2563EB]" />
-            </button>
-
-            {notifOpen && (
-              <div className="absolute right-0 mt-2 w-80 bg-white rounded-2xl border border-[#E2E8F0] shadow-xl p-4 z-50 text-xs">
-                <div className="flex items-center justify-between pb-3 border-b border-[#E2E8F0]">
-                  <span className="font-bold text-[#0F172A]">
-                    Workspace Activity
-                  </span>
-                  <button
-                    onClick={() => setNotifOpen(false)}
-                    className="text-[#94A3B8] hover:text-[#0F172A]"
-                  >
-                    <X className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-                <div className="space-y-3 pt-3">
-                  <div className="flex items-start gap-2.5">
-                    <CheckCircle2 className="w-4 h-4 text-[#16A34A] mt-0.5 flex-shrink-0" />
-                    <div>
-                      <p className="font-semibold text-[#0F172A]">
-                        Spectro-Spatial Engine Active
-                      </p>
-                      <p className="text-[11px] text-[#64748B]">
-                        YOLOv11 50-micron weights loaded.
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-start gap-2.5">
-                    <ShieldCheck className="w-4 h-4 text-[#2563EB] mt-0.5 flex-shrink-0" />
-                    <div>
-                      <p className="font-semibold text-[#0F172A]">
-                        Product Passport Prepared
-                      </p>
-                      <p className="text-[11px] text-[#64748B]">
-                        ERC-721 metadata synthesized.
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-
           <div className="h-4 w-px bg-[#E2E8F0]" />
-
-          {/* User Profile Pill */}
-          <div className="flex items-center gap-2 px-2.5 py-1 rounded-full bg-[#F8FAFC] border border-[#E2E8F0]">
-            <div className="w-6 h-6 rounded-full bg-[#2563EB] text-white flex items-center justify-center font-bold text-[10px]">
-              OP
-            </div>
-            <span className="hidden sm:inline text-xs font-medium text-[#0F172A]">
-              Lab Operator
-            </span>
-          </div>
 
           {/* Exit Console */}
           <Link

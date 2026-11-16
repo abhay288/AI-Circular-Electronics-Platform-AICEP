@@ -67,6 +67,8 @@ export interface IAnalysisSession extends Document {
   repairResult?: Record<string, any>;
   passportResult?: Record<string, any>;
   carbonResult?: Record<string, any>;
+  ocrResult?: Record<string, any>;
+  evidenceSummary?: Record<string, any>;
   executiveSummary?: Record<string, any>;
 
   error?: {
@@ -170,6 +172,8 @@ const AnalysisSessionSchema = new Schema<IAnalysisSession>(
     repairResult: { type: Schema.Types.Mixed },
     passportResult: { type: Schema.Types.Mixed },
     carbonResult: { type: Schema.Types.Mixed },
+    ocrResult: { type: Schema.Types.Mixed },
+    evidenceSummary: { type: Schema.Types.Mixed },
     executiveSummary: { type: Schema.Types.Mixed },
 
     error: {

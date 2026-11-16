@@ -1,3 +1,4 @@
+import mongoose from "mongoose";
 import { connectDB } from "@/lib/db";
 import {
   AnalysisSession,
@@ -16,6 +17,7 @@ import { Report } from "@/models/Report";
 import { AuditLog } from "@/models/AuditLog";
 import { generateReportId } from "@/lib/id-generator";
 import { CarbonImpactService } from "@/services/carbon/carbonImpact.service";
+import { SessionStore } from "@/lib/sessionStore";
 
 import { detectionService } from "@/providers/detection/detection.provider";
 import { pcbAnalysisService } from "@/providers/pcb/pcb.provider";
@@ -37,79 +39,126 @@ export class AnalysisPipelineService {
    * In Phase 4, the active execution halts at RUL_COMPLETE, leaving subsequent circular stages queued/pending.
    */
   async runPipeline(analysisId: string): Promise<IAnalysisSession> {
-    await connectDB();
+    let mongoSession: any = null;
+    let memSession = SessionStore.get(analysisId);
 
-    const session = await AnalysisSession.findOne({ analysisId });
-    if (!session) {
+    try {
+      await connectDB();
+      mongoSession = await AnalysisSession.findOne({
+        $or: [{ analysisId }, { sessionId: analysisId }],
+      });
+      if (mongoSession && !memSession) {
+        memSession = SessionStore.set(analysisId, mongoSession.toObject());
+      }
+    } catch (dbErr: any) {
+      console.warn("[Pipeline] MongoDB connect warning, proceeding with resilient session store:", dbErr.message);
+    }
+
+    if (!mongoSession && !memSession) {
       throw new Error(`Analysis session '${analysisId}' not found`);
     }
 
-    // State machine check
-    const validInitialStatuses: AnalysisStatus[] = ["DRAFT", "READY", "PROCESSING", "FAILED", "draft", "ready", "processing", "failed"] as any;
-    if (!validInitialStatuses.includes(session.status)) {
-      throw new Error(`Cannot start analysis in state '${session.status}'`);
+    const sessionObj = mongoSession || memSession;
+
+    // Set to PROCESSING in both stores
+    const initialStages = {
+      quality: "completed",
+      detection: "processing",
+      pcb: "pending",
+      damage: "pending",
+      ocr: "pending",
+      summary: "pending",
+    };
+
+    SessionStore.update(analysisId, {
+      status: "PROCESSING",
+      progress: 15,
+      currentStage: "DETECTION",
+      stageStatuses: initialStages,
+    });
+
+    if (mongoSession) {
+      mongoSession.status = "PROCESSING";
+      mongoSession.progress = 15;
+      mongoSession.currentStage = "DETECTION";
+      mongoSession.stageStatuses = initialStages;
+      await mongoSession.save().catch(() => { });
+      await this.logAudit(mongoSession, "ANALYSIS_STARTED", "AnalysisSession", analysisId).catch(() => { });
     }
 
-    // Set to PROCESSING
-    session.status = "PROCESSING";
-    session.progress = 5;
-    session.currentStage = "INITIALIZATION";
-    session.stageStatuses = {
-      detection: "pending",
-      pcb: "pending",
-      rul: "pending",
-      materials: "pending",
-      repair: "pending",
-      passport: "pending",
-      carbon: "pending",
-      report: "pending",
-    };
-    await session.save();
-
-    await this.logAudit(session, "ANALYSIS_STARTED", "AnalysisSession", analysisId);
-
     try {
-      // 1. DETECTION STAGE
-      await this.runDetectionStage(session);
+      // 1. IMAGE QUALITY, COMPONENT DETECTION & OPTICAL OCR
+      await this.runDetectionStage(sessionObj);
 
-      // 2. PCB ANALYSIS STAGE
-      await this.runPCBStage(session);
+      // 2. PCB VISUAL STRUCTURE & TRACE INSPECTION
+      await this.runPCBStage(sessionObj);
 
-      // 3. RUL PREDICTION STAGE
-      await this.runRULStage(session);
+      // 3. IMAGE-BASED EVIDENCE SUMMARY
+      await this.compileEvidenceSummary(sessionObj);
 
-      // 4. MATERIAL RECOVERY STAGE
-      await this.runMaterialStage(session);
+      const completedStages = {
+        quality: "completed",
+        detection: "completed",
+        pcb: "completed",
+        damage: "completed",
+        ocr: "completed",
+        summary: "completed",
+      };
 
-      // 5. REPAIR INTELLIGENCE STAGE
-      await this.runRepairStage(session);
+      SessionStore.update(analysisId, {
+        status: "COMPLETED",
+        progress: 100,
+        currentStage: "REPORT_READY",
+        stageStatuses: completedStages,
+      });
 
-      // 6. DIGITAL PASSPORT STAGE (Phase 7 Integration)
-      await this.runPassportStage(session);
+      if (mongoSession) {
+        mongoSession.status = "COMPLETED";
+        mongoSession.progress = 100;
+        mongoSession.currentStage = "REPORT_READY";
+        mongoSession.stageStatuses = completedStages;
+        await mongoSession.save().catch(() => { });
+      }
 
-      // 7. CARBON IMPACT STAGE
-      await this.runCarbonStage(session);
-
-      // 8. REPORT STAGE
-      await this.runReportStage(session);
-
-      session.status = "COMPLETED";
-      await session.save();
-      console.log(`[AnalysisPipeline] Full lifecycle pipeline completed for ${analysisId}.`);
-      return session;
+      console.log(`[AnalysisPipeline] Strict image-only analysis completed for ${analysisId}.`);
+      return (mongoSession || SessionStore.get(analysisId)) as any;
     } catch (err: any) {
       console.error(`[Analysis Pipeline Error on ${analysisId}]:`, err);
-      session.status = "FAILED";
-      session.error = {
-        code: "PROCESSING_FAILED",
-        message: err.message || "Pipeline execution failed",
-        stage: session.currentStage,
-      };
-      await session.save();
-
-      await this.logAudit(session, "ANALYSIS_FAILED", "AnalysisSession", analysisId, {
-        error: err.message,
+      SessionStore.update(analysisId, {
+        status: "FAILED",
+        error: {
+          code: "PROCESSING_FAILED",
+          message: err.message || "Pipeline execution failed",
+          stage: sessionObj.currentStage,
+        },
       });
+
+      if (mongoSession) {
+        mongoSession.status = "FAILED";
+        mongoSession.error = {
+          code: "PROCESSING_FAILED",
+          message: err.message || "Pipeline execution failed",
+          stage: mongoSession.currentStage,
+        };
+        await mongoSession.save().catch(() => { });
+        await this.logAudit(mongoSession, "ANALYSIS_FAILED", "AnalysisSession", analysisId, {
+          error: err.message,
+        }).catch(() => { });
+      }
+
+      if (mongoSession) {
+        mongoSession.status = "FAILED";
+        mongoSession.error = {
+          code: "PROCESSING_FAILED",
+          message: err.message || "Pipeline execution failed",
+          stage: mongoSession.currentStage,
+        };
+        await mongoSession.save().catch(() => { });
+        await this.logAudit(mongoSession, "ANALYSIS_FAILED", "AnalysisSession", analysisId, {
+          error: err.message,
+        }).catch(() => { });
+      }
+
 
       throw err;
     }
@@ -119,8 +168,16 @@ export class AnalysisPipelineService {
   private async runDetectionStage(session: IAnalysisSession) {
     session.currentStage = "DETECTION";
     session.stageStatuses.detection = "processing";
-    session.progress = 15;
-    await session.save();
+    session.progress = 25;
+    SessionStore.update(session.analysisId, {
+      currentStage: "DETECTION",
+      status: "PROCESSING",
+      progress: 25,
+      stageStatuses: { ...session.stageStatuses, detection: "processing" },
+    });
+    if (typeof session.save === "function") {
+      await session.save().catch(() => { });
+    }
 
     const output = await this.detectionService.detect({
       analysisId: session.analysisId,
@@ -130,94 +187,156 @@ export class AnalysisPipelineService {
       sourceType: session.sourceType,
     });
 
-    // Idempotent upsert of DetectionResult
-    const detectionDoc = await DetectionResult.findOneAndUpdate(
-      { analysisId: session.analysisId },
-      {
-        analysisId: session.analysisId,
-        components: output.components,
-        totalDetected: output.totalDetected,
-        confidenceAverage: output.confidenceAverage || output.confidenceAvg,
-        confidenceAvg: output.confidenceAvg,
-        processingTimeMs: output.processingTimeMs,
-        modelName: output.model,
-        modelVersion: output.version,
-        datasetVersion: output.datasetVersion || "pcb-components-v1",
-        model: output.model,
-        version: output.version,
-        provider: output.provider,
-        status: output.status,
-        quality: output.quality || {
-          quality: "GOOD",
-          score: 0.9,
-          warnings: [],
-        },
-        warnings: output.warnings || [],
-        imageWidth: output.imageDimensions?.width || 1920,
-        imageHeight: output.imageDimensions?.height || 1080,
-        detections: output.detections || [],
-      },
-      { upsert: true, new: true }
-    );
+    // Idempotent upsert of DetectionResult if MongoDB is active
+    let detectionDoc: any = null;
+    if (mongoose.connection.readyState === 1) {
+      try {
+        detectionDoc = await DetectionResult.findOneAndUpdate(
+          { analysisId: session.analysisId },
+          {
+            analysisId: session.analysisId,
+            components: output.components,
+            totalDetected: output.totalDetected,
+            confidenceAverage: output.confidenceAverage || output.confidenceAvg,
+            confidenceAvg: output.confidenceAvg,
+            processingTimeMs: output.processingTimeMs,
+            modelName: output.model,
+            modelVersion: output.version,
+            datasetVersion: output.datasetVersion || "pcb-components-v1",
+            model: output.model,
+            version: output.version,
+            provider: output.provider,
+            status: output.status,
+            quality: output.quality || {
+              quality: "GOOD",
+              score: 0.9,
+              warnings: [],
+            },
+            warnings: output.warnings || [],
+            imageWidth: output.imageDimensions?.width || 1920,
+            imageHeight: output.imageDimensions?.height || 1080,
+            detections: output.detections || [],
+          },
+          { upsert: true, new: true }
+        );
 
-    // Idempotent upsert of individual Component records with unique sequential IDs
-    await Component.deleteMany({ analysisId: session.analysisId });
-    const componentDocs = output.components.map((c, idx) => {
-      const seq = String(idx + 1).padStart(3, "0");
-      const serialNum = `CMP-ECI-${session.analysisId.slice(-4).toUpperCase()}-${seq}`;
-      const centerCoord = c.center || {
-        x: +(c.boundingBox.x + c.boundingBox.width / 2).toFixed(2),
-        y: +(c.boundingBox.y + c.boundingBox.height / 2).toFixed(2),
-      };
+        await Component.deleteMany({ analysisId: session.analysisId });
+        const componentDocs = output.components.map((c, idx) => {
+          const seq = String(idx + 1).padStart(3, "0");
+          const serialNum = `CMP-ECI-${session.analysisId.slice(-4).toUpperCase()}-${seq}`;
+          const centerCoord = c.center || {
+            x: +(c.boundingBox.x + c.boundingBox.width / 2).toFixed(2),
+            y: +(c.boundingBox.y + c.boundingBox.height / 2).toFixed(2),
+          };
 
-      return {
-        analysisId: session.analysisId,
-        detectionResultId: String(detectionDoc._id),
-        serialNumber: serialNum,
-        type: c.type,
-        name: c.name,
-        manufacturer: c.manufacturer,
-        partNumber: c.partNumber || `${c.type.toUpperCase()}-${seq}`,
-        package: c.package,
-        boundingBox: c.boundingBox,
-        bbox: c.boundingBox,
-        center: centerCoord,
-        confidence: c.confidence,
-        condition: "UNKNOWN" as const,
-        healthScore: 0,
-        estimatedRUL: { hours: 0, years: 0 },
-        marketplaceEligible: false,
-      };
-    });
+          return {
+            analysisId: session.analysisId,
+            detectionResultId: String(detectionDoc?._id || `DET-${seq}`),
+            serialNumber: serialNum,
+            type: c.type,
+            name: c.name,
+            manufacturer: c.manufacturer,
+            partNumber: c.partNumber || `${c.type.toUpperCase()}-${seq}`,
+            package: c.package,
+            functionalRole: (c as any).functionalRole,
+            description: (c as any).description,
+            specifications: (c as any).specifications,
+            datasheetUrl: (c as any).datasheetUrl,
+            boundingBox: c.boundingBox,
+            bbox: c.boundingBox,
+            center: centerCoord,
+            confidence: c.confidence,
+            condition: c.condition || "NORMAL",
+            visualCondition: (c as any).visualCondition || c.condition || "NORMAL",
+            visualEvidence: (c as any).visualEvidence || "Optical evaluation completed",
+            visibleMarking: (c as any).visibleMarking,
+            marketplaceEligible: false,
+          };
+        });
 
-    if (componentDocs.length > 0) {
-      await Component.insertMany(componentDocs);
+        if (componentDocs.length > 0) {
+          await Component.insertMany(componentDocs);
+        }
+      } catch (dbErr: any) {
+        console.warn("[Detection Stage] MongoDB component sync deferred:", dbErr.message);
+      }
     }
 
-    session.detectionId = detectionDoc._id;
+    session.detectionId = detectionDoc?._id;
+    (session as any).imageHash = output.imageHash;
+    (session as any).imageType = output.imageType;
+    (session as any).imageClassification = output.imageClassification;
+    (session as any).modules = output.modules;
+
     session.detectionResult = {
       model: output.model,
       inferenceTimeMs: output.processingTimeMs,
       componentsCount: output.totalDetected,
       components: output.components,
       confidenceAvg: +(output.confidenceAvg * 100).toFixed(1),
+      visualCondition: output.visualCondition,
+      imageHash: output.imageHash,
+      imageType: output.imageType,
+      imageClassification: output.imageClassification,
+      modules: output.modules,
     };
+    if (output.quality) {
+      session.qualityResult = output.quality;
+    }
+    if ((output as any).ocr) {
+      session.ocrResult = (output as any).ocr;
+    }
+    if ((output as any).summary) {
+      session.evidenceSummary = (output as any).summary;
+    }
     session.status = "DETECTION_COMPLETE";
     session.stageStatuses.detection = "completed";
-    session.progress = 25;
-    await session.save();
+    session.stageStatuses.quality = "completed";
+    session.stageStatuses.ocr = "completed";
+    session.progress = 50;
 
-    await this.logAudit(session, "DETECTION_COMPLETED", "DetectionResult", String(detectionDoc._id));
+    SessionStore.update(session.analysisId, {
+      status: "DETECTION_COMPLETE",
+      currentStage: "DETECTION",
+      progress: 50,
+      imageHash: output.imageHash,
+      imageType: output.imageType,
+      imageClassification: output.imageClassification,
+      modules: output.modules,
+      detectionResult: session.detectionResult,
+      qualityResult: session.qualityResult,
+      ocrResult: session.ocrResult,
+      evidenceSummary: session.evidenceSummary,
+      stageStatuses: session.stageStatuses,
+    });
+
+    if (typeof session.save === "function") {
+      await session.save().catch(() => { });
+    }
+
+    if (detectionDoc) {
+      await this.logAudit(session, "DETECTION_COMPLETED", "DetectionResult", String(detectionDoc._id)).catch(() => { });
+    }
   }
 
   // --- STAGE 2: PCB ANALYSIS ---
   private async runPCBStage(session: IAnalysisSession) {
     session.currentStage = "PCB";
     session.stageStatuses.pcb = "processing";
-    session.progress = 35;
-    await session.save();
-
-    await this.logAudit(session, "PCB_ANALYSIS_STARTED", "AnalysisSession", session.analysisId);
+    session.stageStatuses.damage = "processing";
+    session.progress = 70;
+    SessionStore.update(session.analysisId, {
+      currentStage: "PCB",
+      progress: 70,
+      stageStatuses: {
+        ...session.stageStatuses,
+        pcb: "processing",
+        damage: "processing",
+      },
+    });
+    if (typeof session.save === "function") {
+      await session.save().catch(() => { });
+    }
 
     const pcbOutput = await this.pcbService.analyze({
       analysisId: session.analysisId,
@@ -226,34 +345,149 @@ export class AnalysisPipelineService {
       detections: session.detectionResult?.components || [],
     });
 
-    await this.logAudit(session, "PCB_GEOMETRY_DETECTED", "PCBAnalysis", session.analysisId);
-    await this.logAudit(session, "TRACE_ANALYSIS_COMPLETED", "PCBAnalysis", session.analysisId);
-    await this.logAudit(session, "TOPOLOGY_GENERATED", "PCBAnalysis", session.analysisId);
-    await this.logAudit(session, "DAMAGE_ANALYSIS_COMPLETED", "PCBAnalysis", session.analysisId);
-    await this.logAudit(session, "RECONSTRUCTION_COMPLETED", "PCBAnalysis", session.analysisId);
+    let pcbDoc: any = null;
+    if (mongoose.connection.readyState === 1) {
+      try {
+        pcbDoc = await PCBAnalysis.findOneAndUpdate(
+          { analysisId: session.analysisId },
+          { ...pcbOutput, analysisId: session.analysisId },
+          { upsert: true, new: true }
+        );
+      } catch (dbErr: any) {
+        console.warn("[PCB Stage] MongoDB pcb sync deferred:", dbErr.message);
+      }
+    }
 
-    const pcbDoc = await PCBAnalysis.findOneAndUpdate(
-      { analysisId: session.analysisId },
-      { ...pcbOutput, analysisId: session.analysisId },
-      { upsert: true, new: true }
-    );
+    session.pcbAnalysisId = pcbDoc?._id;
+    const isUnsupportedPCB = pcbOutput.status === "UNSUPPORTED_IMAGE" || !pcbOutput.board;
 
-    session.pcbAnalysisId = pcbDoc._id;
     session.reconstructionResult = {
       pcbId: `PCB-${session.analysisId}`,
-      boardModel: pcbOutput.boardType || "Multi-layer FR-4 Substrate",
-      layerCount: pcbOutput.layers?.estimatedCount || pcbOutput.layerCount || 2,
-      traceIntegrityPercent: pcbOutput.metrics?.visualIntegrityScore || pcbOutput.traceContinuity || 90,
-      severedTracesRepaired: pcbOutput.reconstructedRegions?.[0]?.repairedTraces || 1,
-      reconstructionConfidence: +( (pcbOutput.reconstruction?.overallReconstructionConfidence || 85) / 100 ).toFixed(2),
-      schematics: pcbOutput.schematics || {},
+      status: isUnsupportedPCB ? "UNSUPPORTED_IMAGE" : "COMPLETED",
+      boardModel: isUnsupportedPCB ? "None (Isolated Component)" : "Visible FR-4 Substrate Surface",
+      boardGeometry: pcbOutput.board || null,
+      pixelDimensions: pcbOutput.board ? `${pcbOutput.board.widthPixels} x ${pcbOutput.board.heightPixels} px` : "N/A (Isolated Component)",
+      visibleTracesCount: pcbOutput.traces?.length || 0,
+      visiblePadsCount: pcbOutput.pads?.length || 0,
+      visibleViasCount: pcbOutput.vias?.length || 0,
+      traces: pcbOutput.traces || [],
+      pads: pcbOutput.pads || [],
+      vias: pcbOutput.vias || [],
+      damagedRegions: pcbOutput.damagedRegions || [],
+      limitations: isUnsupportedPCB ? [
+        "Image is classified as an isolated component photograph without a PCB substrate.",
+        "PCB trace mapping, pad/via localization, and board topology are strictly inapplicable.",
+      ] : [
+        "Internal inner-layer copper traces and buried planes cannot be determined from optical surface photography.",
+        "Exact physical dimensions in millimeters require calibration target with known pixel pitch; pixel dimensions are provided.",
+        "Visual trace observation does not substitute for four-wire Kelvin electrical continuity testing.",
+      ],
     };
     session.status = "PCB_COMPLETE";
     session.stageStatuses.pcb = "completed";
-    session.progress = 45;
-    await session.save();
+    session.stageStatuses.damage = "completed";
+    session.progress = 85;
 
-    await this.logAudit(session, "PCB_ANALYSIS_COMPLETED", "PCBAnalysis", String(pcbDoc._id));
+    SessionStore.update(session.analysisId, {
+      status: "PCB_COMPLETE",
+      currentStage: "PCB",
+      progress: 85,
+      reconstructionResult: session.reconstructionResult,
+      stageStatuses: session.stageStatuses,
+    });
+
+    if (typeof session.save === "function") {
+      await session.save().catch(() => { });
+    }
+
+    if (pcbDoc) {
+      await this.logAudit(session, "PCB_ANALYSIS_COMPLETED", "PCBAnalysis", String(pcbDoc._id)).catch(() => { });
+    }
+  }
+
+  // --- STAGE 3: COMPILE EVIDENCE-BASED SUMMARY ---
+  private async compileEvidenceSummary(session: IAnalysisSession) {
+    session.currentStage = "SUMMARY";
+    session.stageStatuses.summary = "processing";
+    session.progress = 95;
+    SessionStore.update(session.analysisId, {
+      currentStage: "SUMMARY",
+      progress: 95,
+      stageStatuses: { ...session.stageStatuses, summary: "processing" },
+    });
+    if (typeof session.save === "function") {
+      await session.save().catch(() => { });
+    }
+
+    const damaged = session.reconstructionResult?.damagedRegions || [];
+    const compDamages = (session.detectionResult?.components || []).filter(
+      (c: any) => c.condition && c.condition !== "NORMAL" && c.condition !== "UNKNOWN"
+    );
+
+    const totalDefects = damaged.length + compDamages.length;
+    let classification = "No obvious visible damage detected.";
+    let statement = "No obvious visible damage was detected in this image. This does not confirm electrical functionality.";
+
+    const qualityScore = session.qualityResult?.score ?? 1.0;
+    if (qualityScore < 0.45 || session.qualityResult?.quality === "POOR") {
+      classification = "Image quality insufficient for assessment.";
+      statement = "Image optical resolution, blur, or lighting is inadequate for conclusive visual inspection.";
+    } else if (totalDefects >= 4) {
+      classification = "Severe visible physical damage.";
+      statement = `Identified ${totalDefects} visible anomalies (including localized discoloration or physical fractures).`;
+    } else if (totalDefects >= 2) {
+      classification = "Moderate visible physical damage.";
+      statement = `Observed ${totalDefects} visible surface anomalies on component packaging or substrate.`;
+    } else if (totalDefects === 1) {
+      classification = "Minor visible surface damage.";
+      statement = "Observed isolated surface anomaly on visible exterior.";
+    }
+
+    if (!session.evidenceSummary) {
+      session.evidenceSummary = {
+        classification,
+        statement,
+        findingsCount: totalDefects,
+        opticalLimitations: [
+          "Optical inspection is strictly limited to visible exterior surface features in the 2D photography.",
+          "Internal silicon junction health, dielectric breakdown, and hidden BGA solder balls remain UNKNOWN.",
+          "Multilayer inner copper traces and buried ground/power planes cannot be determined from optical photography.",
+          "This visual analysis does not confirm electrical functionality, signal integrity, or electrical continuity.",
+        ],
+        recommendedManualInspections: [
+          "Perform four-wire Kelvin electrical continuity testing across key power/ground rails.",
+          "X-ray inspection (computed tomography) for BGA solder voids and inner-layer copper integrity.",
+          "Laboratory in-circuit voltage, clock frequency, and current draw measurement under powered test conditions.",
+        ],
+      };
+    }
+
+    session.stageStatuses.summary = "completed";
+    session.stageStatuses.ocr = "completed";
+    session.progress = 100;
+    session.status = "COMPLETED";
+    session.currentStage = "REPORT_READY";
+
+    SessionStore.update(session.analysisId, {
+      status: "COMPLETED",
+      currentStage: "REPORT_READY",
+      progress: 100,
+      evidenceSummary: session.evidenceSummary,
+      stageStatuses: {
+        quality: "completed",
+        detection: "completed",
+        pcb: "completed",
+        damage: "completed",
+        ocr: "completed",
+        summary: "completed",
+      },
+    });
+
+    if (typeof session.save === "function") {
+      await session.save().catch(() => { });
+    }
+
+    await this.logAudit(session, "SUMMARY_COMPILED", "AnalysisSession", session.analysisId).catch(() => { });
   }
 
   // --- STAGE 3: RUL PREDICTION ---
@@ -278,8 +512,8 @@ export class AnalysisPipelineService {
     const traceCount = damaged.filter((d: any) => d.type === "scratched_trace" || d.type === "broken_trace").length;
 
     const visualIntegrity = pcbDoc?.metrics?.visualIntegrityScore ?? 85;
-    const topologyRisk = pcbDoc?.reconstruction?.visualIntegrityEstimate 
-      ? Math.max(0, 100 - pcbDoc.reconstruction.visualIntegrityEstimate) 
+    const topologyRisk = pcbDoc?.reconstruction?.visualIntegrityEstimate
+      ? Math.max(0, 100 - pcbDoc.reconstruction.visualIntegrityEstimate)
       : 15;
 
     const rulInput: RULInput = {
@@ -316,11 +550,11 @@ export class AnalysisPipelineService {
     // Sync component-level health and RUL back to Component documents
     if (rulOutput.components && rulOutput.components.length > 0) {
       for (const compRul of rulOutput.components) {
-        const mappedCondition = compRul.healthStatus === "HEALTHY" 
-          ? "MINT" 
-          : compRul.healthStatus === "CRITICAL" 
-          ? "FAILED" 
-          : (compRul.healthStatus as "GOOD" | "FAIR" | "DEGRADED" | "UNKNOWN");
+        const mappedCondition = compRul.healthStatus === "HEALTHY"
+          ? "MINT"
+          : compRul.healthStatus === "CRITICAL"
+            ? "FAILED"
+            : (compRul.healthStatus as "GOOD" | "FAIR" | "DEGRADED" | "UNKNOWN");
 
         await Component.updateOne(
           {
@@ -801,6 +1035,7 @@ export class AnalysisPipelineService {
     resourceId: string,
     metadata?: Record<string, any>
   ) {
+    if (mongoose.connection.readyState !== 1) return;
     try {
       await AuditLog.create({
         userId: session.userId ? String(session.userId) : "system-demo-user",

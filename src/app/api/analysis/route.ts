@@ -6,10 +6,10 @@ import { generateAnalysisId } from "@/lib/id-generator";
 import { successResponse, errorResponse } from "@/lib/api-response";
 import { getAuthUser } from "@/lib/auth";
 import { SAMPLE_DATASETS } from "@/lib/data/sampleDatasets";
+import { SessionStore } from "@/lib/sessionStore";
 
 export async function POST(req: NextRequest) {
   try {
-    await connectDB();
     const body = await req.json().catch(() => ({}));
 
     const parseResult = CreateAnalysisSchema.safeParse(body);
@@ -34,7 +34,7 @@ export async function POST(req: NextRequest) {
       if (!finalType) finalType = sample.deviceType;
     }
 
-    const session = await AnalysisSession.create({
+    const sessionPayload = {
       analysisId,
       userId: authUser?.userId,
       organizationId: authUser?.organizationId,
@@ -48,22 +48,31 @@ export async function POST(req: NextRequest) {
       progress: 0,
       currentStage: "INITIALIZATION",
       stageStatuses: {
+        quality: "completed",
         detection: "pending",
         pcb: "pending",
-        rul: "pending",
-        materials: "pending",
-        repair: "pending",
-        passport: "pending",
-        carbon: "pending",
-        report: "pending",
+        damage: "pending",
+        ocr: "pending",
+        summary: "pending",
       },
-    });
+    };
+
+    // Store in fast in-memory resilient store immediately
+    const memorySession = SessionStore.set(analysisId, sessionPayload);
+
+    // Persist to MongoDB if available
+    try {
+      await connectDB();
+      await AnalysisSession.create(sessionPayload);
+    } catch (dbErr: any) {
+      console.warn("[Create Analysis] MongoDB sync deferred, in-memory active:", dbErr.message);
+    }
 
     return successResponse(
       {
-        analysisId: session.analysisId,
-        status: session.status,
-        session,
+        analysisId: memorySession.analysisId,
+        status: memorySession.status,
+        session: memorySession,
       },
       201
     );
@@ -84,8 +93,8 @@ export async function GET(req: NextRequest) {
     if (status) query.status = status.toUpperCase();
 
     const authUser = await getAuthUser(req);
-    if (authUser && authUser.role !== "ADMIN") {
-      query.$or = [{ userId: authUser.userId }, { mode: "DEMO" }];
+    if (authUser && authUser.userId && authUser.userId !== "guest-public-user" && authUser.role !== "ADMIN") {
+      query.$or = [{ userId: authUser.userId }, { userId: "guest-public-user" }];
     }
 
     const sessions = await AnalysisSession.find(query)

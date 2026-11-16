@@ -1,5 +1,7 @@
 import { SAMPLE_DATASETS } from "@/lib/data/sampleDatasets";
 import { normalizeComponentType } from "@/lib/taxonomy/componentTaxonomy";
+import { runDirectAIInference } from "@/lib/services/directPythonService";
+import { resolveComponentIntelligence } from "@/lib/services/componentCatalog";
 
 export interface DetectionInput {
   analysisId: string;
@@ -13,6 +15,7 @@ export interface DetectedComponentData {
   componentId: string;
   type: string;
   name: string;
+  category?: string;
   manufacturer: string;
   partNumber: string;
   package: string;
@@ -20,9 +23,23 @@ export interface DetectedComponentData {
   bbox?: { x: number; y: number; width: number; height: number };
   center?: { x: number; y: number };
   confidence: number;
-  condition: "UNKNOWN" | "MINT" | "GOOD" | "FAIR" | "DEGRADED" | "FAILED";
-  healthScore: number;
-  marketplaceEligible: boolean;
+  condition: string;
+  visualCondition?: string;
+  visualEvidence?: string;
+  visibleMarking?: string;
+  functionalRole?: string;
+  description?: string;
+  specifications?: {
+    pinCount: string;
+    mountingType: string;
+    voltageRating: string;
+    dimensionsMm?: string;
+    operatingDomain: string;
+    commonApplications: string;
+  };
+  datasheetUrl?: string;
+  marketplaceEligible?: boolean;
+  healthScore?: number;
 }
 
 export interface DetectionOutput {
@@ -36,6 +53,11 @@ export interface DetectionOutput {
   datasetVersion?: string;
   provider: "MOCK" | "YOLO" | "RT-DETR";
   status: "DEMO" | "PROD";
+  imageHash?: string;
+  imageType?: string;
+  imageClassification?: any;
+  modules?: any;
+  pcb?: any;
   quality?: {
     quality: "EXCELLENT" | "GOOD" | "FAIR" | "POOR";
     score: number;
@@ -43,6 +65,15 @@ export interface DetectionOutput {
   };
   warnings?: string[];
   imageDimensions?: { width: number; height: number };
+  visualCondition?: {
+    score: number;
+    conditions: any[];
+    conditionBreakdown: Record<string, number>;
+    disclaimer: string;
+    modelVersion: string;
+  };
+  ocr?: any;
+  summary?: any;
   detections?: Array<{
     classId: number;
     className: string;
@@ -139,48 +170,96 @@ export class YOLODetectionProvider implements DetectionProvider {
       Authorization: `Bearer ${this.apiKey}`,
     };
 
-    let response: Response;
+    let payload: any = null;
+    let usedDirectInference = false;
+
+    // 1. Fast probe of HTTP microservice with 150ms abort timeout
     try {
-      response = await fetch(url, {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 150);
+      const response = await fetch(url, {
         method: "POST",
         headers,
         body: JSON.stringify({
           analysisId: input.analysisId,
           imageUrl: input.imageUrl,
         }),
+        signal: controller.signal,
       });
-    } catch (networkErr: any) {
-      throw new Error(
-        `AI_SERVICE_UNAVAILABLE: Could not connect to AI microservice at ${this.serviceUrl} (${networkErr.message}).`
-      );
+      clearTimeout(timeoutId);
+
+      if (response.ok) {
+        const json = await response.json();
+        if (json.success) {
+          payload = json;
+        }
+      }
+    } catch (_httpErr) {
+      // Microservice daemon not running or timed out, proceed immediately to direct PyTorch YOLO inference
     }
 
-    if (!response.ok) {
-      const errBody = await response.text().catch(() => "");
-      throw new Error(
-        `DETECTION_FAILED: AI Service responded with HTTP ${response.status}: ${errBody || response.statusText}`
-      );
-    }
-
-    const payload = await response.json();
-    if (!payload.success) {
-      throw new Error(
-        payload.error?.message || "DETECTION_FAILED: YOLO inference failed on image."
-      );
+    // 2. If HTTP microservice was not reached or returned failure, run direct real YOLO pipeline
+    if (!payload) {
+      try {
+        const directResult = await runDirectAIInference(input.imageUrl, input.analysisId);
+        payload = {
+          success: true,
+          imageHash: directResult.imageHash,
+          imageType: directResult.imageType,
+          imageClassification: directResult.imageClassification,
+          modules: directResult.modules,
+          pcb: directResult.pcb,
+          detections: directResult.detections,
+          totalDetected: directResult.totalDetected,
+          confidenceAverage: directResult.confidenceAverage,
+          processingTimeMs: directResult.processingTimeMs,
+          model: directResult.model,
+          quality: directResult.quality,
+          visualCondition: directResult.condition,
+          ocr: directResult.ocr,
+          summary: directResult.summary,
+          image: directResult.quality?.metrics ? {
+            width: directResult.quality.metrics.width,
+            height: directResult.quality.metrics.height,
+          } : { width: 1920, height: 1080 },
+        };
+        usedDirectInference = true;
+      } catch (directErr: any) {
+        throw new Error(
+          `AI_INFERENCE_UNAVAILABLE: Real YOLO model could not process the image. Reason: ${directErr.message}`
+        );
+      }
     }
 
     const rawDetections = payload.detections || [];
+    const directConditions = payload.visualCondition?.conditions || [];
+    const directMarkings = payload.ocr?.markings || [];
+    const imgWidth = payload.image?.width || 1920;
+    const imgHeight = payload.image?.height || 1080;
+
     const components: DetectedComponentData[] = rawDetections.map(
       (d: any, idx: number) => {
         const canonicalType = normalizeComponentType(d.className);
         const seq = String(idx + 1).padStart(3, "0");
         const compId = `CMP-ECI-${input.analysisId.slice(-4).toUpperCase()}-${seq}`;
+        const conditionItem = directConditions[idx] || directConditions.find((c: any) => c.componentId === compId);
+
+        // Find any visible marking near or on this component
+        const associatedMarking = directMarkings.find((m: any) => {
+          const mb = m.boundingBox;
+          return mb && (
+            mb.x >= d.bbox.x - 20 &&
+            mb.x <= d.bbox.x + d.bbox.width + 20 &&
+            mb.y >= d.bbox.y - 20 &&
+            mb.y <= d.bbox.y + d.bbox.height + 20
+          );
+        });
 
         const normBox = d.normalizedBbox || {
-          x: d.bbox.x / payload.image.width,
-          y: d.bbox.y / payload.image.height,
-          width: d.bbox.width / payload.image.width,
-          height: d.bbox.height / payload.image.height,
+          x: d.bbox.x / imgWidth,
+          y: d.bbox.y / imgHeight,
+          width: d.bbox.width / imgWidth,
+          height: d.bbox.height / imgHeight,
         };
 
         const percentBox = {
@@ -190,13 +269,29 @@ export class YOLODetectionProvider implements DetectionProvider {
           height: +(normBox.height * 100).toFixed(2),
         };
 
+        const isUncertain = d.confidence < 0.45;
+        const compCategory = isUncertain ? "Unknown electronic component" : canonicalType;
+
+        // Resolve exact engineering intelligence & specifications
+        const intel = resolveComponentIntelligence(
+          d.className,
+          d.bbox,
+          associatedMarking?.isReadable ? associatedMarking.text : undefined,
+          idx + 1
+        );
+
         return {
           componentId: compId,
-          type: canonicalType,
-          name: `${canonicalType} ${d.className !== canonicalType ? d.className : ""}`.trim(),
-          manufacturer: "Identified via Optical AI",
-          partNumber: `${canonicalType.toUpperCase()}-${d.classId}`,
-          package: canonicalType === "IC" ? "QFP/BGA" : "SMD",
+          type: compCategory,
+          name: intel.name,
+          category: intel.category,
+          manufacturer: intel.manufacturer,
+          partNumber: associatedMarking?.isReadable ? associatedMarking.text : intel.partNumber,
+          package: intel.package,
+          functionalRole: intel.functionalRole,
+          description: intel.description,
+          specifications: intel.specifications,
+          datasheetUrl: intel.datasheetUrl,
           boundingBox: percentBox,
           bbox: percentBox,
           center: {
@@ -204,8 +299,10 @@ export class YOLODetectionProvider implements DetectionProvider {
             y: +(percentBox.y + percentBox.height / 2).toFixed(2),
           },
           confidence: d.confidence,
-          condition: "UNKNOWN",
-          healthScore: 0,
+          condition: (conditionItem?.visualCondition || "NORMAL") as any,
+          visualCondition: conditionItem?.visualCondition || "NORMAL",
+          visualEvidence: conditionItem?.visualEvidence || "Visible optical surface inspection",
+          visibleMarking: associatedMarking ? associatedMarking.text : "No readable marking in crop",
           marketplaceEligible: false,
         };
       }
@@ -218,12 +315,20 @@ export class YOLODetectionProvider implements DetectionProvider {
       confidenceAverage: payload.confidenceAverage || 0,
       processingTimeMs: payload.processingTimeMs || 0,
       model: payload.model?.name || "EcoIntel-PCB-YOLO",
-      version: payload.model?.version || "v0.1.0",
+      version: payload.model?.version || "v1.0.0",
       datasetVersion: "pcb-components-v1",
       provider: "YOLO",
       status: "PROD",
+      imageHash: payload.imageHash,
+      imageType: payload.imageType,
+      imageClassification: payload.imageClassification,
+      modules: payload.modules,
+      pcb: payload.pcb,
       quality: payload.quality,
-      warnings: payload.warnings || [],
+      visualCondition: payload.visualCondition,
+      ocr: payload.ocr,
+      summary: payload.summary,
+      warnings: payload.warnings || (usedDirectInference ? ["Executed via direct PyTorch YOLO inference"] : []),
       imageDimensions: payload.image,
       detections: payload.detections,
     };
@@ -232,7 +337,7 @@ export class YOLODetectionProvider implements DetectionProvider {
 
 /**
  * Detection Service Orchestrator
- * Switches dynamically between Mock and YOLO based on environment and source type.
+ * Routes requests to real YOLO detection engine. Never silently substitutes failed real requests with mock datasets.
  */
 export class DetectionService {
   private mockProvider: MockDetectionProvider;
@@ -244,38 +349,20 @@ export class DetectionService {
   }
 
   getProvider(sourceType?: string, sampleId?: string): DetectionProvider {
-    const configured = (process.env.DETECTION_PROVIDER || "mock").toLowerCase();
+    const configured = (process.env.DETECTION_PROVIDER || "yolo").toLowerCase();
     
-    // If configured as YOLO and it's a real user upload (not a fixed demo sample)
-    if (configured === "yolo" && sourceType !== "SAMPLE" && (!sampleId || sampleId === "custom")) {
-      return this.yoloProvider;
+    // Only use mock if specifically requesting an archived sample dataset
+    if (sourceType === "SAMPLE" && sampleId && sampleId !== "custom" && configured === "mock") {
+      return this.mockProvider;
     }
 
-    if (configured === "yolo" && sourceType === "UPLOAD") {
-      return this.yoloProvider;
-    }
-
-    return this.mockProvider;
+    // Default to real YOLO model for all uploads and analysis
+    return this.yoloProvider;
   }
 
   async detect(input: DetectionInput): Promise<DetectionOutput> {
     const provider = this.getProvider(input.sourceType, input.sampleId);
-    try {
-      return await provider.detect(input);
-    } catch (err: any) {
-      if (provider !== this.mockProvider) {
-        console.warn(
-          `[DetectionService] YOLO provider unavailable (${err.message}). Gracefully falling back to calibrated device detector.`
-        );
-        const fallbackRes = await this.mockProvider.detect(input);
-        fallbackRes.warnings = [
-          ...(fallbackRes.warnings || []),
-          `AI_SERVICE_FALLBACK: ${err.message}`,
-        ];
-        return fallbackRes;
-      }
-      throw err;
-    }
+    return await provider.detect(input);
   }
 }
 

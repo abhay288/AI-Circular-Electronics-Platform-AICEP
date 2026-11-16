@@ -13,8 +13,45 @@ class PCBTopologyAnalyzer:
         self,
         cv_image: np.ndarray,
         detections: List[Dict[str, Any]],
-        analysis_id: str = "ECI-PCB"
+        analysis_id: str = "ECI-PCB",
+        image_type: Optional[str] = None
     ) -> Dict[str, Any]:
+        # 0. Strict Image-Type Boundary:
+        # If the image is an isolated component photograph or non-PCB image,
+        # never generate false board boundaries, fake copper traces, pads, or vias.
+        if image_type and image_type != "PCB_BOARD":
+            return {
+                "status": "UNSUPPORTED_IMAGE",
+                "message": (
+                    f"Image classified as {image_type}. PCB visual trace mapping, pad/via localization, "
+                    "and board substrate topology are strictly inapplicable to isolated components or non-PCB images."
+                ),
+                "board": None,
+                "layers": {
+                    "estimatedCount": None,
+                    "confidence": 0.0,
+                    "method": "Not applicable (Isolated Component)",
+                    "notes": "No PCB substrate present in image."
+                },
+                "components": [],
+                "traces": [],
+                "pads": [],
+                "vias": [],
+                "damagedRegions": [],
+                "topology": {"nodes": [], "edges": []},
+                "reconstruction": None,
+                "metrics": {
+                    "componentsDetected": len(detections),
+                    "visibleTraces": 0,
+                    "padsDetected": 0,
+                    "viasDetected": 0,
+                    "potentialConnections": 0,
+                    "damageRegionsCount": 0,
+                    "visualIntegrityScore": None,
+                    "topologyConfidence": 0,
+                },
+            }
+
         h, w = cv_image.shape[:2]
         gray = cv2.cvtColor(cv_image, cv2.COLOR_BGR2GRAY)
 
@@ -57,6 +94,7 @@ class PCBTopologyAnalyzer:
         }
 
         return {
+            "status": "COMPLETED",
             "board": board_geom,
             "layers": {
                 "estimatedCount": 2,
@@ -152,9 +190,12 @@ class PCBTopologyAnalyzer:
         if lines is not None:
             # Group into discrete trace segments (limit to 30 cleanest lines for fast visual inspection)
             for idx, line in enumerate(lines[:30]):
-                x1, y1, x2, y2 = line[0]
+                line_data = line.flatten()
+                if len(line_data) < 4:
+                    continue
+                x1, y1, x2, y2 = int(line_data[0]), int(line_data[1]), int(line_data[2]), int(line_data[3])
                 length = round(math.hypot(x2 - x1, y2 - y1), 1)
-                seq = str(idx + 1).padStart(3, "0") if hasattr(str(idx + 1), "padStart") else f"{idx + 1:03d}"
+                seq = f"{idx + 1:03d}"
                 
                 # Intermediate mid-point for polyline realism
                 mx = int((x1 + x2) / 2)
@@ -231,10 +272,17 @@ class PCBTopologyAnalyzer:
         )
 
         via_idx = 1
-        if circles is not None:
-            circles = np.uint16(np.around(circles))
-            for c in circles[0, :20]:
-                vx, vy, r = c
+        if circles is not None and len(circles) > 0:
+            circles_arr = np.uint16(np.around(circles))
+            if circles_arr.ndim == 3:
+                circles_list = circles_arr[0]
+            else:
+                circles_list = circles_arr.reshape(-1, 3)
+
+            for c in circles_list[:20]:
+                if len(c) < 3:
+                    continue
+                vx, vy, r = int(c[0]), int(c[1]), int(c[2])
                 seq = f"{via_idx:03d}"
                 via_type = "MOUNTING_HOLE" if r > 10 else "VISIBLE_VIA"
                 vias.append({

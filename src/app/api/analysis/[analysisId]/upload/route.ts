@@ -1,8 +1,11 @@
 import { NextRequest } from "next/server";
+import * as fs from "fs";
+import * as path from "path";
 import { connectDB } from "@/lib/db";
 import { AnalysisSession } from "@/models/AnalysisSession";
 import { UploadedAsset } from "@/models/UploadedAsset";
 import { successResponse, errorResponse } from "@/lib/api-response";
+import { SessionStore } from "@/lib/sessionStore";
 
 const MAX_FILE_SIZE_BYTES = 15 * 1024 * 1024; // 15MB limit
 const ALLOWED_MIME_TYPES = [
@@ -14,14 +17,24 @@ const ALLOWED_MIME_TYPES = [
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ analysisId: string }> }) {
   try {
-    await connectDB();
     const { analysisId } = await params;
 
-    const session = await AnalysisSession.findOne({
-      $or: [{ analysisId }, { sessionId: analysisId }],
-    });
+    let session = SessionStore.get(analysisId);
+    let mongoSession: any = null;
 
-    if (!session) {
+    try {
+      await connectDB();
+      mongoSession = await AnalysisSession.findOne({
+        $or: [{ analysisId }, { sessionId: analysisId }],
+      });
+      if (mongoSession && !session) {
+        session = SessionStore.set(analysisId, mongoSession.toObject());
+      }
+    } catch (dbErr: any) {
+      console.warn("[Upload] MongoDB connection deferred, checking memory store:", dbErr.message);
+    }
+
+    if (!session && !mongoSession) {
       return errorResponse("ANALYSIS_NOT_FOUND", `Analysis session '${analysisId}' was not found`, 404);
     }
 
@@ -51,11 +64,20 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ana
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
 
+    // Save physical file directly on disk for high-speed Python cv2 inference without base64 overhead
+    const uploadsDir = path.join(process.cwd(), ".eco_sessions", "uploads");
+    if (!fs.existsSync(uploadsDir)) {
+      fs.mkdirSync(uploadsDir, { recursive: true });
+    }
+    const ext = file.type.includes("png") ? "png" : file.type.includes("webp") ? "webp" : "jpg";
+    const imageFilePath = path.join(uploadsDir, `${analysisId.replace(/[^a-zA-Z0-9_-]/g, "_")}.${ext}`);
+    fs.writeFileSync(imageFilePath, buffer);
+
     // Convert to Data URI for storage in database or Cloudinary
     const base64Data = buffer.toString("base64");
     const storageUrl = `data:${file.type};base64,${base64Data}`;
 
-    // Perform deterministic Image Quality Analysis (Section 12)
+    // Perform deterministic Image Quality Analysis
     const qualityMetrics = {
       quality: "GOOD" as const,
       resolution: file.size > 500000 ? ("HIGH" as const) : ("MEDIUM" as const),
@@ -67,28 +89,47 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ana
       recommendation: "Optimal lighting and trace sharpness detected for spectrometry classification.",
     };
 
-    const asset = await UploadedAsset.create({
-      analysisId: session.analysisId,
-      originalFileName: file.name,
-      mimeType: file.type,
-      sizeBytes: file.size,
-      storageUrl,
-      dimensions: { width: 1920, height: 1080 },
-      qualityMetrics,
+    const assetId = `AST-${analysisId.slice(-4)}-${Date.now()}`;
+
+    // Update session in persistent store with both imageFilePath and storageUrl
+    const updatedSession = SessionStore.update(analysisId, {
+      imageUrl: storageUrl,
+      imageFilePath,
+      sourceType: "UPLOAD",
+      qualityResult: qualityMetrics,
+      status: "READY",
     });
 
-    session.imageUrl = storageUrl;
-    session.sourceFileId = asset._id;
-    session.sourceType = "UPLOAD";
-    session.qualityResult = qualityMetrics;
-    session.status = "READY";
-    await session.save();
+    // Also persist to MongoDB if available
+    try {
+      await connectDB();
+      const asset = await UploadedAsset.create({
+        analysisId,
+        originalFileName: file.name,
+        mimeType: file.type,
+        sizeBytes: file.size,
+        storageUrl,
+        dimensions: { width: 1920, height: 1080 },
+        qualityMetrics,
+      });
+
+      if (mongoSession) {
+        mongoSession.imageUrl = storageUrl;
+        mongoSession.sourceFileId = asset._id;
+        mongoSession.sourceType = "UPLOAD";
+        mongoSession.qualityResult = qualityMetrics;
+        mongoSession.status = "READY";
+        await mongoSession.save();
+      }
+    } catch (saveErr: any) {
+      console.warn("[Upload] MongoDB save deferred:", saveErr.message);
+    }
 
     return successResponse({
-      assetId: asset._id,
+      assetId,
       storageUrl,
       quality: qualityMetrics,
-      sessionStatus: session.status,
+      sessionStatus: updatedSession?.status || "READY",
     });
   } catch (error: any) {
     console.error("[Upload Error]:", error);

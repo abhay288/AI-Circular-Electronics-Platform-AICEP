@@ -179,7 +179,7 @@ function ReadyForAnalysisContent() {
             </button>
 
             <p className="text-[11px] font-mono text-center text-[#64748B]">
-              Pipeline will execute YOLOv11 Spectro-Spatial, GGNT Reconstruction, RUL, and Metals.
+              Pipeline executes optical YOLOv11 detection, OpenCV PCB structure analysis, and component intelligence.
             </p>
           </div>
 

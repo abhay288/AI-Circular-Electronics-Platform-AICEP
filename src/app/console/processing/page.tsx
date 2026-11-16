@@ -1,338 +1,394 @@
 "use client";
 
 import React, { useEffect, useState, Suspense } from "react";
-import dynamic from "next/dynamic";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   Cpu,
-  CheckCircle2,
-  Clock,
-  Sparkles,
   Layers,
-  Activity,
-  Coins,
-  ShieldCheck,
-  Leaf,
-  Wrench,
+  CheckCircle2,
+  AlertCircle,
+  RefreshCw,
   ArrowRight,
-  Eye,
-  RotateCcw,
+  ShieldAlert,
+  FileCheck2,
+  UploadCloud,
+  Microscope,
+  FileText,
 } from "lucide-react";
-import { useAnalysisSession } from "@/lib/context/AnalysisSessionContext";
 
-const ProcessingPcb3D = dynamic(
-  () => import("@/components/3d/ProcessingPcb3D"),
+interface StageItem {
+  id: string;
+  name: string;
+  description: string;
+  icon: any;
+}
+
+const STAGES: StageItem[] = [
   {
-    ssr: false,
-    loading: () => (
-      <div className="w-full h-full flex flex-col items-center justify-center bg-[#F1F5F9] rounded-3xl min-h-[380px]">
-        <Cpu className="w-10 h-10 text-[#2563EB] animate-pulse mb-2" />
-        <span className="font-mono text-xs text-[#0F172A] font-bold">
-          Synthesizing 3D Neural Spatial Inspection Mesh...
-        </span>
-      </div>
-    ),
-  }
-);
+    id: "quality",
+    name: "Evaluating image quality & resolution",
+    description: "Checking pixel resolution, blur variance, glare, and optical lighting.",
+    icon: UploadCloud,
+  },
+  {
+    id: "detection",
+    name: "Detecting visible electronic components",
+    description: "YOLOv11 optical detection across 16 surface-mount and through-hole component classes.",
+    icon: Cpu,
+  },
+  {
+    id: "pcb",
+    name: "Analyzing PCB visual structure",
+    description: "OpenCV boundary detection, visible trace mapping, pads, and via holes.",
+    icon: Layers,
+  },
+  {
+    id: "damage",
+    name: "Inspecting visible physical anomalies",
+    description: "Screening visible surfaces for burn marks, corrosion, cracks, bulging, and lifted pads.",
+    icon: Microscope,
+  },
+  {
+    id: "ocr",
+    name: "Extracting readable text & markings",
+    description: "Detecting visible silkscreen labels, reference designators, and package markings.",
+    icon: FileText,
+  },
+  {
+    id: "summary",
+    name: "Compiling evidence-based report",
+    description: "Synthesizing image findings, optical boundaries, and inspection limitations.",
+    icon: FileCheck2,
+  },
+];
+
+type StageStatus = "pending" | "processing" | "completed" | "failed";
 
 function ConsoleProcessingContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const queryAnalysisId = searchParams.get("analysisId") || searchParams.get("sessionId");
+  const analysisId = searchParams.get("analysisId") || searchParams.get("sessionId");
 
-  const {
-    session,
-    runAnalysis,
-    setActiveStep,
-    loadSessionById,
-    liveDetections,
-  } = useAnalysisSession();
+  const [sessionStatus, setSessionStatus] = useState<string>("INITIALIZING");
+  const [stageStatuses, setStageStatuses] = useState<Record<string, StageStatus>>({
+    quality: "completed",
+    detection: "pending",
+    pcb: "pending",
+    damage: "pending",
+    ocr: "pending",
+    summary: "pending",
+  });
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [isRetrying, setIsRetrying] = useState(false);
+  const [pollCount, setPollCount] = useState(0);
 
-  const [currentPipelineStep, setCurrentPipelineStep] = useState(1);
-  const [exploded, setExploded] = useState(false);
-  const [showBoxes, setShowBoxes] = useState(true);
-  const [showTraces, setShowTraces] = useState(true);
-  const [hasCompleted, setHasCompleted] = useState(false);
-
-  // Exact 9 stages specified in Requirement 8
-  const pipelineStages = [
-    { num: "01", name: "Image Processing", icon: Eye },
-    { num: "02", name: "Component Detection", icon: Cpu },
-    { num: "03", name: "PCB Intelligence", icon: Layers },
-    { num: "04", name: "Hardware Health", icon: Activity },
-    { num: "05", name: "Remaining Useful Life", icon: Clock },
-    { num: "06", name: "Material Recovery", icon: Coins },
-    { num: "07", name: "Repair Intelligence", icon: Wrench },
-    { num: "08", name: "Digital Passport", icon: ShieldCheck },
-    { num: "09", name: "Circular Impact", icon: Leaf },
-  ];
-
-  const sessionId = queryAnalysisId || session.id || "ECI-2026-7740";
-
-  // Load session if query param differs
   useEffect(() => {
-    if (queryAnalysisId && queryAnalysisId !== session.id) {
-      loadSessionById(queryAnalysisId);
+    if (!analysisId) {
+      setErrorMessage("Missing analysis ID. Please return to the console and upload an image.");
+      return;
     }
-  }, [queryAnalysisId, session.id, loadSessionById]);
 
-  useEffect(() => {
     let isMounted = true;
+    let timer: NodeJS.Timeout;
+    let hasAutoStarted = false;
 
-    // Trigger progressive analysis run
-    runAnalysis((step) => {
-      if (isMounted) {
-        setCurrentPipelineStep(step);
+    const checkStatus = async () => {
+      try {
+        const res = await fetch(`/api/analysis/${encodeURIComponent(analysisId)}/status`);
+        if (!res.ok) {
+          throw new Error(`Failed to fetch analysis status (HTTP ${res.status})`);
+        }
+
+        const json = await res.json();
+        const data = json.data || json;
+
+        if (!isMounted) return;
+
+        setSessionStatus(data.status || "PROCESSING");
+        setPollCount((prev) => prev + 1);
+
+        // Auto-heal: If session is in READY state, proactively trigger /start
+        if (data.status === "READY" && !hasAutoStarted) {
+          hasAutoStarted = true;
+          fetch(`/api/analysis/${encodeURIComponent(analysisId)}/start`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+          })
+            .then(async (startRes) => {
+              if (!startRes.ok) {
+                const errJson = await startRes.json().catch(() => ({}));
+                setErrorMessage(errJson?.error?.message || "Failed to trigger analysis pipeline. Please retry.");
+              }
+            })
+            .catch((e: any) => {
+              setErrorMessage(e.message || "Could not reach analysis server. Please retry.");
+            });
+        }
+
+        // Map backend stageStatuses to the 6 visible stages
+        const backendStages = data.stageStatuses || {};
+        const isCompleted = data.status === "COMPLETED";
+        const isFailed = data.status === "FAILED";
+
+        if (isFailed) {
+          setErrorMessage(data.error?.message || "Analysis pipeline encountered an error during execution.");
+        }
+
+        const newStatuses: Record<string, StageStatus> = {
+          quality: "completed",
+          detection: isCompleted
+            ? "completed"
+            : backendStages.detection === "completed"
+            ? "completed"
+            : backendStages.detection === "failed"
+            ? "failed"
+            : backendStages.detection === "processing" || data.status === "PROCESSING"
+            ? "processing"
+            : "pending",
+          pcb: isCompleted
+            ? "completed"
+            : backendStages.pcb === "completed"
+            ? "completed"
+            : backendStages.pcb === "failed"
+            ? "failed"
+            : backendStages.pcb === "processing" || (backendStages.detection === "completed" && !backendStages.pcb)
+            ? "processing"
+            : "pending",
+          damage: isCompleted
+            ? "completed"
+            : backendStages.damage === "completed" || backendStages.pcb === "completed"
+            ? "completed"
+            : backendStages.pcb === "processing"
+            ? "processing"
+            : "pending",
+          ocr: isCompleted
+            ? "completed"
+            : backendStages.ocr === "completed" || backendStages.detection === "completed"
+            ? "completed"
+            : backendStages.detection === "completed"
+            ? "processing"
+            : "pending",
+          summary: isCompleted
+            ? "completed"
+            : backendStages.summary === "completed"
+            ? "completed"
+            : backendStages.summary === "processing" || backendStages.pcb === "completed"
+            ? "processing"
+            : "pending",
+        };
+
+        setStageStatuses(newStatuses);
+
+        // If complete, navigate to results page
+        if (isCompleted) {
+          setTimeout(() => {
+            if (isMounted) {
+              router.push(`/console/results?analysisId=${encodeURIComponent(analysisId)}`);
+            }
+          }, 800);
+          return;
+        }
+
+        // Keep polling every 1000ms if not completed or failed
+        if (!isFailed) {
+          timer = setTimeout(checkStatus, 1000);
+        }
+      } catch (err: any) {
+        console.warn("[Processing Status Poll Warning]:", err.message);
+        if (isMounted && !errorMessage) {
+          timer = setTimeout(checkStatus, 2000);
+        }
       }
-    }).then(() => {
-      if (isMounted) {
-        setHasCompleted(true);
-        setTimeout(() => {
-          setActiveStep(3);
-          router.push(`/console/results?analysisId=${encodeURIComponent(sessionId)}`);
-        }, 1200);
-      }
-    });
+    };
+
+    checkStatus();
 
     return () => {
       isMounted = false;
+      clearTimeout(timer);
     };
-  }, []);
+  }, [analysisId, router]);
 
-  const getStepStatus = (index: number) => {
-    const stepNumber = index + 1;
-    if (stepNumber < currentPipelineStep) return "completed";
-    if (stepNumber === currentPipelineStep) return "processing";
-    return "waiting";
+  const handleRetry = async () => {
+    if (!analysisId) return;
+    setIsRetrying(true);
+    setErrorMessage(null);
+    try {
+      const res = await fetch(`/api/analysis/${encodeURIComponent(analysisId)}/start`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}));
+        throw new Error(json?.error?.message || "Failed to restart analysis.");
+      }
+      setSessionStatus("PROCESSING");
+      window.location.reload();
+    } catch (e: any) {
+      setErrorMessage(e.message || "Failed to restart analysis.");
+      setIsRetrying(false);
+    }
   };
 
   return (
-    <div className="flex-1 py-8 px-4 sm:px-8 max-w-7xl mx-auto w-full space-y-8 flex flex-col justify-between">
-      {/* ─── TITLE & METADATA BAR ──────────────────────────────── */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div className="space-y-1">
-          <div className="flex items-center gap-2">
-            <span className="w-2.5 h-2.5 rounded-full bg-[#2563EB] animate-ping" />
-            <span className="text-xs font-mono font-bold text-[#2563EB] tracking-wider uppercase">
-              AI PROCESSING ACTIVE
-            </span>
-            <span className="text-xs font-mono text-[#64748B]">·</span>
-            <span className="text-xs font-mono px-2 py-0.5 rounded bg-white border border-[#E2E8F0] font-semibold text-[#0F172A] uppercase">
-              {session.sourceType === "sample" || session.dataClassification === "sample"
-                ? "DEMO DATASET"
-                : "LIVE DEVICE INGEST"}
-            </span>
-          </div>
-          <h1 className="font-heading text-2xl sm:text-3xl font-extrabold text-[#0F172A] tracking-tight">
-            Analyzing Your Electronic Hardware
-          </h1>
-          <p className="text-xs text-[#64748B]">
-            EcoIntel is building a digital intelligence profile of{" "}
-            <strong className="text-[#0F172A]">{session.deviceName}</strong> ({session.deviceType}).
-          </p>
+    <div className="flex-1 py-12 px-4 sm:px-8 max-w-3xl mx-auto w-full space-y-8">
+      {/* ─── HEADER ──────────────────────────────────────────────── */}
+      <div className="text-center space-y-3">
+        <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-[#EFF6FF] border border-[#BFDBFE] text-xs font-mono font-bold text-[#2563EB]">
+          <span className="w-2 h-2 rounded-full bg-[#2563EB] animate-ping" />
+          <span>Real-Time Neural Processing</span>
         </div>
 
-        {/* Real-time Status Card */}
-        <div className="flex items-center gap-4 p-3 rounded-2xl bg-white border border-[#E2E8F0] shadow-sm">
-          <div className="text-right">
-            <p className="text-[10px] font-mono text-[#64748B] uppercase">Session Stream</p>
-            <p className="font-mono text-sm font-bold text-[#0F172A]">#{sessionId}</p>
+        <h1 className="font-heading text-3xl font-extrabold text-[#0F172A] tracking-tight">
+          Analyzing Your Electronics
+        </h1>
+
+        <p className="text-sm text-[#64748B] max-w-lg mx-auto">
+          EcoIntel is executing the optical computer vision and circular intelligence pipeline on your hardware image.
+        </p>
+
+        {analysisId && (
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-xl bg-[#F8FAFC] border border-[#E2E8F0] text-xs font-mono text-[#475569]">
+            <span>Session ID:</span>
+            <strong className="text-[#0F172A]">#{analysisId}</strong>
+            <span className="text-slate-300">·</span>
+            <span className="text-emerald-700 font-semibold uppercase text-[10px]">
+              {sessionStatus}
+            </span>
           </div>
-          <div className="h-8 w-px bg-[#E2E8F0]" />
-          <div className="text-right">
-            <p className="text-[10px] font-mono text-[#64748B] uppercase">Pipeline Status</p>
-            <p className="font-mono text-sm font-bold text-[#16A34A]">
-              {hasCompleted ? "Completed" : `Stage 0${currentPipelineStep} Active`}
-            </p>
-          </div>
-        </div>
+        )}
       </div>
 
-      {/* ─── MAIN STAGE: 3D PCB SCANNER + LIVE DETECTION CARDS ──── */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch flex-1">
-        {/* 3D Visualizer Container (7 Cols) */}
-        <div className="lg:col-span-7 bg-white rounded-3xl border border-[#E2E8F0] shadow-sm p-4 flex flex-col justify-between relative overflow-hidden min-h-[440px]">
-          {/* Top 3D Control Pill */}
-          <div className="flex items-center justify-between z-10 px-2 pt-2">
-            <div className="flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-[#16A34A] animate-pulse" />
-              <span className="font-mono text-xs font-bold text-[#0F172A]">
-                Realistic 3D Hardware Telemetry
-              </span>
-            </div>
-
-            {/* Viewer Toggles */}
-            <div className="flex items-center gap-1.5 bg-[#F8FAFC] border border-[#E2E8F0] rounded-xl p-1 text-[11px] font-mono">
-              <button
-                onClick={() => setExploded(!exploded)}
-                className={`px-2.5 py-1 rounded-lg transition-colors cursor-pointer ${
-                  exploded ? "bg-[#2563EB] text-white font-bold" : "text-[#64748B] hover:text-[#0F172A]"
-                }`}
-              >
-                {exploded ? "Collapsed" : "Explode"}
-              </button>
-              <button
-                onClick={() => setShowTraces(!showTraces)}
-                className={`px-2.5 py-1 rounded-lg transition-colors cursor-pointer ${
-                  showTraces ? "bg-[#EFF6FF] text-[#2563EB] font-bold" : "text-[#94A3B8]"
-                }`}
-              >
-                Traces
-              </button>
-              <button
-                onClick={() => setShowBoxes(!showBoxes)}
-                className={`px-2.5 py-1 rounded-lg transition-colors cursor-pointer ${
-                  showBoxes ? "bg-[#EFF6FF] text-[#2563EB] font-bold" : "text-[#94A3B8]"
-                }`}
-              >
-                B-Boxes
-              </button>
-            </div>
+      {/* ─── ERROR STATE WITH RETRY ──────────────────────────────── */}
+      {errorMessage && (
+        <div className="p-6 rounded-2xl bg-red-50 border border-red-200 space-y-3 text-left">
+          <div className="flex items-center gap-2 font-bold text-red-900 text-sm">
+            <ShieldAlert className="w-5 h-5 text-red-600 flex-shrink-0" />
+            <span>Analysis Stage Failed</span>
           </div>
-
-          {/* Interactive Three.js Scene */}
-          <div className="flex-1 w-full flex items-center justify-center my-2">
-            <ProcessingPcb3D
-              imageUrl={session.imageUrl}
-              isScanning={!hasCompleted}
-              exploded={exploded}
-              showTraces={showTraces}
-              showBoxes={showBoxes}
-            />
-          </div>
-
-          {/* Bottom Telemetry Bar */}
-          <div className="bg-[#F8FAFC] border border-[#E2E8F0] rounded-2xl p-3 flex items-center justify-between text-xs font-mono">
-            <div className="flex items-center gap-2 text-[#475569]">
-              <RotateCcw className="w-3.5 h-3.5 text-[#2563EB]" />
-              <span>Rotate: Click & Drag · Zoom: Scroll · Pan: Right Drag</span>
-            </div>
-            <div className="text-[#2563EB] font-bold">
-              {liveDetections.length} Components Segmented
-            </div>
+          <p className="text-xs text-red-700 leading-relaxed">
+            {errorMessage}
+          </p>
+          <div className="pt-2 flex items-center gap-3">
+            <button
+              onClick={handleRetry}
+              disabled={isRetrying}
+              className="px-4 py-2 rounded-xl bg-red-700 hover:bg-red-800 text-white text-xs font-bold flex items-center gap-2 transition-colors cursor-pointer"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${isRetrying ? "animate-spin" : ""}`} />
+              <span>Retry Analysis</span>
+            </button>
+            <button
+              onClick={() => router.push("/console")}
+              className="px-4 py-2 rounded-xl border border-red-300 text-xs font-semibold text-red-800 hover:bg-red-100 transition-colors cursor-pointer"
+            >
+              Back to Workspace
+            </button>
           </div>
         </div>
+      )}
 
-        {/* Right Stage: Pipeline Tracker + Live Detection Feed (5 Cols) */}
-        <div className="lg:col-span-5 flex flex-col gap-6">
-          {/* Pipeline Tracker */}
-          <div className="p-6 rounded-3xl bg-white border border-[#E2E8F0] shadow-sm space-y-4">
-            <div className="flex items-center justify-between border-b border-[#E2E8F0] pb-3">
-              <span className="font-heading text-xs font-bold text-[#0F172A] uppercase tracking-wider">
-                Processing Pipeline
-              </span>
-              <span className="text-xs font-mono font-bold text-[#2563EB]">
-                Stage {currentPipelineStep} / 9
-              </span>
-            </div>
+      {/* ─── LIVE BACKEND STAGES LIST ────────────────────────────── */}
+      <div className="p-6 sm:p-8 rounded-3xl bg-white border border-[#E2E8F0] shadow-sm space-y-4 text-left">
+        <div className="flex items-center justify-between border-b border-[#F1F5F9] pb-4">
+          <span className="text-xs font-mono font-bold text-[#0F172A] uppercase tracking-wider">
+            Pipeline Execution Stages
+          </span>
+          <span className="text-[11px] font-mono text-[#64748B]">
+            Live telemetry sync
+          </span>
+        </div>
 
-            <div className="space-y-2">
-              {pipelineStages.map((stage, idx) => {
-                const status = getStepStatus(idx);
-                const IconComp = stage.icon;
+        <div className="space-y-3">
+          {STAGES.map((stage) => {
+            const status = stageStatuses[stage.id] || "pending";
+            const IconComp = stage.icon;
 
-                return (
+            return (
+              <div
+                key={stage.id}
+                className={`p-4 rounded-2xl border transition-all flex items-start justify-between gap-4 ${
+                  status === "completed"
+                    ? "bg-[#F0FDF4] border-[#DCFCE7]"
+                    : status === "processing"
+                    ? "bg-[#EFF6FF] border-[#BFDBFE] shadow-sm"
+                    : status === "failed"
+                    ? "bg-red-50 border-red-200"
+                    : "bg-[#F8FAFC] border-[#E2E8F0] opacity-60"
+                }`}
+              >
+                <div className="flex items-start gap-3.5 min-w-0">
                   <div
-                    key={stage.num}
-                    className={`flex items-center justify-between px-3 py-2 rounded-xl text-xs font-mono transition-all ${
+                    className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 mt-0.5 ${
                       status === "completed"
-                        ? "bg-[#F0FDF4] border border-[#DCFCE7] text-[#16A34A]"
+                        ? "bg-[#16A34A] text-white"
                         : status === "processing"
-                        ? "bg-[#EFF6FF] border border-[#BFDBFE] text-[#2563EB] font-bold shadow-sm"
-                        : "opacity-45 text-[#94A3B8] border border-transparent"
+                        ? "bg-[#2563EB] text-white"
+                        : status === "failed"
+                        ? "bg-red-600 text-white"
+                        : "bg-[#E2E8F0] text-[#94A3B8]"
                     }`}
                   >
-                    <div className="flex items-center gap-2.5">
-                      <div
-                        className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold ${
-                          status === "completed"
-                            ? "bg-[#16A34A] text-white"
-                            : status === "processing"
-                            ? "bg-[#2563EB] text-white animate-pulse"
-                            : "bg-[#E2E8F0] text-[#64748B]"
-                        }`}
-                      >
-                        {status === "completed" ? (
-                          <CheckCircle2 className="w-3.5 h-3.5" />
-                        ) : (
-                          stage.num
-                        )}
-                      </div>
-                      <span className="truncate max-w-[210px]">{stage.name}</span>
-                    </div>
-
-                    <span className="text-[10px] uppercase font-bold tracking-wider">
-                      {status === "completed"
-                        ? "Complete"
-                        : status === "processing"
-                        ? "Processing"
-                        : "Waiting"}
-                    </span>
+                    {status === "completed" ? (
+                      <CheckCircle2 className="w-5 h-5" />
+                    ) : status === "processing" ? (
+                      <RefreshCw className="w-5 h-5 animate-spin" />
+                    ) : status === "failed" ? (
+                      <AlertCircle className="w-5 h-5" />
+                    ) : (
+                      <IconComp className="w-4 h-4" />
+                    )}
                   </div>
-                );
-              })}
-            </div>
-          </div>
 
-          {/* Live Detected Stream Card */}
-          <div className="p-6 rounded-3xl bg-white border border-[#E2E8F0] shadow-sm flex-1 flex flex-col justify-between space-y-3">
-            <div className="flex items-center justify-between border-b border-[#E2E8F0] pb-2">
-              <div className="flex items-center gap-2">
-                <Sparkles className="w-4 h-4 text-[#2563EB]" />
-                <span className="font-heading text-xs font-bold text-[#0F172A] uppercase tracking-wider">
-                  Live Neural Detections
-                </span>
-              </div>
-              <span className="text-[10px] font-mono text-[#16A34A] font-bold">
-                50-Micron Precision
-              </span>
-            </div>
-
-            <div className="space-y-2 max-h-[220px] overflow-y-auto pr-1">
-              {liveDetections.length === 0 ? (
-                <div className="py-6 text-center text-xs font-mono text-[#94A3B8]">
-                  Scanning PCB surface for SMD packages...
+                  <div className="space-y-0.5 min-w-0">
+                    <p
+                      className={`text-sm font-bold truncate ${
+                        status === "completed"
+                          ? "text-[#16A34A]"
+                          : status === "processing"
+                          ? "text-[#2563EB]"
+                          : status === "failed"
+                          ? "text-red-900"
+                          : "text-[#64748B]"
+                      }`}
+                    >
+                      {stage.name}
+                    </p>
+                    <p className="text-xs text-[#64748B] leading-relaxed">
+                      {stage.description}
+                    </p>
+                  </div>
                 </div>
-              ) : (
-                liveDetections.map((comp, idx) => (
-                  <div
-                    key={comp.id || idx}
-                    className="p-2.5 rounded-xl bg-[#F8FAFC] border border-[#E2E8F0] flex items-center justify-between text-xs animate-in fade-in duration-200"
+
+                <div className="text-right flex-shrink-0">
+                  <span
+                    className={`text-[10px] font-mono uppercase font-bold px-2 py-0.5 rounded ${
+                      status === "completed"
+                        ? "bg-emerald-100 text-emerald-800"
+                        : status === "processing"
+                        ? "bg-blue-100 text-blue-800 animate-pulse"
+                        : status === "failed"
+                        ? "bg-red-100 text-red-800"
+                        : "bg-slate-200 text-slate-600"
+                    }`}
                   >
-                    <div>
-                      <p className="font-bold text-[#0F172A] text-xs">{comp.name}</p>
-                      <p className="text-[10px] font-mono text-[#64748B]">
-                        {comp.type} · {comp.package}
-                      </p>
-                    </div>
+                    {status === "completed"
+                      ? "Completed"
+                      : status === "processing"
+                      ? "In Progress"
+                      : status === "failed"
+                      ? "Failed"
+                      : "Pending"}
+                  </span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
 
-                    <div className="text-right">
-                      <span className="px-2 py-0.5 rounded-full bg-[#DCFCE7] text-[#16A34A] font-mono text-[10px] font-bold">
-                        {comp.confidence}% Conf.
-                      </span>
-                      <p className="text-[9px] font-mono text-[#2563EB] mt-0.5">
-                        Health {comp.health}%
-                      </p>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-
-            {/* Direct Bypass / Jump to Results Button */}
-            <div className="pt-2">
-              <button
-                onClick={() => {
-                  setActiveStep(3);
-                  router.push(`/console/results?analysisId=${encodeURIComponent(sessionId)}`);
-                }}
-                className="w-full py-2.5 px-4 rounded-xl bg-[#F1F5F9] hover:bg-[#2563EB] text-[#475569] hover:text-white text-xs font-semibold font-mono transition-colors flex items-center justify-center gap-2 cursor-pointer"
-              >
-                <span>View Full Results Overview</span>
-                <ArrowRight className="w-3.5 h-3.5" />
-              </button>
-            </div>
-          </div>
+        {/* Footer info note */}
+        <div className="pt-4 border-t border-[#F1F5F9] text-center text-xs text-[#64748B]">
+          Processing completes within 3 to 8 seconds depending on image resolution. Results page will open automatically.
         </div>
       </div>
     </div>
@@ -343,10 +399,10 @@ export default function ConsoleProcessingPage() {
   return (
     <Suspense
       fallback={
-        <div className="flex-1 py-16 flex flex-col items-center justify-center">
-          <div className="w-10 h-10 rounded-full border-2 border-[#2563EB] border-t-transparent animate-spin mb-3" />
+        <div className="flex-1 py-20 flex flex-col items-center justify-center">
+          <RefreshCw className="w-8 h-8 text-[#2563EB] animate-spin mb-3" />
           <span className="font-mono text-xs font-bold text-[#0F172A]">
-            Initializing Neural Inference Pipeline...
+            Loading Processing Telemetry...
           </span>
         </div>
       }

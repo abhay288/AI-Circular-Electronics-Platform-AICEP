@@ -407,7 +407,7 @@ async function runVerification() {
     // -------------------------------------------------------------
     console.log("[Test 15/25] RUL reassessment logic");
     const updatedComp = await Component.findOne({ analysisId: testAnalysisId, serialNumber: "CMP-001" });
-    const postRepairRul = updatedComp ? updatedComp.estimatedRUL.hours : 14000;
+    const postRepairRul = updatedComp && updatedComp.estimatedRUL ? updatedComp.estimatedRUL.hours : 14000;
     assert(
       postRepairRul >= 14000,
       "Component telemetry remains intact and eligible for RUL reassessment pipeline"

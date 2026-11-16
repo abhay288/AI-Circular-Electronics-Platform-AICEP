@@ -43,3 +43,6 @@ __pycache__/
 runs/
 *.cache
 yolo11n.pt
+.eco_sessions/
+Dataset/
+

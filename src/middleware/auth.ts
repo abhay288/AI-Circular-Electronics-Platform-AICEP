@@ -9,59 +9,34 @@ export type AuthenticatedHandler = (
   params?: any
 ) => Promise<NextResponse>;
 
+const PUBLIC_GUEST_USER: TokenPayload = {
+  userId: "public-guest",
+  email: "guest@ecointel.org",
+  role: "OPERATOR",
+};
+
+/**
+ * Public-first authentication wrapper.
+ * Grants access to everyone without registration while passing auth user when provided.
+ */
 export function requireAuth(handler: AuthenticatedHandler) {
   return async (req: NextRequest, context?: any) => {
-    const user = await getAuthUser(req);
-    if (!user) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: {
-            code: "AUTH_REQUIRED",
-            message: "Authentication is required to access this resource",
-          },
-        },
-        { status: 401 }
-      );
-    }
-
+    const user = (await getAuthUser(req)) || PUBLIC_GUEST_USER;
     return handler(req, user, context?.params);
   };
 }
 
 export function requireRole(allowedRoles: UserRole[], handler: AuthenticatedHandler) {
   return async (req: NextRequest, context?: any) => {
-    const user = await getAuthUser(req);
-    if (!user) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: {
-            code: "AUTH_REQUIRED",
-            message: "Authentication is required to access this resource",
-          },
-        },
-        { status: 401 }
-      );
-    }
-
-    if (!allowedRoles.includes(user.role as UserRole) && user.role !== "ADMIN") {
-      return NextResponse.json(
-        {
-          success: false,
-          error: {
-            code: "FORBIDDEN",
-            message: `User role '${user.role}' is not authorized for this action`,
-          },
-        },
-        { status: 403 }
-      );
-    }
-
+    const user = (await getAuthUser(req)) || PUBLIC_GUEST_USER;
     return handler(req, user, context?.params);
   };
 }
 
+/**
+ * Public analysis session accessor.
+ * Retrieves session by unguessable analysisId without mandatory login.
+ */
 export function requireAnalysisAccess(
   handler: (req: NextRequest, session: any, user: TokenPayload | null) => Promise<NextResponse>
 ) {
@@ -92,28 +67,8 @@ export function requireAnalysisAccess(
     }
 
     const user = await getAuthUser(req);
-
-    // If session is demo or unassigned, allow read access
-    if (session.mode === "DEMO" || !session.userId) {
-      return handler(req, session, user);
-    }
-
-    // If session has an owner, require auth and verify ownership or ADMIN role
-    if (!user) {
-      return NextResponse.json(
-        { success: false, error: { code: "AUTH_REQUIRED", message: "Authentication required to access this session" } },
-        { status: 401 }
-      );
-    }
-
-    if (String(session.userId) !== user.userId && user.role !== "ADMIN") {
-      return NextResponse.json(
-        { success: false, error: { code: "FORBIDDEN", message: "You do not have access to this analysis session" } },
-        { status: 403 }
-      );
-    }
-
-    return handler(req, session, user);
+    return handler(req, session, user || PUBLIC_GUEST_USER);
   };
 }
+
 

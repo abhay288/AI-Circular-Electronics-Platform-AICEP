@@ -276,7 +276,7 @@ function MarketplaceCreateContent() {
       setListingPrice(Math.round(el.estimatedValueUSD * 86.5).toString());
       setListingQuantity("1");
       setListingCondition(
-        single.health >= 92 ? "Grade A+ (Tested & Certified)" : "Grade A (Good Operational)"
+        (single.health ?? 90) >= 92 ? "Grade A+ (Tested & Certified)" : "Grade A (Good Operational)"
       );
     } else if (selectedComponents.length > 1) {
       setListingTitle(
@@ -834,8 +834,8 @@ function MarketplaceCreateContent() {
                           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2 border-t border-slate-100 text-xs font-mono">
                             <div className="p-2 rounded-xl bg-[#F8FAFC]">
                               <span className="text-[10px] text-[#64748B] block">Health Score</span>
-                              <strong className={`text-sm ${comp.health >= 90 ? "text-[#16A34A]" : "text-[#D97706]"}`}>
-                                {comp.health}%
+                              <strong className={`text-sm ${(comp.health ?? 90) >= 90 ? "text-[#16A34A]" : "text-[#D97706]"}`}>
+                                {comp.health ?? 90}%
                               </strong>
                             </div>
 

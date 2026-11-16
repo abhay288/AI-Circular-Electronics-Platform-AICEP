@@ -7,10 +7,35 @@ import { successResponse, errorResponse } from "@/lib/api-response";
 
 export const GET = requireAuth(async (req: NextRequest, tokenUser) => {
   try {
+    if (tokenUser.userId === "public-guest") {
+      return successResponse({
+        user: {
+          id: "public-guest",
+          name: "Public Electronics Analyst",
+          email: "public@ecointel.org",
+          role: "OPERATOR",
+          isAnonymous: true,
+        },
+        organization: {
+          name: "EcoIntel Open Public Lab",
+          tier: "PUBLIC_OPEN",
+        },
+      });
+    }
+
     await connectDB();
     const user = await User.findById(tokenUser.userId).select("-passwordHash");
     if (!user) {
-      return errorResponse("USER_NOT_FOUND", "User profile not found", 404);
+      return successResponse({
+        user: {
+          id: "public-guest",
+          name: "Public Electronics Analyst",
+          email: "public@ecointel.org",
+          role: "OPERATOR",
+          isAnonymous: true,
+        },
+        organization: null,
+      });
     }
 
     let organization = null;

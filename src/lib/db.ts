@@ -43,23 +43,28 @@ async function connectWithURI(uri: string): Promise<typeof mongoose> {
     const opts: mongoose.ConnectOptions = {
       bufferCommands: false,
       maxPoolSize: 10,
-      serverSelectionTimeoutMS: 5000,
-      socketTimeoutMS: 45000,
+      serverSelectionTimeoutMS: 2000,
+      socketTimeoutMS: 10000,
+      connectTimeoutMS: 2000,
     };
 
-    cached!.promise = mongoose
+    const connectPromise = mongoose
       .connect(uri, opts)
       .then((m) => {
         console.log(`[EcoIntel DB] Successfully connected to MongoDB [readyState=${m.connection.readyState}]`);
-        // Silently drop legacy non-sparse index if present
         m.connection.collection("components").dropIndex("serialNumber_1").catch(() => {});
         return m;
-      })
-      .catch((err) => {
-        console.error("[EcoIntel DB] Failed to connect to MongoDB:", err.message);
-        cached!.promise = null;
-        throw err;
       });
+
+    const timeoutPromise = new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error("MongoDB connection timed out after 2500ms")), 2500)
+    );
+
+    cached!.promise = Promise.race([connectPromise, timeoutPromise]).catch((err) => {
+      console.warn("[EcoIntel DB] MongoDB connect notice:", err.message);
+      cached!.promise = null;
+      throw err;
+    });
   }
 
   try {

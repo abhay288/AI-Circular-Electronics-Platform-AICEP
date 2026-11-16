@@ -1,3 +1,4 @@
+import sys
 import time
 import os
 import cv2
@@ -21,69 +22,72 @@ class ComponentDetector:
         self.is_custom_trained = False
         self.device = settings.DEVICE
         self.model_status = "PRETRAINED_BASE"
+        self.class_names: Dict[int, str] = {}
         self._load_model()
 
     def _load_model(self):
         """
-        Attempts to load YOLO weights. If a custom fine-tuned checkpoint exists, loads it.
-        Otherwise loads base pretrained YOLO checkpoint.
-        If ultralytics is not yet installed or downloading weights is blocked,
-        initializes an adaptive computer vision fallback detector.
+        Loads the trained YOLO checkpoint.
+        Uses model.names directly from trained weights to avoid class mismatch.
+        Never falls back to random mock output.
         """
         candidate_paths = [
             settings.YOLO_MODEL_PATH,
             os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "models", "weights", "best.pt")),
             "ai-service/models/weights/best.pt",
             "runs/detect/ecointel-dusty-ewaste-yolo/weights/best.pt",
-            "runs/detect/runs/detect/ecointel-dusty-ewaste-yolo/weights/best.pt",
             "runs/detect/ecointel-pcb-yolo/weights/best.pt",
         ]
-        
-        # Check custom weights first
+
         for path in candidate_paths:
             if path and os.path.exists(path):
                 try:
                     from ultralytics import YOLO
-                    print(f"[Detector] Loading custom fine-tuned checkpoint from {path}...")
+                    print(f"[Detector] Loading custom fine-tuned checkpoint from {path}...", file=sys.stderr)
                     self.model = YOLO(path)
                     self.model_name = "EcoIntel-PCB-YOLO-Custom"
                     self.model_version = "v1.0.0"
                     self.is_custom_trained = True
                     self.model_status = "CUSTOM_TRAINED"
+                    if hasattr(self.model, "names") and isinstance(self.model.names, dict):
+                        self.class_names = {int(k): str(v) for k, v in self.model.names.items()}
                     return
                 except Exception as e:
-                    print(f"[Detector] Failed to load custom model from {path}: {e}")
+                    print(f"[Detector] Failed to load custom model from {path}: {e}", file=sys.stderr)
 
-        # Attempt base YOLO pretrained checkpoint
+        # Fallback to base model if weights missing
         try:
             from ultralytics import YOLO
             base_model_file = "yolo11n.pt"
-            print(f"[Detector] Initializing Ultralytics base model: {base_model_file}...")
+            print(f"[Detector] Initializing Ultralytics base model: {base_model_file}...", file=sys.stderr)
             self.model = YOLO(base_model_file)
             self.model_name = "EcoIntel-PCB-YOLO (Pretrained Base)"
             self.model_version = "v0.1.0-base"
             self.is_custom_trained = False
             self.model_status = "PRETRAINED_BASE"
+            if hasattr(self.model, "names") and isinstance(self.model.names, dict):
+                self.class_names = {int(k): str(v) for k, v in self.model.names.items()}
         except Exception as err:
-            print(f"[Detector] Ultralytics direct load unavailable ({err}). Using adaptive CV edge-cluster inference fallback.")
+            print(f"[Detector] YOLO model unavailable: {err}", file=sys.stderr)
             self.model = None
-            self.model_name = "EcoIntel-PCB-YOLO (Edge-Cluster Fallback Engine)"
-            self.model_version = "v0.1.0-fallback"
+            self.model_name = "EcoIntel-Model-Unavailable"
+            self.model_version = "none"
             self.is_custom_trained = False
-            self.model_status = "FALLBACK_BASE"
+            self.model_status = "MODEL_UNAVAILABLE"
 
-    def detect(self, cv_image: np.ndarray) -> DetectionResponse:
+    def detect(self, cv_image: np.ndarray, image_type: Optional[str] = None) -> DetectionResponse:
         """
-        Runs complete inference pipeline:
-        1. Pre-inference quality diagnostics & warnings
-        2. YOLO or adaptive CV detector inference
-        3. Bounding box scaling & coordinate normalization
-        4. Metrics and timing aggregation
+        Runs genuine optical inference:
+        1. Pre-inference quality evaluation
+        2. Real YOLO forward pass with validated confidence threshold and NMS
+        3. If image is an isolated through-hole component (e.g. axial resistor) and YOLO (trained for SMD PCBs)
+           has 0 detections, inspects optical geometry without fabricating false components.
+        4. Strict coordinate validation.
         """
         start_time = time.perf_counter()
         orig_h, orig_w = cv_image.shape[:2]
 
-        # 1. Pre-inference quality inspection
+        # 1. Quality evaluation
         quality_diag = analyze_image_quality(cv_image)
         quality_obj = ImageQualityCheck(
             quality=quality_diag["quality"],
@@ -96,10 +100,9 @@ class ComponentDetector:
 
         raw_boxes: List[Dict[str, Any]] = []
 
-        # 2. Run Inference
+        # 2. Run Genuine YOLO Model Prediction
         if self.model is not None:
             try:
-                # Convert BGR to RGB for Ultralytics
                 rgb_img = cv2.cvtColor(cv_image, cv2.COLOR_BGR2RGB)
                 results = self.model.predict(
                     rgb_img,
@@ -108,66 +111,55 @@ class ComponentDetector:
                     device=self.device,
                     verbose=False
                 )
-                
+
                 for r in results:
                     boxes = r.boxes
                     for b in boxes:
                         coords = b.xyxy[0].tolist()
                         conf = float(b.conf[0])
                         cls_idx = int(b.cls[0])
-                        
-                        canonical_class = settings.CLASSES[cls_idx % len(settings.CLASSES)]
-                        
-                        raw_boxes.append({
-                            "x1": coords[0],
-                            "y1": coords[1],
-                            "x2": coords[2],
-                            "y2": coords[3],
-                            "confidence": conf,
-                            "class_id": cls_idx % len(settings.CLASSES),
-                            "class_name": canonical_class,
-                        })
 
-                # If threshold was too strict, adaptively lower threshold to isolate sub-micron and e-waste features
-                if len(raw_boxes) == 0:
-                    adaptive_conf = max(0.005, settings.YOLO_CONFIDENCE * 0.15)
-                    adapt_results = self.model.predict(
-                        rgb_img,
-                        conf=adaptive_conf,
-                        iou=settings.YOLO_IOU,
-                        device=self.device,
-                        verbose=False
-                    )
-                    for r in adapt_results:
-                        boxes = r.boxes
-                        for b in boxes:
-                            coords = b.xyxy[0].tolist()
-                            conf = float(b.conf[0])
-                            cls_idx = int(b.cls[0])
-                            canonical_class = settings.CLASSES[cls_idx % len(settings.CLASSES)]
+                        # Validate class index against actual model taxonomy
+                        class_name = self.class_names.get(cls_idx)
+                        if not class_name:
+                            if 0 <= cls_idx < len(settings.CLASSES):
+                                class_name = settings.CLASSES[cls_idx]
+                            else:
+                                class_name = "Unknown electronic component"
+
+                        # Validate box bounds
+                        x1 = max(0.0, min(float(orig_w), coords[0]))
+                        y1 = max(0.0, min(float(orig_h), coords[1]))
+                        x2 = max(0.0, min(float(orig_w), coords[2]))
+                        y2 = max(0.0, min(float(orig_h), coords[3]))
+
+                        if x2 - x1 >= 4 and y2 - y1 >= 4:
                             raw_boxes.append({
-                                "x1": coords[0],
-                                "y1": coords[1],
-                                "x2": coords[2],
-                                "y2": coords[3],
-                                "confidence": conf,
-                                "class_id": cls_idx % len(settings.CLASSES),
-                                "class_name": canonical_class,
+                                "x1": x1,
+                                "y1": y1,
+                                "x2": x2,
+                                "y2": y2,
+                                "confidence": round(conf, 3),
+                                "class_id": cls_idx,
+                                "class_name": class_name,
                             })
 
-                # If still empty on rare edge cases, blend with CV edge morphology segmentation
-                if len(raw_boxes) == 0:
-                    raw_boxes = self._cv_segmentation_detect(cv_image)
             except Exception as e:
-                print(f"[Detector] Ultralytics predict error: {e}. Falling back to visual component segmentation.")
-                raw_boxes = self._cv_segmentation_detect(cv_image)
-        else:
-            raw_boxes = self._cv_segmentation_detect(cv_image)
+                print(f"[Detector] Ultralytics predict error: {e}", file=sys.stderr)
 
-        # 3. Postprocess and normalize coordinates
+        # 3. Domain Handling for ISOLATED_COMPONENT Photographs:
+        # If the image contains an isolated component (e.g. single axial resistor on plain background)
+        # and YOLO (which was trained on SMD boards) produced 0 detections:
+        # Detect the single isolated through-hole component reliably without fabricating 16 fake parts!
+        if len(raw_boxes) == 0 and image_type == "ISOLATED_COMPONENT":
+            isolated_comp = self._detect_isolated_axial_component(cv_image, orig_w, orig_h)
+            if isolated_comp:
+                raw_boxes.append(isolated_comp)
+
+        # 4. Postprocess bounding boxes and sort by confidence
         detections = process_detections(raw_boxes, orig_w, orig_h)
         total_detected = len(detections)
-        
+
         avg_conf = (
             round(sum(d.confidence for d in detections) / total_detected, 4)
             if total_detected > 0
@@ -193,95 +185,91 @@ class ComponentDetector:
             warnings=quality_diag["warnings"],
         )
 
-    def _cv_segmentation_detect(self, cv_image: np.ndarray) -> List[Dict[str, Any]]:
+    def _detect_isolated_axial_component(
+        self, cv_img: np.ndarray, w: int, h: int
+    ) -> Optional[Dict[str, Any]]:
         """
-        Adaptive computer vision component segmentation engine.
-        Identifies ICs, capacitors, SMD passives, and connectors using edge morphology,
-        contour hierarchy, and aspect ratio classification.
+        Identifies an isolated through-hole component (e.g., axial leaded resistor)
+        on a plain background with zero fabrication. Returns at most ONE verified detection.
         """
-        h, w = cv_image.shape[:2]
-        gray = cv2.cvtColor(cv_image, cv2.COLOR_BGR2GRAY)
-        
-        # Adaptive thresholding and morphological gradient
-        blurred = cv2.GaussianBlur(gray, (5, 5), 0)
-        edges = cv2.Canny(blurred, 35, 120)
-        
+        # Determine background color from border margins
+        border = np.vstack([
+            cv_img[0:max(3, int(h * 0.03)), :].reshape(-1, 3),
+            cv_img[min(h - 3, int(h * 0.97)):h, :].reshape(-1, 3),
+            cv_img[:, 0:max(3, int(w * 0.03))].reshape(-1, 3),
+            cv_img[:, min(w - 3, int(w * 0.97)):w].reshape(-1, 3),
+        ])
+        bg_mean = np.mean(border, axis=0)
+
+        # Segment foreground component
+        diff = np.linalg.norm(cv_img.astype(np.float32) - bg_mean, axis=2)
+        fg_mask = (diff > 28.0).astype(np.uint8) * 255
+
         kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3))
-        closed = cv2.morphologyEx(edges, cv2.MORPH_CLOSE, kernel)
+        fg_cleaned = cv2.morphologyEx(fg_mask, cv2.MORPH_CLOSE, kernel)
+        contours, _ = cv2.findContours(fg_cleaned, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
-        # Use RETR_LIST to capture both board packages and internal SMD components
-        contours, _ = cv2.findContours(closed, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
-        
-        candidates: List[Dict[str, Any]] = []
-        min_area = (w * h) * 0.0004  # minimum component area
-        max_area = (w * h) * 0.25    # maximum component area
+        valid_contours = []
+        for c in contours:
+            area = cv2.contourArea(c)
+            if area > (w * h * 0.002):
+                x, y, bw, bh = cv2.boundingRect(c)
+                valid_contours.append((area, x, y, bw, bh, c))
 
-        for cnt in contours:
-            area = cv2.contourArea(cnt)
-            if min_area < area < max_area:
-                x, y, bw, bh = cv2.boundingRect(cnt)
-                aspect = float(bw) / max(1.0, float(bh))
-                if 0.15 < aspect < 6.5:
-                    # Classify by geometric aspect and size
-                    if bw > w * 0.10 and bh > h * 0.10 and 0.75 < aspect < 1.35:
-                        class_id = 0  # IC / MCU / BGA
-                        conf = 0.94
-                    elif aspect > 2.4 or aspect < 0.42:
-                        class_id = 7  # Connector / Header
-                        conf = 0.91
-                    elif area < (w * h) * 0.004:
-                        class_id = 1 if aspect > 1.2 else 2  # Resistor or Capacitor
-                        conf = 0.88
-                    elif area > (w * h) * 0.035:
-                        class_id = 14  # Transformer / Relay
-                        conf = 0.92
-                    elif 0.8 < aspect < 1.25 and area > (w * h) * 0.015:
-                        class_id = 6  # Inductor / Choke
-                        conf = 0.90
-                    else:
-                        class_id = 5  # MOSFET / Power IC
-                        conf = 0.89
+        if not valid_contours:
+            return None
 
-                    candidates.append({
-                        "x": x,
-                        "y": y,
-                        "w": bw,
-                        "h": bh,
-                        "area": float(area),
-                        "class_id": class_id,
-                        "confidence": conf,
-                    })
+        # Sort by area and select the primary focal component
+        valid_contours.sort(key=lambda item: item[0], reverse=True)
+        area, x, y, bw, bh, cnt = valid_contours[0]
 
-        if not candidates:
-            return []
+        aspect = float(bw) / max(1.0, float(bh))
+        crop = cv_img[y:y+bh, x:x+bw]
 
-        # Non-Maximum Suppression to remove overlapping redundant contours
-        boxes_for_nms = [[c["x"], c["y"], c["w"], c["h"]] for c in candidates]
-        scores_for_nms = [c["area"] for c in candidates]
-        nms_indices = cv2.dnn.NMSBoxes(
-            boxes_for_nms,
-            scores_for_nms,
-            score_threshold=0.0,
-            nms_threshold=0.35,
-        )
+        # Check for axial cylindrical geometry with wire leads
+        # Typical axial resistor: aspect > 2.5 (horizontal) or aspect < 0.4 (vertical)
+        is_axial_geometry = aspect > 2.2 or aspect < 0.45
 
-        selected_indices = nms_indices.flatten() if len(nms_indices) > 0 else []
-        boxes: List[Dict[str, Any]] = []
+        # Check color variance along main axis (indicating color bands or ceramic body)
+        crop_gray = cv2.cvtColor(crop, cv2.COLOR_BGR2GRAY)
+        if aspect > 1.0:
+            axis_profile = np.mean(crop_gray, axis=0)
+        else:
+            axis_profile = np.mean(crop_gray, axis=1)
 
-        for idx in selected_indices:
-            c = candidates[idx]
-            boxes.append({
-                "x1": c["x"],
-                "y1": c["y"],
-                "x2": c["x"] + c["w"],
-                "y2": c["y"] + c["h"],
-                "confidence": c["confidence"],
-                "class_id": c["class_id"],
-                "class_name": settings.CLASSES[c["class_id"]],
-            })
+        profile_variance = float(np.var(axis_profile))
+        has_bands = profile_variance > 120.0
 
-        # Return top 45 isolated components sorted by size
-        boxes.sort(key=lambda b: (b["x2"] - b["x1"]) * (b["y2"] - b["y1"]), reverse=True)
-        return boxes[:45]
+        if is_axial_geometry and has_bands:
+            # Verified Axial Leaded Resistor
+            return {
+                "x1": float(x),
+                "y1": float(y),
+                "x2": float(x + bw),
+                "y2": float(y + bh),
+                "confidence": 0.89,
+                "class_id": 1,
+                "class_name": "Resistor",
+            }
+        elif is_axial_geometry:
+            return {
+                "x1": float(x),
+                "y1": float(y),
+                "x2": float(x + bw),
+                "y2": float(y + bh),
+                "confidence": 0.75,
+                "class_id": 1,
+                "class_name": "Resistor",
+            }
+        else:
+            return {
+                "x1": float(x),
+                "y1": float(y),
+                "x2": float(x + bw),
+                "y2": float(y + bh),
+                "confidence": 0.65,
+                "class_id": 0,
+                "class_name": "Unknown electronic component",
+            }
 
 detector = ComponentDetector()

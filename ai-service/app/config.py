@@ -7,7 +7,7 @@ class Settings(BaseModel):
     AI_SERVICE_API_KEY: str = os.getenv("AI_SERVICE_API_KEY", "eco-intel-internal-ai-key-2026")
     
     YOLO_MODEL_PATH: str = os.getenv("YOLO_MODEL_PATH", "")
-    YOLO_CONFIDENCE: float = float(os.getenv("YOLO_CONFIDENCE", "0.35"))
+    YOLO_CONFIDENCE: float = float(os.getenv("YOLO_CONFIDENCE", "0.20"))
     YOLO_IOU: float = float(os.getenv("YOLO_IOU", "0.45"))
     DEVICE: str = os.getenv("DEVICE", "cpu")
     

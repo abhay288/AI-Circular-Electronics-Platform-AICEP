@@ -1,10 +1,8 @@
 "use client";
 
 import React, { useState, useRef } from "react";
-import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import {
-  Camera,
   UploadCloud,
   FileImage,
   ArrowRight,
@@ -17,730 +15,595 @@ import {
   Wrench,
   ShieldCheck,
   Leaf,
-  Radio,
-  HardDrive,
-  CircuitBoard,
-  Server,
-  Smartphone,
-  Zap,
   Info,
   X,
-  Play,
-  RotateCcw,
-  Check,
   AlertCircle,
+  HelpCircle,
+  Check,
+  RefreshCw,
+  Eye,
+  Microscope,
 } from "lucide-react";
-import { useAnalysisSession } from "@/lib/context/AnalysisSessionContext";
-import { SAMPLE_DATASETS } from "@/lib/data/sampleDatasets";
-import CameraScanModal from "@/components/console/CameraScanModal";
 
-const InspectionScanner3D = dynamic(
-  () => import("@/components/3d/InspectionScanner3D"),
+interface CapabilityItem {
+  num: string;
+  title: string;
+  badge: string;
+  badgeColor: string;
+  desc: string;
+  details: string[];
+  dataRequirement: string;
+  isVisualOnly?: boolean;
+}
+
+const CAPABILITIES: CapabilityItem[] = [
   {
-    ssr: false,
-    loading: () => (
-      <div className="w-full h-44 flex items-center justify-center bg-[#F1F5F9] rounded-2xl">
-        <Camera className="w-8 h-8 text-[#2563EB] animate-pulse" />
-      </div>
-    ),
-  }
-);
+    num: "01",
+    title: "AI Component Detection",
+    badge: "Optical AI · Active",
+    badgeColor: "bg-blue-50 text-blue-700 border-blue-200",
+    desc: "Surface-mount device (SMD) and through-hole component identification with spatial bounding boxes from YOLOv11 neural inference.",
+    details: [
+      "Supported categories: ICs, Resistors, Capacitors, Diodes, Transistors, MOSFETs, Inductors, Connectors, Crystals, Sensors, Relays, LEDs, Fuses, Transformers",
+      "Normalized coordinate bounding boxes (x, y, width, height) and pixel positions",
+      "Detection confidence percentages; uncertain detections labeled 'Unknown electronic component'",
+      "Strict policy: Never invents exact part numbers or manufacturer identities",
+    ],
+    dataRequirement: "High-resolution optical PCB surface photograph (minimum 800×800 px).",
+  },
+  {
+    num: "02",
+    title: "Visual Condition Inspection",
+    badge: "Spectro-Spatial AI",
+    badgeColor: "bg-amber-50 text-amber-700 border-amber-200",
+    desc: "Automated optical defect detection across visible surfaces using multi-spectrum color clustering and morphological anomaly filters.",
+    details: [
+      "Burn marks, charring, and localized solder mask degradation",
+      "Visible corrosion, surface verdigris crust, and oxidation",
+      "Component package cracks and physical fractures",
+      "Bulging or leaking electrolyte on capacitor cans",
+      "Missing components and unpopulated solder pads with visible evidence",
+      "Damaged or lifted copper pads and broken surface traces",
+      "Visible soldering irregularities and surface contamination",
+      "Physical substrate deformation",
+    ],
+    dataRequirement: "Optical surface imaging under diffuse, non-glare illumination.",
+  },
+  {
+    num: "03",
+    title: "PCB Visual Surface Structure",
+    badge: "OpenCV Topology Engine",
+    badgeColor: "bg-emerald-50 text-emerald-700 border-emerald-200",
+    desc: "Substrate boundary detection, pixel dimensions, surface area, visible copper trace continuity, and pad/via localization.",
+    details: [
+      "Board perimeter contour and surface area in pixels",
+      "Visible top-layer copper trace mapping and observable trace interruptions",
+      "Surface solder pads and plated through-hole via hole detection",
+      "Observable surface damage zones and component spatial topology",
+      "Strict policy: Does not claim internal layers, hidden vias, or electrical continuity without calibration target or electrical test data",
+    ],
+    dataRequirement: "Visible surface traces on outer copper layer. Internal planes cannot be confirmed optically.",
+  },
+  {
+    num: "04",
+    title: "OCR & Markings Recognition",
+    badge: "OpenCV Gradient OCR",
+    badgeColor: "bg-cyan-50 text-cyan-700 border-cyan-200",
+    desc: "Optical text and silkscreen marking extraction for readable component reference designators and board lettering.",
+    details: [
+      "Silkscreen PCB reference designators (e.g. R1, C2, U3, J1, D4)",
+      "Visible component package markings where optical contrast permits",
+      "Clearly marks unreadable or low-contrast text as 'Uncertain marking'",
+      "Strict policy: Never completes unreadable text by guessing",
+    ],
+    dataRequirement: "Sharp, high-contrast text strokes without motion blur or specular glare.",
+  },
+  {
+    num: "05",
+    title: "Surface Finish & Materials",
+    badge: "Observable Characteristics Only",
+    badgeColor: "bg-purple-50 text-purple-700 border-purple-200",
+    desc: "Identifies visibly recognizable surface finishes and substrate colors supported by optical image evidence.",
+    details: [
+      "Identifies observable surface finishes (e.g. HASL solder finish, ENIG gold-colored pads)",
+      "Identifies solder mask color (green, blue, black, red) and visible FR-4 laminate",
+      "Strict policy: Does not claim exact precious metal masses, elemental recovery grams, or monetary valuations from RGB appearance",
+    ],
+    dataRequirement: "Standard RGB color photography under balanced white lighting.",
+  },
+  {
+    num: "06",
+    title: "Evidence-Based Summary",
+    badge: "Objective Findings",
+    badgeColor: "bg-slate-100 text-slate-700 border-slate-300",
+    desc: "Concise, evidence-based visual classification supported exclusively by verifiable findings.",
+    details: [
+      "Classification: No obvious visible damage detected / Minor / Moderate / Severe visible physical damage / Quality insufficient",
+      "Transparent breakdown of optical findings and confidence levels",
+      "Documented optical limitations explaining internal layers and electrical health boundaries",
+      "Identifies specific areas requiring manual microscopy or electrical continuity testing",
+    ],
+    dataRequirement: "Synthesized automatically from real image detection and inspection results.",
+  },
+];
 
-export default function ConsoleCapturePage() {
+const MAX_FILE_SIZE_BYTES = 15 * 1024 * 1024; // 15MB
+const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp"];
+
+export default function LaunchConsolePage() {
   const router = useRouter();
-  const {
-    session,
-    isNewAnalysis,
-    selectedDraft,
-    selectSampleDraft,
-    setUploadDraft,
-    clearDraft,
-    startAnalysisFromDraft,
-    setActiveStep,
-  } = useAnalysisSession();
 
-  const [isCameraModalOpen, setIsCameraModalOpen] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [imageMeta, setImageMeta] = useState<{ width: number; height: number; sizeFormatted: string } | null>(null);
   const [dragOver, setDragOver] = useState(false);
-  const [selectedFile, setSelectedFile] = useState<{
-    name: string;
-    size: number;
-    preview: string;
-  } | null>(null);
-  const [activeInfoModal, setActiveInfoModal] = useState<{
-    num: string;
-    title: string;
-    desc: string;
-    methodology: string;
-    classification: string;
-  } | null>(null);
+  const [validationError, setValidationError] = useState<string | null>(null);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [activeCapabilityModal, setActiveCapabilityModal] = useState<CapabilityItem | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const stagedRef = useRef<HTMLDivElement>(null);
 
-  const handleFileDrop = (e: React.DragEvent) => {
+  const formatFileSize = (bytes: number): string => {
+    if (bytes < 1024 * 1024) {
+      return `${(bytes / 1024).toFixed(1)} KB`;
+    }
+    return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
+  };
+
+  const validateAndSetFile = (file: File) => {
+    setValidationError(null);
+
+    if (!ALLOWED_TYPES.includes(file.type)) {
+      setValidationError("Unsupported file format. Please upload a JPG, JPEG, PNG, or WEBP image.");
+      return;
+    }
+
+    if (file.size > MAX_FILE_SIZE_BYTES) {
+      setValidationError(
+        `File size (${formatFileSize(file.size)}) exceeds the maximum limit of 15 MB. Please select a smaller image.`
+      );
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const url = e.target?.result as string;
+      setPreviewUrl(url);
+
+      // Measure dimensions
+      const img = new Image();
+      img.onload = () => {
+        setImageMeta({
+          width: img.width,
+          height: img.height,
+          sizeFormatted: formatFileSize(file.size),
+        });
+      };
+      img.src = url;
+    };
+    reader.readAsDataURL(file);
+    setSelectedFile(file);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     setDragOver(false);
     if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      processSelectedFile(e.dataTransfer.files[0]);
+      validateAndSetFile(e.dataTransfer.files[0]);
     }
   };
 
   const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
-      processSelectedFile(e.target.files[0]);
+      validateAndSetFile(e.target.files[0]);
     }
   };
 
-  const processSelectedFile = (file: File) => {
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const preview = event.target?.result as string;
-      setSelectedFile({
-        name: file.name,
-        size: file.size,
-        preview,
+  const handleClearSelection = () => {
+    setSelectedFile(null);
+    setPreviewUrl(null);
+    setImageMeta(null);
+    setValidationError(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  };
+
+  const handleAnalyzeImage = async () => {
+    if (!selectedFile) return;
+
+    setIsAnalyzing(true);
+    setValidationError(null);
+
+    try {
+      // 1. Initialize session on backend
+      const cleanName = selectedFile.name.replace(/\.[^/.]+$/, "");
+      const createRes = await fetch("/api/analysis", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          sourceType: "UPLOAD",
+          mode: "LIVE",
+          deviceName: cleanName || "Electronic Circuit Assembly",
+          deviceType: "Electronic Circuit Assembly (PCB)",
+        }),
       });
-      setUploadDraft(preview, file.name, file.size);
-      setTimeout(() => {
-        stagedRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
-      }, 100);
-    };
-    reader.readAsDataURL(file);
+
+      if (!createRes.ok) {
+        const errJson = await createRes.json().catch(() => ({}));
+        throw new Error(errJson?.error?.message || "Failed to initialize analysis session.");
+      }
+
+      const createData = await createRes.json();
+      const analysisId = createData.data?.analysisId || createData.analysisId;
+
+      if (!analysisId) {
+        throw new Error("Backend did not return a valid analysis ID.");
+      }
+
+      // 2. Upload file to /api/analysis/[analysisId]/upload
+      const formData = new FormData();
+      formData.append("file", selectedFile);
+
+      const uploadRes = await fetch(`/api/analysis/${encodeURIComponent(analysisId)}/upload`, {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!uploadRes.ok) {
+        const errJson = await uploadRes.json().catch(() => ({}));
+        throw new Error(errJson?.error?.message || "Failed to upload image file to analysis server.");
+      }
+
+      // 3. Start real analysis pipeline
+      const startRes = await fetch(`/api/analysis/${encodeURIComponent(analysisId)}/start`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
+
+      if (!startRes.ok) {
+        const errJson = await startRes.json().catch(() => ({}));
+        throw new Error(errJson?.error?.message || "Failed to start analysis pipeline.");
+      }
+
+      // 4. Save to recent sessions for easy retrieval
+      if (typeof window !== "undefined") {
+        try {
+          const stored = localStorage.getItem("ecointel_recent_sessions_v2");
+          const recentList = stored ? JSON.parse(stored) : [];
+          const entry = {
+            id: analysisId,
+            deviceName: cleanName || "Electronic Circuit Assembly",
+            deviceType: "Electronic Circuit Assembly (PCB)",
+            sourceType: "upload",
+            status: "PROCESSING",
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          };
+          const updated = [entry, ...recentList.filter((item: any) => item.id !== analysisId)].slice(0, 10);
+          localStorage.setItem("ecointel_recent_sessions_v2", JSON.stringify(updated));
+        } catch (e) {
+          console.warn("Could not cache recent session:", e);
+        }
+      }
+
+      // 5. Navigate directly to real processing screen
+      router.push(`/console/processing?analysisId=${encodeURIComponent(analysisId)}`);
+    } catch (err: any) {
+      console.error("[Launch Console Error]:", err);
+      setValidationError(err.message || "Failed to launch analysis. Please check image and retry.");
+      setIsAnalyzing(false);
+    }
   };
-
-  const handleStartAnalysis = async () => {
-    setActiveStep(2);
-    const newSessionId = await startAnalysisFromDraft();
-    router.push(`/console/processing?analysisId=${encodeURIComponent(newSessionId)}`);
-  };
-
-  const handleSelectSample = (sampleId: string) => {
-    selectSampleDraft(sampleId);
-    setTimeout(() => {
-      stagedRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
-    }, 100);
-  };
-
-  const whatWeAnalyze = [
-    {
-      num: "01",
-      title: "Component Detection",
-      desc: "Identify ICs, resistors, capacitors, MOSFETs, connectors, sensors and other SMD devices.",
-      icon: Cpu,
-      methodology:
-        "High-resolution YOLOv11 spectro-spatial neural inference calibrated for sub-50-micron surface mount packages (QFN, BGA, SOIC, 0402).",
-      classification: "Detected · Optical Computer Vision",
-    },
-    {
-      num: "02",
-      title: "PCB Reconstruction",
-      desc: "Synthesize trace continuity, circuit topologies, and KiCad/Gerber netlists.",
-      icon: Layers,
-      methodology:
-        "Multi-layer electrical routing synthesis based on topological pathfinding algorithms and standard IPC netlist formats.",
-      classification: "Estimated · AI Topological Netlist",
-    },
-    {
-      num: "03",
-      title: "Component Health",
-      desc: "Estimate physical wear, thermal stress, solder degradation and operational status.",
-      icon: Activity,
-      methodology:
-        "Computer vision surface analysis identifies tin-whisker growth, oxidation discoloration, and thermal potting fatigue.",
-      classification: "Predicted · Solder Joint & Thermal Aging Model",
-    },
-    {
-      num: "04",
-      title: "Remaining Useful Life",
-      desc: "Physics-informed mathematical projections for operational hours and remaining years.",
-      icon: Radio,
-      methodology:
-        "Arrhenius reaction rate acceleration combined with Coffin-Manson thermomechanical stress modeling.",
-      classification: "Predicted · Physics-Informed Degeneration Curve",
-    },
-    {
-      num: "05",
-      title: "Material Recovery",
-      desc: "Estimate recoverable Gold, Silver, Copper, and Palladium with live market valuation.",
-      icon: Coins,
-      methodology:
-        "EN 50625 compliant metallurgic density formulas calculate electrolytic gold plating thickness and copper layer weights.",
-      classification: "Estimated · Elemental Spectrometry Modeling",
-    },
-    {
-      num: "06",
-      title: "Repair Intelligence",
-      desc: "Identify pinpoint failure modes and recommend component reflow, swap, or recycling.",
-      icon: Wrench,
-      methodology:
-        "Cross-references detected solder bridge defects and thermomechanical stresses against IPC-A-610 Class 3 rework criteria.",
-      classification: "Estimated · Diagnostic Decision Engine",
-    },
-    {
-      num: "07",
-      title: "Digital Passport",
-      desc: "Create a traceable hardware provenance identity with Polygon network readiness.",
-      icon: ShieldCheck,
-      methodology:
-        "ERC-721 compatible hardware pedigree records assembly serial numbers, repair telemetry, and chain-of-custody verification.",
-      classification: "Verified · Cryptographic Provenance Schema",
-    },
-    {
-      num: "08",
-      title: "Environmental Impact",
-      desc: "Quantify avoided Scope 3 carbon emissions, GWh energy conserved, and water saved.",
-      icon: Leaf,
-      methodology:
-        "Life Cycle Assessment (LCA) according to ISO 14040/44 standards calculating virgin mining avoidance offsets.",
-      classification: "Estimated · ESG Scope 3 GHG Accounting",
-    },
-  ];
-
-  const supportedHardware = [
-    {
-      name: "Multi-Layer PCB",
-      count: "2 to 16 Layers",
-      icon: CircuitBoard,
-      detail: "FR4 & Polyimide Substrates",
-    },
-    {
-      name: "Laptop Mainboard",
-      count: "Dense SMD/BGA",
-      icon: HardDrive,
-      detail: "High-density multi-chip interconnects",
-    },
-    {
-      name: "IoT Controller",
-      count: "Wi-Fi / BLE Nodes",
-      icon: Radio,
-      detail: "Microcontroller + RF front-ends",
-    },
-    {
-      name: "Industrial PLC",
-      count: "Conformal Coated",
-      icon: Server,
-      detail: "Ruggedized 24V automation logic",
-    },
-    {
-      name: "Power Supply",
-      count: "SMPS / High-Voltage",
-      icon: Zap,
-      detail: "PFC chokes & MOSFET topologies",
-    },
-    {
-      name: "Smartphone Logic",
-      count: "SLP Substrate HDI",
-      icon: Smartphone,
-      detail: "Stacked Substrate-Like PCB logic",
-    },
-  ];
 
   return (
-    <div className="flex-1 py-10 px-4 sm:px-8 max-w-7xl mx-auto w-full space-y-14">
-      {/* ─── HERO HEADER (FRESH NEW ANALYSIS FOCUS) ───────────── */}
+    <div className="flex-1 py-10 px-4 sm:px-8 max-w-7xl mx-auto w-full space-y-12">
+      {/* ─── INTRODUCTION ────────────────────────────────────────── */}
       <div className="text-center max-w-3xl mx-auto space-y-4">
         <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-[#EFF6FF] border border-[#BFDBFE] text-xs font-mono font-bold text-[#2563EB]">
-          <Sparkles className="w-3.5 h-3.5" />
-          <span>Industrial Circular Electronics Intelligence</span>
+          <Microscope className="w-3.5 h-3.5" />
+          <span>Industrial Electronics Intelligence</span>
         </div>
 
         <h1 className="font-heading text-3xl sm:text-4xl md:text-5xl font-extrabold text-[#0F172A] tracking-tight leading-tight">
-          Analyze Electronic Hardware
+          Electronic Intelligence Workspace
         </h1>
 
         <p className="text-base text-[#475569] leading-relaxed max-w-2xl mx-auto">
-          Upload or scan a PCB, motherboard, controller, IoT device, or electronic assembly to begin EcoIntel&apos;s circular intelligence analysis.
+          Upload a PCB or electronic component image to perform AI-powered component identification, visual condition assessment, PCB analysis, and material intelligence.
         </p>
+
+        {/* Image Quality Instructions Callout */}
+        <div className="bg-[#F8FAFC] border border-[#E2E8F0] rounded-2xl p-4 text-left max-w-2xl mx-auto space-y-2 text-xs text-[#475569]">
+          <div className="flex items-center gap-2 font-bold text-[#0F172A]">
+            <Info className="w-4 h-4 text-[#2563EB]" />
+            <span>Image Capture & Quality Requirements</span>
+          </div>
+          <ul className="grid grid-cols-1 sm:grid-cols-2 gap-2 pl-6 list-disc text-[11px] leading-relaxed">
+            <li>Supported formats: JPG, JPEG, PNG, WEBP (Max 15MB)</li>
+            <li>Perpendicular top-down angle for accurate bounding boxes</li>
+            <li>Diffuse, even lighting without high-reflectance glare</li>
+            <li>Minimum recommended resolution: 800×800 px for SMD pin identification</li>
+          </ul>
+        </div>
       </div>
 
-      {/* ─── STAGED PREVIEW BANNER (WHEN USER PICKS SAMPLE/UPLOAD/CAMERA) ─── */}
-      {selectedDraft && (
-        <div
-          ref={stagedRef}
-          className="p-6 sm:p-8 rounded-3xl bg-white border-2 border-[#2563EB] shadow-xl shadow-blue-500/10 space-y-6 animate-in fade-in slide-in-from-top-4 duration-300"
-        >
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-[#E2E8F0] pb-5">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-2xl bg-[#EFF6FF] text-[#2563EB] flex items-center justify-center font-bold">
-                <CheckCircle2 className="w-5 h-5 text-[#16A34A]" />
-              </div>
-              <div>
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-mono font-bold text-[#2563EB] uppercase tracking-wider">
-                    {selectedDraft.sourceType === "sample"
-                      ? "SAMPLE SELECTED"
-                      : selectedDraft.sourceType === "camera"
-                      ? "CAMERA SCAN CAPTURED"
-                      : "PCB IMAGE UPLOADED"}
-                  </span>
-                  <span className="text-slate-300">·</span>
-                  <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200 font-bold uppercase">
-                    Status: {selectedDraft.status}
-                  </span>
-                </div>
-                <h3 className="font-heading text-xl font-bold text-[#0F172A]">
-                  Device: {selectedDraft.deviceName}
-                </h3>
-                <p className="text-xs text-[#64748B]">
-                  Dataset:{" "}
-                  <strong className="text-[#0F172A]">{selectedDraft.datasetName}</strong>
-                </p>
-              </div>
+      {/* ─── IMAGE UPLOAD AREA ───────────────────────────────────── */}
+      <div className="max-w-3xl mx-auto">
+        <div className="p-8 rounded-3xl bg-white border border-[#E2E8F0] shadow-sm hover:shadow-md transition-all space-y-6">
+          <div className="flex items-center justify-between border-b border-[#F1F5F9] pb-4">
+            <div>
+              <h2 className="font-heading text-xl font-bold text-[#0F172A]">
+                Upload Hardware Image
+              </h2>
+              <p className="text-xs text-[#64748B]">
+                Public analysis — No sign-up or account required
+              </p>
             </div>
+            <span className="text-[11px] font-mono text-[#2563EB] bg-[#EFF6FF] px-3 py-1 rounded-full font-semibold border border-[#BFDBFE]">
+              Max 15MB · JPG / PNG / WEBP
+            </span>
+          </div>
 
-            <div className="flex items-center gap-3">
+          {/* Validation Alert */}
+          {validationError && (
+            <div className="p-4 rounded-xl bg-red-50 border border-red-200 text-xs text-red-800 flex items-start gap-2.5">
+              <AlertCircle className="w-4 h-4 text-red-600 flex-shrink-0 mt-0.5" />
+              <div className="flex-1 leading-relaxed">{validationError}</div>
               <button
-                onClick={() => {
-                  clearDraft();
-                  setSelectedFile(null);
-                }}
-                className="px-4 py-2 rounded-xl border border-[#CBD5E1] text-xs font-semibold text-[#475569] hover:bg-[#F1F5F9] transition-colors"
+                onClick={() => setValidationError(null)}
+                className="text-red-400 hover:text-red-700"
               >
-                Change Selection
-              </button>
-              <button
-                onClick={handleStartAnalysis}
-                className="px-6 py-2.5 rounded-xl bg-[#2563EB] hover:bg-[#1D4ED8] text-white text-xs font-bold shadow-lg shadow-blue-500/25 flex items-center gap-2 transition-all cursor-pointer"
-              >
-                <Play className="w-3.5 h-3.5 fill-current" />
-                <span>
-                  {selectedDraft.sourceType === "sample"
-                    ? "Start Demo Analysis"
-                    : "Start Analysis"}
-                </span>
-                <ArrowRight className="w-4 h-4" />
+                <X className="w-4 h-4" />
               </button>
             </div>
-          </div>
+          )}
 
-          {/* Validation Metrics Grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-            <div className="lg:col-span-1 rounded-xl overflow-hidden bg-slate-900 border border-[#E2E8F0] h-28 relative">
-              <img
-                src={selectedDraft.imageUrl}
-                alt="Selected preview"
-                className="w-full h-full object-cover"
-              />
-              <span className="absolute bottom-1.5 left-1.5 px-2 py-0.5 rounded bg-black/80 text-white font-mono text-[9px] font-bold">
-                Preview
-              </span>
-            </div>
-
-            <div className="p-3.5 rounded-xl bg-[#F8FAFC] border border-[#E2E8F0] space-y-1">
-              <p className="text-[10px] font-mono text-[#64748B] uppercase">Image Quality</p>
-              <p className="font-bold text-sm text-[#16A34A] flex items-center gap-1.5 capitalize">
-                <Check className="w-4 h-4" />
-                {selectedDraft.imageQuality.quality}
-              </p>
-              <p className="text-[10px] text-[#64748B]">Optical clarity check passed</p>
-            </div>
-
-            <div className="p-3.5 rounded-xl bg-[#F8FAFC] border border-[#E2E8F0] space-y-1">
-              <p className="text-[10px] font-mono text-[#64748B] uppercase">Resolution</p>
-              <p className="font-bold text-sm text-[#0F172A] font-mono">
-                {selectedDraft.imageQuality.resolution}
-              </p>
-              <p className="text-[10px] text-[#64748B]">Adequate sub-micron pixel pitch</p>
-            </div>
-
-            <div className="p-3.5 rounded-xl bg-[#F8FAFC] border border-[#E2E8F0] space-y-1">
-              <p className="text-[10px] font-mono text-[#64748B] uppercase">Lighting Uniformity</p>
-              <p className="font-bold text-sm text-[#2563EB] font-mono">
-                {selectedDraft.imageQuality.lightingScore}%
-              </p>
-              <p className="text-[10px] text-[#64748B]">Even illumination profile</p>
-            </div>
-
-            <div className="p-3.5 rounded-xl bg-[#F8FAFC] border border-[#E2E8F0] space-y-1">
-              <p className="text-[10px] font-mono text-[#64748B] uppercase">PCB Visibility</p>
-              <p className="font-bold text-sm text-[#16A34A] font-mono">
-                {selectedDraft.imageQuality.visibilityPercent}%
-              </p>
-              <p className="text-[10px] text-[#64748B]">
-                ~{selectedDraft.imageQuality.estimatedComponentsVisible} SMD packages detected
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ─── PRIMARY INGEST ACTION PANELS (CAMERA & UPLOAD) ────── */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-stretch">
-        {/* OPTION 1: SCAN BY CAMERA */}
-        <div className="p-8 rounded-3xl bg-white border border-[#E2E8F0] shadow-sm hover:shadow-md transition-all flex flex-col justify-between relative overflow-hidden group">
-          <div className="absolute top-0 right-0 w-32 h-32 bg-[#EFF6FF] rounded-full blur-2xl -mr-10 -mt-10 pointer-events-none" />
-
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-mono font-bold text-[#2563EB] tracking-wider uppercase">
-                OPTION 01 · REAL CAMERA SCAN
-              </span>
-              <span className="text-[11px] font-mono text-[#16A34A] bg-[#DCFCE7] px-2.5 py-0.5 rounded-full font-bold">
-                getUserMedia() Sensor
-              </span>
-            </div>
-
-            <h2 className="font-heading text-2xl font-bold text-[#0F172A]">
-              Scan by Camera
-            </h2>
-
-            <p className="text-xs text-[#475569] leading-relaxed">
-              Open your browser camera scanner to capture high-contrast optical PCB imagery with live alignment reticle and illumination validation.
-            </p>
-
-            {/* 3D Realistic Scanner Visual */}
-            <div className="h-44 w-full bg-[#F8FAFC] rounded-2xl border border-[#E2E8F0] overflow-hidden flex items-center justify-center relative">
-              <InspectionScanner3D />
-              <div className="absolute bottom-2 left-3 text-[10px] font-mono text-[#64748B]">
-                Sub-Millimeter Optical Framing Reticle
-              </div>
-            </div>
-          </div>
-
-          <div className="pt-6">
-            <button
-              onClick={() => setIsCameraModalOpen(true)}
-              className="w-full py-3.5 px-6 rounded-2xl bg-[#0F172A] hover:bg-[#1E293B] text-white text-xs font-bold transition-all shadow-md flex items-center justify-center gap-2 group-hover:gap-3 cursor-pointer"
-            >
-              <Camera className="w-4 h-4 text-[#38BDF8]" />
-              <span>Open Camera Scanner</span>
-              <ArrowRight className="w-3.5 h-3.5" />
-            </button>
-          </div>
-        </div>
-
-        {/* OPTION 2: UPLOAD IMAGE */}
-        <div className="p-8 rounded-3xl bg-white border border-[#E2E8F0] shadow-sm hover:shadow-md transition-all flex flex-col justify-between relative overflow-hidden">
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-mono font-bold text-[#2563EB] tracking-wider uppercase">
-                OPTION 02 · HIGH-RES FILE
-              </span>
-              <span className="text-[11px] font-mono text-[#64748B] bg-[#F1F5F9] px-2.5 py-0.5 rounded-full font-semibold">
-                JPG · PNG · WEBP · PDF
-              </span>
-            </div>
-
-            <h2 className="font-heading text-2xl font-bold text-[#0F172A]">
-              Upload PCB Image
-            </h2>
-
-            <p className="text-xs text-[#475569] leading-relaxed">
-              Drag and drop high-resolution photographs, flatbed scanner exports, or automated optical inspection (AOI) imagery.
-            </p>
-
-            {/* Drag & Drop Area */}
+          {/* Upload Drop Zone / Staged Preview */}
+          {!previewUrl ? (
             <div
               onDragOver={(e) => {
                 e.preventDefault();
                 setDragOver(true);
               }}
               onDragLeave={() => setDragOver(false)}
-              onDrop={handleFileDrop}
+              onDrop={handleDrop}
               onClick={() => fileInputRef.current?.click()}
-              className={`h-44 w-full rounded-2xl border-2 border-dashed transition-all flex flex-col items-center justify-center p-4 text-center cursor-pointer ${
+              className={`h-64 w-full rounded-2xl border-2 border-dashed transition-all flex flex-col items-center justify-center p-6 text-center cursor-pointer ${
                 dragOver
                   ? "border-[#2563EB] bg-[#EFF6FF]"
-                  : selectedFile
-                  ? "border-[#16A34A] bg-[#F0FDF4]"
-                  : "border-[#CBD5E1] bg-[#F8FAFC] hover:border-[#2563EB]/60 hover:bg-[#F1F5F9]"
+                  : "border-[#CBD5E1] bg-[#F8FAFC] hover:border-[#2563EB]/70 hover:bg-[#F1F5F9]"
               }`}
             >
               <input
                 ref={fileInputRef}
                 type="file"
-                accept="image/jpeg,image/png,image/webp,application/pdf"
+                accept="image/jpeg,image/png,image/webp"
                 className="hidden"
                 onChange={handleFileInputChange}
               />
 
-              {selectedFile ? (
-                <div className="flex items-center gap-4 text-left w-full max-w-sm">
+              <div className="w-14 h-14 rounded-2xl bg-[#EFF6FF] text-[#2563EB] mx-auto flex items-center justify-center mb-3">
+                <UploadCloud className="w-7 h-7" />
+              </div>
+
+              <div className="space-y-1">
+                <p className="text-sm font-bold text-[#0F172A]">
+                  Drag and drop your PCB or component image here
+                </p>
+                <p className="text-xs text-[#64748B]">
+                  or click to browse local files
+                </p>
+              </div>
+
+              <div className="pt-4 flex items-center gap-2 text-[11px] font-mono text-[#94A3B8]">
+                <span>Supported: JPG, JPEG, PNG, WEBP</span>
+                <span>·</span>
+                <span>Max size: 15 MB</span>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <div className="p-4 rounded-2xl bg-[#F8FAFC] border border-[#E2E8F0] flex flex-col sm:flex-row items-center gap-5">
+                <div className="w-full sm:w-44 h-36 rounded-xl overflow-hidden bg-slate-900 border border-[#CBD5E1] flex-shrink-0 relative">
                   <img
-                    src={selectedFile.preview}
+                    src={previewUrl}
                     alt="Uploaded preview"
-                    className="w-16 h-16 object-cover rounded-xl border border-[#CBD5E1] flex-shrink-0"
+                    className="w-full h-full object-cover"
                   />
-                  <div className="flex-1 min-w-0">
-                    <p className="font-bold text-xs text-[#0F172A] truncate">
-                      {selectedFile.name}
+                  <span className="absolute bottom-1.5 left-1.5 px-2 py-0.5 rounded bg-black/75 text-white font-mono text-[9px] font-bold">
+                    PREVIEW
+                  </span>
+                </div>
+
+                <div className="flex-1 min-w-0 space-y-2 text-left w-full">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="font-bold text-sm text-[#0F172A] truncate">
+                      {selectedFile?.name}
                     </p>
-                    <p className="text-[11px] font-mono text-[#64748B]">
-                      {(selectedFile.size / (1024 * 1024)).toFixed(2)} MB · Ready
-                    </p>
-                    <span className="text-[10px] text-[#16A34A] font-semibold flex items-center gap-1 mt-0.5">
-                      <CheckCircle2 className="w-3 h-3" /> Validated Format
+                    <span className="px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-mono font-bold flex items-center gap-1">
+                      <Check className="w-3 h-3" /> Validated
                     </span>
                   </div>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setSelectedFile(null);
-                      clearDraft();
-                    }}
-                    className="p-1 rounded-lg text-[#94A3B8] hover:text-[#DC2626]"
-                    title="Remove file"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  <div className="w-10 h-10 rounded-full bg-[#EFF6FF] text-[#2563EB] mx-auto flex items-center justify-center">
-                    <UploadCloud className="w-5 h-5" />
+
+                  <div className="grid grid-cols-2 gap-2 text-xs font-mono text-[#475569]">
+                    <div className="bg-white p-2 rounded-lg border border-[#E2E8F0]">
+                      <span className="text-[10px] text-[#94A3B8] block">FILE SIZE</span>
+                      <span className="font-semibold text-[#0F172A]">{imageMeta?.sizeFormatted || "—"}</span>
+                    </div>
+                    <div className="bg-white p-2 rounded-lg border border-[#E2E8F0]">
+                      <span className="text-[10px] text-[#94A3B8] block">RESOLUTION</span>
+                      <span className="font-semibold text-[#0F172A]">
+                        {imageMeta ? `${imageMeta.width} × ${imageMeta.height} px` : "Measuring..."}
+                      </span>
+                    </div>
                   </div>
-                  <div>
-                    <span className="text-xs font-bold text-[#0F172A]">
-                      Drop your PCB image here
-                    </span>
-                    <span className="text-xs text-[#64748B]"> or </span>
-                    <span className="text-xs font-semibold text-[#2563EB] underline">
-                      Browse Files
-                    </span>
-                  </div>
-                  <p className="text-[10px] font-mono text-[#94A3B8]">
-                    Max file size 35MB · Up to 8000x8000 px
-                  </p>
-                </div>
-              )}
-            </div>
-          </div>
 
-          <div className="pt-6">
-            <button
-              onClick={handleStartAnalysis}
-              disabled={!selectedFile && !selectedDraft}
-              className={`w-full py-3.5 px-6 rounded-2xl text-xs font-bold transition-all shadow-md flex items-center justify-center gap-2 ${
-                selectedFile || selectedDraft
-                  ? "bg-[#2563EB] hover:bg-[#1D4ED8] text-white cursor-pointer shadow-blue-500/20"
-                  : "bg-[#E2E8F0] text-[#94A3B8] cursor-not-allowed"
-              }`}
-            >
-              <span>Start Analysis</span>
-              <ArrowRight className="w-3.5 h-3.5" />
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* ─── SAMPLE DATASET SECTION (NO AUTO JUMP - SHOWS PREVIEW & START BUTTON) ─── */}
-      <div className="space-y-6 pt-2">
-        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3">
-          <div>
-            <div className="inline-flex items-center gap-1.5 text-xs font-mono font-bold text-[#2563EB] uppercase tracking-wider mb-1">
-              <Sparkles className="w-3.5 h-3.5" />
-              <span>Instant Demonstration Reference Sets</span>
-            </div>
-            <h2 className="font-heading text-2xl font-bold text-[#0F172A]">
-              Try EcoIntel with a Sample
-            </h2>
-            <p className="text-xs text-[#64748B] mt-1">
-              Select any pre-calibrated industrial PCB to stage and launch an end-to-end circular intelligence run.
-            </p>
-          </div>
-
-          <span className="text-xs font-mono text-[#64748B]">
-            6 Calibrated Datasets
-          </span>
-        </div>
-
-        {/* 6 Realistic Electronic Sample Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {Object.values(SAMPLE_DATASETS).map((sample) => (
-            <div
-              key={sample.id}
-              className={`bg-white rounded-2xl border shadow-sm hover:shadow-lg transition-all p-4 flex flex-col justify-between group ${
-                selectedDraft?.sampleId === sample.id
-                  ? "border-[#2563EB] ring-2 ring-blue-100"
-                  : "border-[#E2E8F0] hover:border-[#2563EB]/40"
-              }`}
-            >
-              <div className="space-y-3">
-                {/* Image Container */}
-                <div className="h-44 w-full rounded-xl overflow-hidden bg-slate-900 border border-[#E2E8F0] relative">
-                  <img
-                    src={sample.image}
-                    alt={sample.name}
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                  />
-                  <div className="absolute top-2.5 left-2.5 px-2.5 py-0.5 rounded-full bg-[#0F172A]/80 backdrop-blur-md text-white text-[10px] font-mono font-bold">
-                    {sample.category}
-                  </div>
-                  <div className="absolute bottom-2.5 right-2.5 px-2.5 py-0.5 rounded-full bg-white/95 backdrop-blur-md text-[#0F172A] text-[10px] font-mono font-bold border border-[#E2E8F0]">
-                    ~{sample.componentCount} Components
-                  </div>
-                </div>
-
-                {/* Details */}
-                <div>
-                  <h3 className="font-heading text-base font-bold text-[#0F172A] group-hover:text-[#2563EB] transition-colors">
-                    {sample.name}
-                  </h3>
-                  <p className="text-[11px] font-mono text-[#64748B]">
-                    {sample.deviceType} · {sample.hardwareSpecs.layers} Layers
-                  </p>
-                  <p className="text-xs text-[#475569] mt-2 line-clamp-2 leading-relaxed">
-                    {sample.description}
+                  <p className="text-[11px] text-[#64748B]">
+                    Image validated. Ready for deep optical component segmentation and condition assessment.
                   </p>
                 </div>
               </div>
 
-              {/* Action Button: Stages sample rather than jumping immediately to results */}
-              <div className="pt-4 mt-2 border-t border-[#F1F5F9] flex items-center justify-between">
-                <span className="text-[11px] font-mono font-bold text-[#16A34A]">
-                  Health {sample.rul.overallHealthScore}%
-                </span>
+              {/* Action Buttons */}
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2">
+                <div className="flex items-center gap-2 w-full sm:w-auto">
+                  <button
+                    onClick={handleClearSelection}
+                    disabled={isAnalyzing}
+                    className="px-4 py-2.5 rounded-xl border border-[#CBD5E1] text-xs font-semibold text-[#475569] hover:bg-[#F1F5F9] transition-colors cursor-pointer w-full sm:w-auto"
+                  >
+                    Remove Image
+                  </button>
+                  <button
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={isAnalyzing}
+                    className="px-4 py-2.5 rounded-xl border border-[#CBD5E1] text-xs font-semibold text-[#2563EB] hover:bg-[#EFF6FF] transition-colors cursor-pointer w-full sm:w-auto"
+                  >
+                    Replace Image
+                  </button>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp"
+                    className="hidden"
+                    onChange={handleFileInputChange}
+                  />
+                </div>
+
                 <button
-                  onClick={() => handleSelectSample(sample.id)}
-                  className={`px-4 py-2 rounded-xl text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer ${
-                    selectedDraft?.sampleId === sample.id
-                      ? "bg-[#2563EB] text-white shadow-sm"
-                      : "bg-[#EFF6FF] hover:bg-[#2563EB] text-[#2563EB] hover:text-white"
-                  }`}
+                  onClick={handleAnalyzeImage}
+                  disabled={isAnalyzing}
+                  className="w-full sm:w-auto px-8 py-3 rounded-xl bg-[#2563EB] hover:bg-[#1D4ED8] text-white text-xs font-bold shadow-lg shadow-blue-500/25 flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-50"
                 >
-                  <span>
-                    {selectedDraft?.sampleId === sample.id
-                      ? "Sample Staged"
-                      : "Use Sample →"}
-                  </span>
+                  {isAnalyzing ? (
+                    <>
+                      <RefreshCw className="w-4 h-4 animate-spin" />
+                      <span>Initializing Pipeline...</span>
+                    </>
+                  ) : (
+                    <>
+                      <span>Analyze Image</span>
+                      <ArrowRight className="w-4 h-4" />
+                    </>
+                  )}
                 </button>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* ─── ANALYSIS CAPABILITIES (8 DETAILED PILLARS) ──────────── */}
+      <div className="space-y-6 pt-6">
+        <div className="text-center max-w-2xl mx-auto space-y-1">
+          <span className="text-xs font-mono font-bold text-[#2563EB] tracking-wider uppercase">
+            OPERATIONAL SPECIFICATION
+          </span>
+          <h2 className="font-heading text-2xl sm:text-3xl font-bold text-[#0F172A]">
+            Analysis Capabilities
+          </h2>
+          <p className="text-xs text-[#64748B]">
+            Only advertised capabilities actually operational in the platform. Capabilities requiring additional telemetry are explicitly identified.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+          {CAPABILITIES.map((cap) => (
+            <div
+              key={cap.num}
+              onClick={() => setActiveCapabilityModal(cap)}
+              className="p-5 rounded-2xl bg-white border border-[#E2E8F0] shadow-sm hover:border-[#2563EB] hover:shadow-md transition-all flex flex-col justify-between cursor-pointer group"
+            >
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="font-mono text-xs font-bold text-[#94A3B8]">
+                    {cap.num}
+                  </span>
+                  <span className={`text-[10px] font-mono px-2 py-0.5 rounded font-semibold border ${cap.badgeColor}`}>
+                    {cap.badge}
+                  </span>
+                </div>
+
+                <h3 className="font-heading text-base font-bold text-[#0F172A] group-hover:text-[#2563EB] transition-colors">
+                  {cap.title}
+                </h3>
+
+                <p className="text-xs text-[#475569] leading-relaxed line-clamp-3">
+                  {cap.desc}
+                </p>
+              </div>
+
+              <div className="pt-4 border-t border-[#F1F5F9] mt-3 flex items-center justify-between text-[11px] font-mono">
+                <span className="text-[#2563EB] group-hover:underline">
+                  Inspect Spec →
+                </span>
+                {cap.isVisualOnly && (
+                  <span className="text-[10px] text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded">
+                    Visual Score
+                  </span>
+                )}
               </div>
             </div>
           ))}
         </div>
       </div>
 
-      {/* ─── WHAT ECOINTEL WILL ANALYZE (ALL 8 CARDS ARE INTERACTIVE) ─── */}
-      <div className="space-y-6 pt-4">
-        <div>
-          <span className="text-xs font-mono font-bold text-[#2563EB] tracking-wider uppercase">
-            END-TO-END TELEMETRY PIPELINE
-          </span>
-          <h2 className="font-heading text-2xl font-bold text-[#0F172A] mt-1">
-            What EcoIntel Will Analyze
-          </h2>
-          <p className="text-xs text-[#64748B]">
-            Click any telemetry pillar below to inspect its mathematical methodology and sensor pipeline.
-          </p>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {whatWeAnalyze.map((item) => {
-            const IconComp = item.icon;
-            return (
-              <div
-                key={item.num}
-                onClick={() => setActiveInfoModal(item)}
-                className="p-5 rounded-2xl bg-white border border-[#E2E8F0] shadow-sm hover:border-[#2563EB] hover:shadow-md transition-all space-y-2.5 cursor-pointer group"
-              >
-                <div className="flex items-center justify-between">
-                  <div className="w-8 h-8 rounded-lg bg-[#EFF6FF] text-[#2563EB] flex items-center justify-center font-bold group-hover:bg-[#2563EB] group-hover:text-white transition-colors">
-                    <IconComp className="w-4 h-4" />
-                  </div>
-                  <span className="font-mono text-xs font-bold text-[#94A3B8]">
-                    {item.num}
-                  </span>
-                </div>
-                <h3 className="font-heading text-sm font-bold text-[#0F172A] group-hover:text-[#2563EB] transition-colors">
-                  {item.title}
-                </h3>
-                <p className="text-xs text-[#475569] leading-relaxed">
-                  {item.desc}
-                </p>
-                <span className="inline-block text-[10px] font-mono text-[#2563EB] group-hover:underline pt-1">
-                  Inspect Methodology →
-                </span>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* ─── SUPPORTED HARDWARE GALLERY ─────────────────────────── */}
-      <div className="p-8 rounded-3xl bg-white border border-[#E2E8F0] shadow-sm space-y-6">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-          <div>
-            <h3 className="font-heading text-xl font-bold text-[#0F172A]">
-              Built for Electronic Hardware
-            </h3>
-            <p className="text-xs text-[#64748B]">
-              Trained on industrial IPC-A-610 standards across server, industrial, and consumer assemblies.
-            </p>
-          </div>
-          <span className="text-xs font-mono text-[#2563EB] font-bold">
-            Zero low-poly approximations
-          </span>
-        </div>
-
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-          {supportedHardware.map((hw) => {
-            const IconComp = hw.icon;
-            return (
-              <div
-                key={hw.name}
-                className="p-3.5 rounded-xl bg-[#F8FAFC] border border-[#E2E8F0] text-center space-y-1.5 hover:border-[#2563EB]/40 transition-colors"
-              >
-                <div className="w-8 h-8 rounded-lg bg-white border border-[#E2E8F0] text-[#0F172A] mx-auto flex items-center justify-center">
-                  <IconComp className="w-4 h-4 text-[#2563EB]" />
-                </div>
-                <p className="font-bold text-xs text-[#0F172A] truncate">
-                  {hw.name}
-                </p>
-                <p className="text-[10px] font-mono text-[#64748B]">
-                  {hw.count}
-                </p>
-                <p className="text-[9px] text-[#94A3B8] leading-tight">
-                  {hw.detail}
-                </p>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* ─── INTERACTIVE METHODOLOGY MODAL ───────────────────────── */}
-      {activeInfoModal && (
+      {/* ─── CAPABILITY DETAIL MODAL ──────────────────────────────── */}
+      {activeCapabilityModal && (
         <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl border border-[#E2E8F0] max-w-lg w-full p-6 shadow-2xl relative space-y-4">
+          <div className="bg-white rounded-3xl border border-[#E2E8F0] max-w-xl w-full p-6 shadow-2xl relative space-y-4">
             <button
-              onClick={() => setActiveInfoModal(null)}
+              onClick={() => setActiveCapabilityModal(null)}
               className="absolute top-5 right-5 text-[#94A3B8] hover:text-[#0F172A]"
             >
               <X className="w-5 h-5" />
             </button>
 
             <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-xl bg-[#EFF6FF] text-[#2563EB] flex items-center justify-center font-bold text-xs font-mono">
-                {activeInfoModal.num}
+              <div className="w-10 h-10 rounded-xl bg-[#EFF6FF] text-[#2563EB] flex items-center justify-center font-bold font-mono">
+                {activeCapabilityModal.num}
               </div>
               <div>
                 <h3 className="font-heading text-lg font-bold text-[#0F172A]">
-                  {activeInfoModal.title}
+                  {activeCapabilityModal.title}
                 </h3>
-                <span className="text-[10px] font-mono text-[#2563EB] px-2 py-0.5 rounded bg-blue-50 border border-blue-200">
-                  {activeInfoModal.classification}
+                <span className={`text-[10px] font-mono px-2 py-0.5 rounded font-semibold border ${activeCapabilityModal.badgeColor}`}>
+                  {activeCapabilityModal.badge}
                 </span>
               </div>
             </div>
 
-            <div className="space-y-3 text-xs text-[#475569] leading-relaxed">
-              <p className="font-medium text-[#0F172A]">
-                {activeInfoModal.desc}
+            <p className="text-xs text-[#475569] leading-relaxed">
+              {activeCapabilityModal.desc}
+            </p>
+
+            <div className="space-y-2">
+              <span className="text-[11px] font-mono font-bold text-[#0F172A] uppercase tracking-wider block">
+                Implemented Scope & Capabilities:
+              </span>
+              <ul className="space-y-1.5 pl-4 list-disc text-xs text-[#475569]">
+                {activeCapabilityModal.details.map((item, idx) => (
+                  <li key={idx} className="leading-relaxed">
+                    {item}
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            <div className="p-3.5 rounded-xl bg-[#F8FAFC] border border-[#E2E8F0] space-y-1 text-xs">
+              <span className="font-bold text-[#0F172A] text-[10px] uppercase font-mono block">
+                Data Requirement & Boundaries:
+              </span>
+              <p className="text-[#475569]">
+                {activeCapabilityModal.dataRequirement}
               </p>
-              <div className="p-3.5 rounded-xl bg-[#F8FAFC] border border-[#E2E8F0] space-y-1">
-                <p className="font-bold text-[#0F172A] text-[11px] uppercase tracking-wider font-mono">
-                  Scientific Methodology & Physics Model:
-                </p>
-                <p className="text-xs text-[#475569]">
-                  {activeInfoModal.methodology}
-                </p>
-              </div>
             </div>
 
             <div className="pt-3 border-t border-[#E2E8F0] flex justify-end">
               <button
-                onClick={() => setActiveInfoModal(null)}
-                className="px-5 py-2 rounded-full bg-[#0F172A] text-white text-xs font-semibold hover:bg-[#1E293B] transition-colors"
+                onClick={() => setActiveCapabilityModal(null)}
+                className="px-5 py-2 rounded-xl bg-[#0F172A] text-white text-xs font-semibold hover:bg-[#1E293B] transition-colors"
               >
                 Close Technical Inspector
               </button>
@@ -748,12 +611,6 @@ export default function ConsoleCapturePage() {
           </div>
         </div>
       )}
-
-      {/* Camera Scan Modal */}
-      <CameraScanModal
-        isOpen={isCameraModalOpen}
-        onClose={() => setIsCameraModalOpen(false)}
-      />
     </div>
   );
 }

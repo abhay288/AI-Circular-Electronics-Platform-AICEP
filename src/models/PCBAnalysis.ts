@@ -77,7 +77,7 @@ export interface IPCBAnalysis {
   provider: "MOCK" | "VISION" | "GERBER" | "CAD" | "XRAY" | "OPENCV" | "GGNT";
   modelName: string;
   modelVersion: string;
-  status: "COMPLETED" | "PARTIAL" | "FAILED" | "RECONSTRUCTED";
+  status: "COMPLETED" | "PARTIAL" | "FAILED" | "RECONSTRUCTED" | "UNSUPPORTED_IMAGE";
 
   board: {
     widthPixels: number;

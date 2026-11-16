@@ -33,7 +33,7 @@ export async function GET(
         healthStatus: c.condition === "MINT" ? "HEALTHY" : c.condition === "FAILED" ? "CRITICAL" : c.condition || "GOOD",
         estimatedRULHours: c.estimatedRUL?.hours || 25000,
         estimatedRULYears: c.estimatedRUL?.years || 2.8,
-        riskLevel: c.healthScore < 50 ? "HIGH" : "LOW",
+        riskLevel: (c.healthScore ?? 80) < 50 ? "HIGH" : "LOW",
         confidence: c.confidence || 0.85,
         primaryContributingFactor: "Visual condition inspection",
       }));

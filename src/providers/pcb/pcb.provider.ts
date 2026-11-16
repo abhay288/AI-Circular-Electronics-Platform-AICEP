@@ -1,5 +1,6 @@
 import { SAMPLE_DATASETS } from "@/lib/data/sampleDatasets";
 import { IPCBAnalysis, IPCBTrace, IPCBPad, IPCBVia, IPCBDamage, ITopologyNode, ITopologyEdge } from "@/models/PCBAnalysis";
+import { runDirectAIInference } from "@/lib/services/directPythonService";
 
 export interface PCBInput {
   analysisId: string;
@@ -12,7 +13,7 @@ export interface PCBInput {
 export type PCBOutput = Partial<IPCBAnalysis> & {
   analysisId: string;
   provider: "MOCK" | "VISION" | "GERBER" | "CAD" | "XRAY" | "OPENCV" | "GGNT";
-  status: "COMPLETED" | "PARTIAL" | "FAILED" | "RECONSTRUCTED";
+  status: "COMPLETED" | "PARTIAL" | "FAILED" | "RECONSTRUCTED" | "UNSUPPORTED_IMAGE";
 };
 
 export interface PCBProvider {
@@ -442,7 +443,12 @@ export class VisionPCBProvider implements PCBProvider {
       throw new Error("VisionPCBProvider requires imageUrl or valid image buffer.");
     }
 
+    let pcb: any = null;
+
+    // 1. Fast probe of HTTP microservice with 150ms abort timeout
     try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 150);
       const response = await fetch(`${this.aiServiceUrl}/pcb-analysis`, {
         method: "POST",
         headers: {
@@ -454,56 +460,66 @@ export class VisionPCBProvider implements PCBProvider {
           imageUrl: input.imageUrl,
           detections: input.detections || [],
         }),
+        signal: controller.signal,
       });
+      clearTimeout(timeoutId);
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`AI Service PCB analysis failed HTTP ${response.status}: ${errorText}`);
+      if (response.ok) {
+        const resJson = await response.json();
+        if (resJson.success && resJson.data) {
+          pcb = resJson.data;
+        }
       }
-
-      const resJson = await response.json();
-      if (!resJson.success || !resJson.data) {
-        throw new Error(resJson.error?.message || "AI Service returned invalid PCB analysis format.");
-      }
-
-      const pcb = resJson.data;
-
-      return {
-        analysisId: input.analysisId,
-        provider: "VISION",
-        modelName: pcb.modelName || "EcoIntel OpenCV + Vision Topology Engine",
-        modelVersion: pcb.modelVersion || "v1.0.0",
-        status: "COMPLETED",
-
-        board: pcb.board,
-        layers: pcb.layers,
-        components: pcb.components || [],
-        traces: pcb.traces || [],
-        pads: pcb.pads || [],
-        vias: pcb.vias || [],
-        damagedRegions: pcb.damagedRegions || [],
-        topology: pcb.topology || { nodes: [], edges: [], nodesCount: 0, edgesCount: 0 },
-        reconstruction: pcb.reconstruction || {},
-        metrics: pcb.metrics || {},
-        warnings: pcb.warnings || [],
-
-        // Legacy compatibility
-        boardType: pcb.boardType || "Multi-layer FR-4 Substrate",
-        layerCount: pcb.layers?.estimatedCount || 2,
-        componentCount: pcb.components?.length || 0,
-        traceCount: pcb.traces?.length || 0,
-        traceContinuity: pcb.metrics?.visualIntegrityScore || 85,
-        boardIntegrity: pcb.metrics?.visualIntegrityScore || 85,
-        reconstructedRegions: pcb.reconstruction?.inferredTraces?.map((it: any) => ({
-          region: it.traceId,
-          repairedTraces: 1,
-          confidence: it.confidence,
-        })) || [],
-      };
-    } catch (err: any) {
-      console.error("[VisionPCBProvider] Analysis error:", err.message);
-      throw err;
+    } catch (_httpErr) {
+      // Microservice daemon not running or timed out, proceed immediately to direct OpenCV pipeline
     }
+
+    // 2. If HTTP microservice was not reached, run direct OpenCV PCB pipeline
+    if (!pcb) {
+      try {
+        const directResult = await runDirectAIInference(input.imageUrl, input.analysisId);
+        pcb = directResult.pcb;
+      } catch (directErr: any) {
+        throw new Error(
+          `AI_INFERENCE_UNAVAILABLE: Real OpenCV PCB analysis failed. Reason: ${directErr.message}`
+        );
+      }
+    }
+
+    const isUnsupported = pcb.status === "UNSUPPORTED_IMAGE";
+
+    return {
+      analysisId: input.analysisId,
+      provider: "VISION",
+      modelName: pcb.modelName || "EcoIntel OpenCV + Vision Topology Engine",
+      modelVersion: pcb.modelVersion || "v1.0.0",
+      status: isUnsupported ? "UNSUPPORTED_IMAGE" : ("COMPLETED" as any),
+
+      board: pcb.board || null,
+      layers: pcb.layers || null,
+      components: pcb.components || [],
+      traces: pcb.traces || [],
+      pads: pcb.pads || [],
+      vias: pcb.vias || [],
+      damagedRegions: pcb.damagedRegions || [],
+      topology: pcb.topology || { nodes: [], edges: [], nodesCount: 0, edgesCount: 0 },
+      reconstruction: pcb.reconstruction || null,
+      metrics: pcb.metrics || {},
+      warnings: pcb.warnings || (isUnsupported ? [pcb.message || "PCB analysis inapplicable to isolated component."] : []),
+
+      // Legacy compatibility
+      boardType: pcb.boardType || "Multi-layer FR-4 Substrate",
+      layerCount: pcb.layers?.estimatedCount || 2,
+      componentCount: pcb.components?.length || 0,
+      traceCount: pcb.traces?.length || 0,
+      traceContinuity: pcb.metrics?.visualIntegrityScore || 85,
+      boardIntegrity: pcb.metrics?.visualIntegrityScore || 85,
+      reconstructedRegions: pcb.reconstruction?.inferredTraces?.map((it: any) => ({
+        region: it.traceId,
+        repairedTraces: 1,
+        confidence: it.confidence,
+      })) || [],
+    };
   }
 }
 
@@ -530,23 +546,15 @@ export class PCBAnalysisService {
   private visionProvider = new VisionPCBProvider();
 
   async analyze(input: PCBInput): Promise<PCBOutput> {
-    const configuredProvider = (process.env.PCB_PROVIDER || "mock").toLowerCase();
+    const configuredProvider = (process.env.PCB_PROVIDER || "vision").toLowerCase();
 
-    // If it's a sample dataset and not explicitly forced to vision, use mock
-    if (input.sampleId && configuredProvider !== "vision") {
+    // If it's explicitly a sample dataset and configured to mock
+    if (input.sampleId && configuredProvider === "mock") {
       return this.mockProvider.analyze(input);
     }
 
-    if (configuredProvider === "vision") {
-      try {
-        return await this.visionProvider.analyze(input);
-      } catch (err: any) {
-        console.warn(`[PCBAnalysisService] Vision analysis failed (${err.message}). Falling back to mock for demo stability.`);
-        return this.mockProvider.analyze(input);
-      }
-    }
-
-    return this.mockProvider.analyze(input);
+    // Default to real vision analysis for all uploaded images
+    return await this.visionProvider.analyze(input);
   }
 }
 

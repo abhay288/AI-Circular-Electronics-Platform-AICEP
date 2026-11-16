@@ -20,11 +20,34 @@ export interface IComponent extends Document {
   boundingBox: IComponentBbox;
   bbox?: IComponentBbox;
   center?: { x: number; y: number };
-  condition: "UNKNOWN" | "MINT" | "GOOD" | "FAIR" | "DEGRADED" | "FAILED";
-  healthScore: number;
+  condition:
+    | "UNKNOWN"
+    | "MINT"
+    | "GOOD"
+    | "FAIR"
+    | "DEGRADED"
+    | "FAILED"
+    | "NORMAL"
+    | "BURNT"
+    | "CORRODED"
+    | "CRACKED"
+    | "BULGED"
+    | "LEAKING"
+    | "DISCOLORED"
+    | "MISSING"
+    | "SOLDER_ANOMALY"
+    | "PHYSICALLY_DAMAGED";
+  visualCondition?: string;
+  visualEvidence?: string;
+  visibleMarking?: string;
+  functionalRole?: string;
+  description?: string;
+  specifications?: Record<string, any>;
+  datasheetUrl?: string;
+  healthScore?: number;
   healthStatus?: string;
   failureRisk?: string;
-  estimatedRUL: {
+  estimatedRUL?: {
     hours: number;
     years: number;
   };
@@ -70,9 +93,15 @@ const ComponentSchema = new Schema<IComponent>(
     },
     condition: {
       type: String,
-      enum: ["UNKNOWN", "MINT", "GOOD", "FAIR", "DEGRADED", "FAILED"],
       default: "UNKNOWN",
     },
+    visualCondition: { type: String, default: "NORMAL" },
+    visualEvidence: { type: String },
+    visibleMarking: { type: String },
+    functionalRole: { type: String },
+    description: { type: String },
+    specifications: { type: Schema.Types.Mixed },
+    datasheetUrl: { type: String },
     healthScore: { type: Number, default: 0 },
     healthStatus: { type: String },
     failureRisk: { type: String },

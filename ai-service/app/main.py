@@ -246,4 +246,290 @@ def get_rul_model_info():
         }
     }
 
+@app.post("/condition/analyze")
+async def analyze_visual_condition(
+    request: Request,
+    file: Optional[UploadFile] = File(None),
+    analysisId: Optional[str] = Form(None),
+    authorized: bool = Depends(verify_api_key)
+):
+    """
+    Evaluates 11 canonical visual conditions:
+    NORMAL, BURNT, CORRODED, CRACKED, BULGED, LEAKING, DISCOLORED,
+    MISSING, SOLDER_ANOMALY, PHYSICALLY_DAMAGED, UNKNOWN.
+    """
+    image_bytes: Optional[bytes] = None
+    detections: List[Dict[str, Any]] = []
+    current_analysis_id = analysisId or "ECI-ANOMALY"
+
+    try:
+        content_type = request.headers.get("content-type", "")
+
+        if file is not None:
+            image_bytes = await file.read()
+        elif "application/json" in content_type:
+            body = await request.json()
+            image_url = body.get("imageUrl")
+            current_analysis_id = body.get("analysisId", current_analysis_id)
+            detections = body.get("detections", [])
+
+            if image_url:
+                if image_url.startswith("data:image"):
+                    import base64
+                    header, encoded = image_url.split(",", 1)
+                    image_bytes = base64.b64decode(encoded)
+                else:
+                    resp = requests.get(image_url, timeout=10)
+                    if resp.status_code != 200:
+                        raise HTTPException(status_code=400, detail=f"Failed to fetch image: {resp.status_code}")
+                    image_bytes = resp.content
+
+        if not image_bytes or len(image_bytes) == 0:
+            raise HTTPException(status_code=400, detail="No valid image data provided for visual condition analysis.")
+
+        from app.inference.visual_condition import visual_condition_analyzer
+        cv_img, _ = load_image_from_bytes(image_bytes)
+
+        if not detections:
+            det_result = detector.detect(cv_img)
+            detections = [d.model_dump() for d in det_result.detections]
+
+        condition_results = visual_condition_analyzer.analyze_board_conditions(
+            cv_img, detections, current_analysis_id
+        )
+
+        return {
+            "success": True,
+            "data": condition_results
+        }
+    except HTTPException:
+        raise
+    except Exception as exc:
+        return JSONResponse(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            content={
+                "success": False,
+                "error": {
+                    "code": "CONDITION_ANALYSIS_FAILED",
+                    "message": f"Visual condition analysis could not be completed: {str(exc)}",
+                },
+            },
+        )
+
+@app.get("/condition/classes")
+def get_condition_classes():
+    """
+    Lists the 11 supported visual condition classes.
+    """
+    from app.inference.visual_condition import VALID_CONDITIONS
+    return {
+        "success": True,
+        "classes": VALID_CONDITIONS,
+        "disclaimer": "Visual condition classes do not indicate electrical functionality.",
+    }
+
+@app.post("/ocr/extract")
+async def extract_ocr_markings(
+    request: Request,
+    file: Optional[UploadFile] = File(None),
+    analysisId: Optional[str] = Form(None),
+    authorized: bool = Depends(verify_api_key)
+):
+    """
+    Extracts readable silkscreen labels, reference designators, and package markings
+    using morphological stroke gradient analysis. Unreadable text is marked uncertain.
+    """
+    image_bytes: Optional[bytes] = None
+    detections: List[Dict[str, Any]] = []
+
+    try:
+        content_type = request.headers.get("content-type", "")
+
+        if file is not None:
+            image_bytes = await file.read()
+        elif "application/json" in content_type:
+            body = await request.json()
+            image_url = body.get("imageUrl")
+            detections = body.get("detections", [])
+
+            if image_url:
+                if image_url.startswith("data:image"):
+                    import base64
+                    _, encoded = image_url.split(",", 1)
+                    image_bytes = base64.b64decode(encoded)
+                else:
+                    resp = requests.get(image_url, timeout=10)
+                    if resp.status_code != 200:
+                        raise HTTPException(status_code=400, detail=f"Failed to fetch image: {resp.status_code}")
+                    image_bytes = resp.content
+
+        if not image_bytes or len(image_bytes) == 0:
+            raise HTTPException(status_code=400, detail="No valid image data provided for OCR extraction.")
+
+        from app.inference.ocr_extractor import ocr_extractor
+        cv_img, _ = load_image_from_bytes(image_bytes)
+
+        if not detections:
+            det_result = detector.detect(cv_img)
+            detections = [d.model_dump() for d in det_result.detections]
+
+        ocr_results = ocr_extractor.extract_markings(cv_img, detections)
+
+        return {
+            "success": True,
+            "data": ocr_results
+        }
+    except HTTPException:
+        raise
+    except Exception as exc:
+        return JSONResponse(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            content={
+                "success": False,
+                "error": {
+                    "code": "OCR_EXTRACTION_FAILED",
+                    "message": f"Optical marking extraction failed: {str(exc)}",
+                },
+            },
+        )
+
+@app.post("/analyze/complete")
+async def complete_image_analysis(
+    request: Request,
+    file: Optional[UploadFile] = File(None),
+    analysisId: Optional[str] = Form(None),
+    authorized: bool = Depends(verify_api_key)
+):
+    """
+    Unified end-to-end image-only analysis endpoint covering all 6 evidence sections:
+    1. Image Quality Diagnostics
+    2. YOLO Component Detection
+    3. PCB Visual Surface Structure
+    4. Visual Damage & Anomaly Inspection
+    5. Silkscreen & Text Marking OCR
+    6. Canonical Evidence-Based Summary
+    """
+    image_bytes: Optional[bytes] = None
+    current_analysis_id = analysisId or "ECI-COMPLETE"
+
+    try:
+        content_type = request.headers.get("content-type", "")
+
+        if file is not None:
+            image_bytes = await file.read()
+        elif "application/json" in content_type:
+            body = await request.json()
+            image_url = body.get("imageUrl")
+            current_analysis_id = body.get("analysisId", current_analysis_id)
+
+            if image_url:
+                if image_url.startswith("data:image"):
+                    import base64
+                    _, encoded = image_url.split(",", 1)
+                    image_bytes = base64.b64decode(encoded)
+                else:
+                    resp = requests.get(image_url, timeout=10)
+                    if resp.status_code != 200:
+                        raise HTTPException(status_code=400, detail=f"Failed to fetch image: {resp.status_code}")
+                    image_bytes = resp.content
+
+        if not image_bytes or len(image_bytes) == 0:
+            raise HTTPException(status_code=400, detail="No valid image data provided for complete analysis.")
+
+        from app.inference.preprocessing import analyze_image_quality
+        from app.inference.pcb_analyzer import pcb_analyzer
+        from app.inference.visual_condition import visual_condition_analyzer
+        from app.inference.ocr_extractor import ocr_extractor
+
+        cv_img, _ = load_image_from_bytes(image_bytes)
+
+        # 1. Quality
+        quality = analyze_image_quality(cv_img)
+
+        # 2. YOLO Detection
+        det_response = detector.detect(cv_img)
+        detections = [d.model_dump() for d in det_response.detections]
+
+        # 3. PCB Structure
+        pcb_res = pcb_analyzer.analyze(cv_img, detections, current_analysis_id)
+
+        # 4. Visual Condition
+        cond_res = visual_condition_analyzer.analyze_board_conditions(cv_img, detections, current_analysis_id)
+
+        # 5. OCR
+        ocr_res = ocr_extractor.extract_markings(cv_img, detections)
+
+        # 6. Canonical Summary
+        damage_items = [c for c in cond_res.get("conditions", []) if c.get("visualCondition") != "NORMAL"]
+        high_severity = [d for d in damage_items if d.get("severity") == "HIGH"]
+        med_severity = [d for d in damage_items if d.get("severity") == "MEDIUM"]
+
+        if quality.get("score", 1.0) < 0.45 or quality.get("quality") == "POOR":
+            overall_classification = "Image quality insufficient for assessment."
+            summary_statement = "Image optical resolution, blur, or lighting is inadequate for conclusive visual inspection."
+        elif len(high_severity) > 0:
+            overall_classification = "Severe visible physical damage."
+            summary_statement = f"Identified {len(high_severity)} high-severity visible anomaly/anomalies (e.g. {high_severity[0].get('visualCondition')})."
+        elif len(med_severity) > 0 or len(damage_items) >= 2:
+            overall_classification = "Moderate visible physical damage."
+            summary_statement = f"Observed {len(damage_items)} visible surface defect(s) on PCB substrate or component packaging."
+        elif len(damage_items) > 0:
+            overall_classification = "Minor visible surface damage."
+            summary_statement = f"Observed minor visible surface irregularity ({damage_items[0].get('visualCondition')})."
+        else:
+            overall_classification = "No obvious visible damage detected."
+            summary_statement = "No obvious visible damage was detected in this image. This does not confirm electrical functionality."
+
+        evidence_summary = {
+            "classification": overall_classification,
+            "statement": summary_statement,
+            "findingsCount": len(damage_items),
+            "damageFindings": damage_items,
+            "opticalLimitations": [
+                "Optical inspection is strictly limited to visible exterior surface features in the 2D photography.",
+                "Internal silicon junction health, dielectric breakdown, and hidden BGA solder balls remain UNKNOWN.",
+                "Multilayer inner copper traces and buried ground/power planes cannot be determined from optical photography.",
+                "This visual analysis does not confirm electrical functionality, signal integrity, or electrical continuity.",
+            ],
+            "recommendedManualInspections": [
+                "Perform four-wire Kelvin electrical continuity testing across key power/ground rails.",
+                "X-ray inspection (computed tomography) for BGA solder voids and inner-layer copper integrity.",
+                "Laboratory in-circuit voltage, clock frequency, and current draw measurement under powered test conditions.",
+            ],
+        }
+
+        return {
+            "success": True,
+            "analysisId": current_analysis_id,
+            "model": {
+                "name": detector.model_name,
+                "version": detector.model_version,
+                "customTrained": detector.is_custom_trained,
+                "device": str(detector.device),
+            },
+            "quality": quality,
+            "totalDetected": det_response.totalDetected,
+            "confidenceAverage": det_response.confidenceAverage,
+            "processingTimeMs": det_response.processingTimeMs,
+            "detections": detections,
+            "pcb": pcb_res,
+            "visualCondition": cond_res,
+            "ocr": ocr_res,
+            "summary": evidence_summary,
+        }
+    except HTTPException:
+        raise
+    except Exception as exc:
+        return JSONResponse(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            content={
+                "success": False,
+                "error": {
+                    "code": "ANALYSIS_FAILED",
+                    "message": f"Complete image analysis could not be completed: {str(exc)}",
+                },
+            },
+        )
+
+
 

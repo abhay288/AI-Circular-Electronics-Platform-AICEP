@@ -1,5 +1,4 @@
 import { analysisPipeline } from "@/services/pipeline.service";
-import { enqueueDetectionJob } from "@/queues/detection.queue";
 
 export interface QueueJob<T = any> {
   id: string;
@@ -11,45 +10,28 @@ export interface QueueJob<T = any> {
 export type JobHandler<T = any> = (job: QueueJob<T>) => Promise<any>;
 
 /**
- * BullMQ / Redis Dispatcher with resilient fallback for local / serverless Next.js runtimes.
+ * Resilient Dispatcher for the unified image-only AI analysis pipeline.
  */
 class QueueManager {
-  private redisUrl: string | undefined;
+  async enqueueAnalysis(analysisId: string, _assetId?: string) {
+    console.log(`[QueueManager] Enqueuing unified real AI analysis pipeline for analysisId=${analysisId}`);
 
-  constructor() {
-    this.redisUrl = process.env.REDIS_URL;
-  }
+    // Asynchronously run the real AI pipeline without blocking HTTP response
+    setImmediate(async () => {
+      try {
+        await analysisPipeline.runPipeline(analysisId);
+        console.log(`[QueueManager] Real AI pipeline successfully completed for analysisId=${analysisId}`);
+      } catch (pipeErr: any) {
+        console.error(`[QueueManager] Pipeline execution error on ${analysisId}:`, pipeErr.message);
+      }
+    });
 
-  async enqueueAnalysis(analysisId: string, assetId?: string) {
-    console.log(`[QueueManager] Enqueuing detection & analysis pipeline for analysisId=${analysisId}`);
-    
-    try {
-      const jobResult = await enqueueDetectionJob({ analysisId, assetId });
-      return {
-        jobId: jobResult.jobId,
-        status: "enqueued",
-        queue: "detection-queue",
-        mode: jobResult.mode,
-      };
-    } catch (err: any) {
-      console.warn(`[QueueManager] Direct queue enqueue failed (${err.message}), falling back to direct pipeline.`);
-      
-      setImmediate(async () => {
-        try {
-          await analysisPipeline.runPipeline(analysisId);
-          console.log(`[QueueManager] Pipeline completed for analysisId=${analysisId}`);
-        } catch (pipeErr: any) {
-          console.error(`[QueueManager] Pipeline failed for analysisId=${analysisId}:`, pipeErr.message);
-        }
-      });
-
-      return {
-        jobId: `job-${analysisId}-${Date.now()}`,
-        status: "enqueued",
-        queue: "analysisPipelineQueue",
-        mode: "FALLBACK_DIRECT",
-      };
-    }
+    return {
+      jobId: `job-${analysisId}-${Date.now()}`,
+      status: "enqueued",
+      queue: "analysisPipelineQueue",
+      mode: "UNIFIED_PIPELINE",
+    };
   }
 }
 

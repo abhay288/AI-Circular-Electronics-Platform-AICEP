@@ -24,17 +24,36 @@ export interface DetectedComponent {
   id: string;
   name: string;
   type: string;
+  category?: string;
   manufacturer: string;
+  partNumber?: string;
   package: string;
   confidence: number;
-  health: number;
-  remainingLifeHours: number;
-  remainingLifeYears: number;
-  material: string;
   coordinates: { x: number; y: number; width: number; height: number };
+  boundingBox?: { x: number; y: number; width: number; height: number };
   status: string;
-  passportId: string;
-  repairRecommendation: string;
+  condition?: string;
+  visualCondition?: string;
+  visualEvidence?: string;
+  visibleMarking?: string;
+  functionalRole?: string;
+  description?: string;
+  specifications?: {
+    pinCount?: string;
+    mountingType?: string;
+    voltageRating?: string;
+    dimensionsMm?: string;
+    operatingDomain?: string;
+    commonApplications?: string;
+  };
+  datasheetUrl?: string;
+  health?: number;
+  healthScore?: number;
+  remainingLifeHours?: number;
+  remainingLifeYears?: number;
+  material?: string;
+  passportId?: string;
+  repairRecommendation?: string;
 }
 
 export interface DetectionData {
@@ -191,6 +210,7 @@ export interface ExecutiveSummaryData {
 
 export interface AnalysisSession {
   id: string; // e.g. "ECI-2026-7740"
+  analysisId?: string;
   userId: string;
   sourceType: "upload" | "camera" | "sample";
   sampleId?: string;
