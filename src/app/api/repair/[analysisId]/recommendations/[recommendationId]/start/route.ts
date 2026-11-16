@@ -7,12 +7,12 @@ import { getAuthUser } from "@/lib/auth";
 
 export async function POST(
   req: NextRequest,
-  { params }: { params: { analysisId: string; recommendationId: string } }
+  { params }: { params: Promise<{ analysisId: string; recommendationId: string }> }
 ) {
   try {
     await connectDB();
     const authUser = await getAuthUser(req);
-    const { analysisId, recommendationId } = params;
+    const { analysisId, recommendationId } = await params;
 
     const session = await AnalysisSession.findOne({
       $or: [{ analysisId }, { sessionId: analysisId }],

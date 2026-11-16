@@ -6,12 +6,12 @@ import { getAuthUser } from "@/lib/auth";
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { analysisId: string } }
+  { params }: { params: Promise<{ analysisId: string }> }
 ) {
   try {
     await connectDB();
     const authUser = await getAuthUser(req);
-    const { analysisId } = params;
+    const { analysisId } = await params;
 
     const session = await AnalysisSession.findOne({
       $or: [{ analysisId }, { sessionId: analysisId }],

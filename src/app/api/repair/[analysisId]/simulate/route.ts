@@ -7,12 +7,12 @@ import { getAuthUser } from "@/lib/auth";
 
 export async function POST(
   req: NextRequest,
-  { params }: { params: { analysisId: string } }
+  { params }: { params: Promise<{ analysisId: string }> }
 ) {
   try {
     await connectDB();
     const authUser = await getAuthUser(req);
-    const { analysisId } = params;
+    const { analysisId } = await params;
     const body = await req.json().catch(() => ({}));
     const { componentId, action = "REPLACE_COMPONENT" } = body;
 

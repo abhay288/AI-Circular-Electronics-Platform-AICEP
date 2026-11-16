@@ -7,12 +7,12 @@ import { runRepairWorkerJob } from "@/queues/repair.worker";
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { analysisId: string } }
+  { params }: { params: Promise<{ analysisId: string }> }
 ) {
   try {
     await connectDB();
     const authUser = await getAuthUser(req);
-    const { analysisId } = params;
+    const { analysisId } = await params;
 
     if (!analysisId) {
       return NextResponse.json(
