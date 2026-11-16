@@ -1,560 +1,166 @@
-# ♻️ AI Circular Electronics Platform (AICEP)
+# ♻️ EcoIntel — Enterprise AI Platform for Circular Electronics Intelligence
 
-> **Transforming Electronic Waste into Intelligent Circular Resources**
+> **Transforming Electronic Waste into Verifiable Circular Value & ESG Intelligence**
 
-AI Circular Electronics Platform (AICEP) is an AI-powered, blockchain-enabled platform designed to accelerate the circular economy in the electronics industry. Instead of treating discarded electronics as waste, AICEP identifies reusable components, predicts their remaining lifespan, reconstructs PCB layouts, estimates recoverable precious metals, creates blockchain-based digital passports, and enables a trusted marketplace for reuse and repair.
-
-The platform combines **Artificial Intelligence, Computer Vision, Machine Learning, Digital Twins, and Blockchain** to maximize component recovery, reduce electronic waste, and promote sustainable electronics manufacturing.
+EcoIntel is an enterprise-grade AI, computer vision, digital twin, and blockchain traceability platform designed to accelerate circularity in the electronics industry. Rather than consigning discarded printed circuit boards (PCBs) and electronics to landfills, EcoIntel orchestrates an end-to-end intelligence pipeline: automatically detecting reusable components, predicting remaining useful life (RUL), analyzing PCB topology, estimating recoverable precious metals, minting blockchain-backed Digital Product Passports (DPP), facilitating circular marketplace trade, quantifying Scope 3 avoided carbon emissions, and generating executive audit-grade intelligence dossiers.
 
 ---
 
-# 🌍 Vision
+## 1. 🏗️ Complete Platform Architecture
 
-Create a future where every discarded electronic device is intelligently analyzed, every reusable component receives a digital identity, and electronic waste becomes a valuable resource rather than landfill.
-
----
-
-# 🎯 Objectives
-
-- Reduce electronic waste through intelligent component reuse.
-- Enable AI-based PCB reconstruction and analysis.
-- Predict the remaining useful life of recovered electronic components.
-- Estimate recoverable precious metals from electronic boards.
-- Generate secure blockchain-based digital component passports.
-- Connect buyers and sellers through a circular electronics marketplace.
-- Recommend repair, replacement, reuse, or recycling actions using AI.
-- Measure environmental impact through carbon savings analytics.
-
----
-
-# 🚀 Key Features
-
-## 🔍 AI Component Detection
-
-Automatically detects reusable components from discarded electronic devices.
-
-Supported Components:
-
-- Integrated Circuits (ICs)
-- Resistors
-- Capacitors
-- Inductors
-- MOSFETs
-- Diodes
-- Voltage Regulators
-- Sensors
-- Connectors
-- Relays
-- Crystals
-- Transistors
-
-### AI Models
-
-- YOLOv11
-- RT-DETR
-- Segment Anything Model (SAM)
-
----
-
-## 🧩 PCB Reconstruction
-
-Reconstructs damaged or unknown PCB layouts using AI.
-
-Features
-
-- Component mapping
-- PCB topology generation
-- Netlist approximation
-- Circuit tracing
-- Functional block identification
-- Layer estimation
-
-Technologies
-
-- OpenCV
-- Vision Transformers
-- Graph Neural Networks
-
----
-
-## 📈 Remaining Useful Life (RUL) Prediction
-
-Predicts how long a recovered electronic component can continue functioning.
-
-Prediction Factors
-
-- Physical wear
-- Corrosion
-- Burn marks
-- Thermal degradation
-- Electrical test results
-- Manufacturing date
-- Operating history
-
-Machine Learning Models
-
-- XGBoost
-- Random Forest
-- LightGBM
-- LSTM
-- Transformer Networks
-
-Example Output
+EcoIntel operates across ten tightly integrated lifecycle phases:
 
 ```
-Component : ATmega328P
-
-Health Score : 92%
-
-Remaining Useful Life : 5.6 Years
-
-Confidence : 96%
+                                      ECOINTEL
+                                         │
+        ┌────────────────────────────────┼────────────────────────────────┐
+        │                                │                                │
+     ANALYZE                          ASSESS                            TRACE
+        │                                │                                │
+  Phase 1 & 2: YOLO/AI            Phase 4: Health & RUL            Phase 7: Digital Passport
+  Component Detection             Survival Analysis (XGBoost)      Blockchain Traceability
+        │                                │                                │
+  Phase 3: PCB Topology           Phase 5: Material Recovery       Phase 8: Circular Marketplace
+  Trace/Pad Reconstruction        Precious Metal Estimation        Component Exchange
+        │                                │                                │
+        └────────────────────────────────┼────────────────────────────────┘
+                                         │
+                                    CIRCULARITY
+                                         │
+                    ┌────────────────────┼────────────────────┐
+                    │                    │                    │
+                  REPAIR                REUSE               RECYCLE
+                    │                    │                    │
+            Phase 6: Repair Decision Engine & Step-by-Step Instructions
+                    │                    │                    │
+                    └────────────────────┼────────────────────┘
+                                         │
+                                Phase 9: CARBON / ESG
+                                Avoided Scope 3 Emissions & MCI
+                                         │
+                              Phase 10: ENTERPRISE DOSSIERS
+                                Executive Analytics & PDF Reports
 ```
 
 ---
 
-## 💰 Precious Metal Estimation
+## 2. ⚡ Key Capabilities & Phase Map
 
-Estimates recoverable materials from discarded PCBs.
-
-Supported Materials
-
-- Gold
-- Silver
-- Copper
-- Palladium
-- Tin
-- Aluminum
-
-Outputs
-
-- Estimated metal quantity
-- Market value
-- Recycling profitability
-- Recovery efficiency
+- **Phase 1 — Foundation & Analysis Session**: Multi-tenant session state machine, asset telemetry, and raw scan ingestion.
+- **Phase 2 — AI Component Detection**: High-precision visual detection using YOLO, identifying ICs, MOSFETs, capacitors, resistors, and edge connectors.
+- **Phase 3 — PCB Intelligence & Topology**: 2D/3D PCB reconstruction, layer estimation, trace routing, defect isolation, and synthetic Gerber generation.
+- **Phase 4 — Health & Remaining Useful Life (RUL)**: Multi-factor health scoring (0–100) and Weibull/XGBoost operational lifespan prediction.
+- **Phase 5 — Material Recovery & Precious Metals**: Estimation of recoverable Gold, Silver, Copper, Palladium, and Tantalum with real-time commodity pricing.
+- **Phase 6 — Repair Intelligence & Circular Decision Engine**: Automated triage into `REUSE`, `REPAIR`, `REFURBISH`, `HARVEST`, or `RECYCLE` with guided procedures.
+- **Phase 7 — Digital Product Passport (DPP)**: Tamper-evident lifecycle tracking, on-chain minting, and public QR verification gateways.
+- **Phase 8 — Circular Marketplace**: B2B secondary exchange connecting component sellers and buyers with escrow workflows.
+- **Phase 9 — Carbon Impact & ESG Intelligence**: Quantification of potential and realized avoided CO2e emissions (GHG Protocol Scope 3) and Material Circularity Indicators (MCI).
+- **Phase 10 — Enterprise Reporting & Executive Analytics**: Executive KPI dashboards, real-time portfolio health/RUL distributions, automated PDF/JSON/CSV dossier generation, cross-phase data integrity audits, and unified global search.
 
 ---
 
-## 🔐 Blockchain Component Passport
+## 3. 🛠️ Technology Stack
 
-Each recovered component receives a secure blockchain identity.
-
-Passport Includes
-
-- Component ID
-- Manufacturer
-- Origin Device
-- Recovery Date
-- Health Score
-- Remaining Useful Life
-- Repair History
-- Ownership History
-- Authenticity Verification
-- Reuse Count
-
-Blockchain Options
-
-- Polygon
-- Ethereum
-- Hyperledger Fabric
-
-Benefits
-
-- Prevents counterfeit components
-- Provides full traceability
-- Enables trusted reuse
-- Supports ESG compliance
+| Domain | Technologies |
+| :--- | :--- |
+| **Frontend** | Next.js 15 (App Router), React 19, TypeScript, Vanilla CSS Design System, Lucide Icons, Three.js (3D Viewer) |
+| **Backend & APIs** | Next.js Server Components, Route Handlers, Node.js 20, REST API architecture |
+| **Database & Cache** | MongoDB Atlas (Mongoose ORM with multi-tenant isolation), Redis 7 |
+| **Background Queues** | BullMQ with automated synchronous in-memory development fallback |
+| **Reporting & Export** | Server-side jsPDF with branded industrial design, CSV streaming, JSON schemas |
+| **AI / Machine Learning** | YOLOv11 / RT-DETR for detection, OpenCV for topology, XGBoost / Weibull for RUL |
+| **Blockchain** | EVM-compatible smart contracts, ethers.js / viem, immutable passport events |
 
 ---
 
-## 🛠 AI Repair Recommendation Engine
+## 4. 🧭 Scientific Honesty & Evidence Badging
 
-Provides intelligent recommendations for every component.
+EcoIntel strictly distinguishes verified physical facts from mathematical inferences. Every metric in reports and dashboards carries an explicit evidence tag:
 
-Possible Recommendations
+- `MEASURED`: Physical laboratory measurements (e.g. scale-weighed mass, multi-meter readings).
+- `KNOWN`: Official manufacturer datasheet specifications or IPC design rules.
+- `VERIFIED`: Cryptographically signed on-chain passport events or technician sign-offs.
+- `DATABASE-DERIVED`: Statistical averages from peer-reviewed LCA inventories (e.g. Ecoinvent).
+- `ESTIMATED`: Algorithmic or geometric approximations (e.g. volumetric density calculation).
+- `PREDICTED`: Machine learning survival model forecasts (e.g. XGBoost RUL years).
+- `INFERRED`: Optical circuit trace heuristics.
+- `SIMULATED`: Scenario modeling (e.g. hypothetical avoided emissions).
+- `DEMO`: Explicitly marked synthetic datasets created for sandbox testing.
 
-- Repair
-- Replace
-- Reuse
-- Refurbish
-- Recycle
+No synthetic data is ever presented as verified production evidence.
 
-Example
+---
 
-```
-Device
+## 5. 💻 Installation & Quickstart
 
-Laptop Motherboard
+### Prerequisites
+- Node.js 20 LTS or higher
+- MongoDB 6.0+ (Local or MongoDB Atlas)
+- Redis 7+ (Optional; development fallback provided)
 
-↓
-
-Charging Circuit Damaged
-
-↓
-
-Recommendation
-
-✔ Replace MOSFET
-
-✔ Reuse RAM
-
-✔ Reuse CPU
-
-✔ Recycle Damaged Capacitor
+### 1. Clone & Install
+```bash
+git clone https://github.com/abhay288/AI-Circular-Electronics-Platform-AICEP.git
+cd AI-Circular-Electronics-Platform-AICEP
+npm install
 ```
 
-Technologies
-
-- Large Language Models
-- Knowledge Graphs
-- Retrieval-Augmented Generation (RAG)
-
----
-
-## 🛒 Circular Electronics Marketplace
-
-Marketplace dedicated to recovered electronic components.
-
-Marketplace Features
-
-- Verified sellers
-- Blockchain authentication
-- AI health score
-- Remaining life filter
-- Location-based search
-- Quality certification
-- Price comparison
-- Bulk purchasing
-
-Target Users
-
-- Repair Shops
-- Electronics Manufacturers
-- Educational Institutions
-- Hobbyists
-- PCB Designers
-- Recycling Companies
-- Component Distributors
-
----
-
-## 🌱 Carbon Savings Analytics
-
-Tracks environmental impact generated through component reuse.
-
-Metrics
-
-- Carbon Emissions Saved
-- Water Saved
-- Energy Saved
-- Landfill Waste Prevented
-- Components Recovered
-- Precious Metals Recovered
-
-Example Dashboard
-
+### 2. Configure Environment
+```bash
+cp .env.example .env.local
 ```
-Components Reused
+Update database connection strings and secret keys in `.env.local`.
 
-1,248
+### 3. Run Development Server
+```bash
+npm run dev
+```
+Open [http://localhost:3000](http://localhost:3000) in your browser.
 
-Carbon Saved
+---
 
-8.3 Tons
+## 6. 🧪 Testing & Verification
 
-Water Saved
+EcoIntel includes comprehensive verification scripts ensuring all enterprise features function cleanly:
 
-18,500 Liters
+```bash
+# Verify Phase 10 Enterprise Suite (48 automated assertions)
+npm run verify:phase10
 
-Energy Saved
+# Typecheck the entire codebase
+npm run typecheck
 
-3,900 kWh
+# Execute unit and integration tests
+npm test
 ```
 
 ---
 
-# 🏗 System Architecture
+## 7. 🔐 Environment Variables Summary
 
-```
-Electronic Device
-        │
-        ▼
- Image Acquisition
-        │
-        ▼
- AI Component Detection
-        │
-        ▼
- PCB Reconstruction
-        │
-        ▼
- Health Assessment
-        │
-        ▼
- Remaining Useful Life Prediction
-        │
-        ▼
- Precious Metal Estimation
-        │
-        ▼
- Blockchain Component Passport
-        │
-        ▼
- AI Repair Recommendation
-        │
-        ▼
- Circular Marketplace
-        │
-        ▼
- Environmental Analytics Dashboard
-```
+Key configuration groups defined in `.env.example`:
+- **DATABASE**: `MONGODB_URI`
+- **REDIS**: `REDIS_URL`, `REDIS_HOST`, `REDIS_PORT`
+- **AUTH**: `JWT_SECRET`, `NEXTAUTH_SECRET`, `NEXTAUTH_URL`
+- **STORAGE**: `S3_ENDPOINT`, `S3_BUCKET`, `S3_ACCESS_KEY`, `S3_SECRET_KEY`
+- **BLOCKCHAIN**: `BLOCKCHAIN_RPC_URL`, `PASSPORT_CONTRACT_ADDRESS`
+- **AI**: `AI_VISION_URL`, `RUL_MODEL_PATH`
+- **REPORTING**: `REPORT_MAX_PAGES`, `DEFAULT_CURRENCY`
 
 ---
 
-# 💻 Technology Stack
+## 8. 🚢 Production Deployment
 
-## Frontend
-
-- Next.js
-- React
-- Tailwind CSS
-- TypeScript
-
----
-
-## Backend
-
-- FastAPI
-- Python
+For enterprise containerized deployment, consult the comprehensive runbooks:
+- [System Architecture](file:///docs/architecture.md)
+- [REST API Reference](file:///docs/api.md)
+- [Production Deployment Guide](file:///docs/deployment.md)
+- [Security & RBAC](file:///docs/security.md)
+- [Enterprise Reporting Engine](file:///docs/reporting.md)
+- [Operations & Runbooks](file:///docs/operations.md)
+- [Troubleshooting & Diagnostics](file:///docs/troubleshooting.md)
 
 ---
 
-## AI & Machine Learning
-
-- YOLOv11
-- RT-DETR
-- Segment Anything Model
-- Vision Transformers
-- OpenCV
-- TensorFlow
-- PyTorch
-- XGBoost
-- Random Forest
-- LightGBM
-
----
-
-## Blockchain
-
-- Polygon
-- Ethereum
-- Hyperledger Fabric
-- IPFS
-
----
-
-## Database
-
-- PostgreSQL
-- MongoDB
-- Redis
-
----
-
-## Cloud
-
-- Docker
-- Kubernetes
-- AWS
-- Azure
-- Cloudinary
-
----
-
-## DevOps
-
-- GitHub Actions
-- Docker
-- CI/CD
-- Nginx
-
----
-
-# 📂 Project Structure
-
-```
-AI-Circular-Electronics-Platform/
-
-│── frontend/
-│── backend/
-│── ai-models/
-│── blockchain/
-│── datasets/
-│── docs/
-│── api/
-│── marketplace/
-│── analytics/
-│── tests/
-│── scripts/
-│── docker/
-│── assets/
-│── README.md
-│── LICENSE
-```
-
----
-
-# 🔄 Workflow
-
-```
-Collect Electronic Device
-
-↓
-
-Capture PCB Images
-
-↓
-
-AI Detects Components
-
-↓
-
-PCB Reconstruction
-
-↓
-
-Component Health Analysis
-
-↓
-
-Remaining Useful Life Prediction
-
-↓
-
-Precious Metal Estimation
-
-↓
-
-Generate Blockchain Passport
-
-↓
-
-Repair Recommendation
-
-↓
-
-Publish Reusable Components
-
-↓
-
-Marketplace
-
-↓
-
-Environmental Impact Report
-```
-
----
-
-# 📊 Future Enhancements
-
-- Digital Twin of Electronic Devices
-- Counterfeit Component Detection
-- Thermal Hotspot Detection
-- Automatic PCB Defect Analysis
-- Robotic Desoldering Assistance
-- Reverse Engineering of Unknown PCBs
-- BOM Generation
-- Electronic Waste Collection Optimization
-- Enterprise ESG Reporting
-- Predictive Component Demand Forecasting
-- AI-based Component Pricing
-- Global Component Passport Network
-
----
-
-# 🔬 Research Opportunities
-
-- Computer Vision for PCB Analysis
-- Remaining Useful Life Prediction
-- Explainable AI for Electronics Diagnostics
-- Blockchain in Circular Manufacturing
-- AI-driven Sustainable Electronics
-- Graph Neural Networks for Circuit Reconstruction
-- Circular Economy Analytics
-- ESG Intelligence Platforms
-
----
-
-# 🌎 Sustainable Development Goals (SDGs)
-
-This project contributes to:
-
-- SDG 9 – Industry, Innovation and Infrastructure
-- SDG 11 – Sustainable Cities and Communities
-- SDG 12 – Responsible Consumption and Production
-- SDG 13 – Climate Action
-- SDG 17 – Partnerships for the Goals
-
----
-
-# 🎓 Applications
-
-- Electronics Recycling Industry
-- PCB Repair Centers
-- Semiconductor Refurbishment
-- Government E-Waste Programs
-- Universities and Research Labs
-- Electronic Manufacturing Companies
-- Circular Economy Startups
-- Smart Manufacturing
-- ESG Reporting Platforms
-
----
-
-# 📜 Patent Potential
-
-The AI Circular Electronics Platform integrates multiple emerging technologies into a unified circular electronics ecosystem.
-
-Key innovations include:
-
-- AI-powered reusable component intelligence
-- Vision-based PCB reconstruction
-- Remaining Useful Life prediction
-- Blockchain-based component passports
-- AI repair recommendation engine
-- Circular electronics marketplace
-- Carbon impact analytics
-
-The combination of these technologies offers strong potential for patentable implementations and research publications.
-
----
-
-# 🤝 Contributing
-
-Contributions are welcome!
-
-You can contribute by:
-
-- Improving AI models
-- Adding datasets
-- Optimizing algorithms
-- Enhancing UI/UX
-- Developing blockchain modules
-- Improving documentation
-- Reporting issues
-- Submitting pull requests
-
----
-
-# 📄 License
-
-This project is licensed under the MIT License.
-
----
-
-# ⭐ Support
-
-If you found this project useful, consider giving it a ⭐ on GitHub.
-
-Together, let's build a sustainable future for electronics through AI, Blockchain, and Circular Innovation.
+## 📄 License
+EcoIntel is open-source software licensed under the MIT License.

@@ -1,187 +1,363 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useTransition } from "react";
 import Link from "next/link";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
-import TechBadge from "@/components/ui/TechBadge";
+import ProductCard from "@/components/marketplace/ProductCard";
 import {
   ShoppingCart,
   ShieldCheck,
   Search,
   Filter,
-  ArrowRight,
   PlusCircle,
-  Clock,
-  Sparkles,
+  Activity,
   Layers,
+  Sparkles,
+  TrendingUp,
+  Cpu,
+  RefreshCw,
+  SlidersHorizontal,
+  Building2,
+  Lock,
 } from "lucide-react";
+import { PRODUCT_CATEGORIES, LISTING_CONDITIONS } from "@/lib/marketplace/marketplaceTaxonomy";
 
 export default function MarketplacePage() {
   const [searchTerm, setSearchTerm] = useState("");
-  const [listings, setListings] = useState<any[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [selectedCategory, setSelectedCategory] = useState("ALL");
+  const [selectedCondition, setSelectedCondition] = useState("ALL");
+  const [selectedVerification, setSelectedVerification] = useState("ALL");
+  const [sortBy, setSortBy] = useState("NEWEST");
+  const [inStockOnly, setInStockOnly] = useState(false);
 
-  useEffect(() => {
-    let isMounted = true;
-    fetch("/api/marketplace")
+  const [listings, setListings] = useState<any[]>([]);
+  const [stats, setStats] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isPending, startTransition] = useTransition();
+
+  const fetchListings = () => {
+    setIsLoading(true);
+    const params = new URLSearchParams();
+    if (searchTerm.trim()) params.set("q", searchTerm.trim());
+    if (selectedCategory !== "ALL") params.set("category", selectedCategory);
+    if (selectedCondition !== "ALL") params.set("condition", selectedCondition);
+    if (selectedVerification !== "ALL") params.set("verificationStatus", selectedVerification);
+    if (inStockOnly) params.set("inStockOnly", "true");
+    params.set("sortBy", sortBy);
+
+    fetch(`/api/marketplace/listings?${params.toString()}`)
       .then((res) => res.json())
       .then((data) => {
-        if (!isMounted) return;
-        if (data.success && Array.isArray(data.listings)) {
+        if (data.success && data.data) {
+          setListings(data.data.listings || []);
+        } else if (data.listings) {
           setListings(data.listings);
         }
       })
-      .catch((err) => {
-        console.warn("Failed to load listings from API:", err);
-      })
-      .finally(() => {
-        if (isMounted) setIsLoading(false);
-      });
+      .catch((err) => console.error("Error fetching listings:", err))
+      .finally(() => setIsLoading(false));
+  };
 
-    return () => {
-      isMounted = false;
-    };
+  useEffect(() => {
+    fetchListings();
+  }, [selectedCategory, selectedCondition, selectedVerification, sortBy, inStockOnly]);
+
+  useEffect(() => {
+    // Fetch stats
+    fetch("/api/marketplace/stats")
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.success && data.data?.stats) {
+          setStats(data.data.stats);
+        }
+      })
+      .catch((err) => console.warn("Failed to load marketplace stats:", err));
   }, []);
 
-  const filteredListings = listings.filter((item) => {
-    const term = searchTerm.toLowerCase();
-    return (
-      (item.title || "").toLowerCase().includes(term) ||
-      (item.polygonToken || "").toLowerCase().includes(term) ||
-      (item.seller || "").toLowerCase().includes(term) ||
-      (item.condition || "").toLowerCase().includes(term)
-    );
-  });
+  const handleSearchSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    fetchListings();
+  };
 
   return (
-    <main className="relative flex flex-col min-h-screen bg-[#F1F5F9]">
+    <main className="relative flex flex-col min-h-screen bg-slate-50 text-slate-900">
       <Navbar />
 
       {/* Hero Header */}
-      <section className="pt-32 pb-16 bg-[#0F172A] text-white">
+      <section className="pt-32 pb-16 bg-[#0B132B] text-white border-b border-slate-800">
         <div className="max-w-7xl mx-auto px-4 sm:px-8">
-          <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-6">
-            <div className="flex flex-col gap-4 max-w-2xl">
-              <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-blue-500/10 border border-blue-500/30 text-[#60A5FA] text-xs font-mono font-bold w-fit">
-                <ShoppingCart className="w-4 h-4" />
-                <span>MODULE 07 · CIRCULAR B2B HARDWARE EXCHANGE & ESCROW</span>
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-8">
+            <div className="max-w-2xl space-y-4">
+              <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-blue-500/10 border border-blue-400/30 text-blue-300 text-xs font-mono font-bold">
+                <ShieldCheck className="w-4 h-4 text-emerald-400" />
+                <span>PHASE 8 · B2B CIRCULAR HARDWARE EXCHANGE</span>
               </div>
               <h1 className="font-heading text-4xl sm:text-5xl font-extrabold tracking-tight">
-                B2B Hardware Marketplace
+                Verified Circular Electronics
               </h1>
               <p className="text-slate-300 text-sm sm:text-base leading-relaxed">
-                Trade verified recovered electronic components inside transparent marketplace capsules with digital product passports, guaranteed remaining lifespan, and smart escrow.
+                Give electronic components a verified second life. Discover reusable, refurbished, and recovered semiconductors with verifiable health assessments, RUL predictions, and Digital Product Passports.
               </p>
+
+              {/* Fast navigation badges */}
+              <div className="flex items-center gap-3 pt-2 text-xs font-mono">
+                <Link
+                  href="/marketplace/seller"
+                  className="px-3.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition-colors inline-flex items-center gap-1.5"
+                >
+                  <Building2 className="w-3.5 h-3.5 text-blue-400" />
+                  <span>Seller Portal</span>
+                </Link>
+                <Link
+                  href="/marketplace/buyer"
+                  className="px-3.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition-colors inline-flex items-center gap-1.5"
+                >
+                  <ShoppingCart className="w-3.5 h-3.5 text-emerald-400" />
+                  <span>Buyer Orders</span>
+                </Link>
+                <Link
+                  href="/marketplace/admin"
+                  className="px-3.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition-colors inline-flex items-center gap-1.5"
+                >
+                  <Lock className="w-3.5 h-3.5 text-amber-400" />
+                  <span>Admin Review</span>
+                </Link>
+              </div>
             </div>
 
-            <div>
+            <div className="flex flex-col sm:flex-row lg:flex-col gap-3">
               <Link
                 href="/marketplace/create"
-                className="px-6 py-3 rounded-2xl bg-[#2563EB] hover:bg-[#1D4ED8] text-white text-xs font-mono font-bold inline-flex items-center gap-2 shadow-lg shadow-blue-500/30 transition-all"
+                className="px-6 py-3.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-mono font-bold text-xs inline-flex items-center justify-center gap-2 shadow-lg shadow-blue-500/20 transition-all cursor-pointer"
               >
                 <PlusCircle className="w-4 h-4" />
-                <span>List Recovered Components</span>
+                <span>List Recovered Component</span>
               </Link>
+              <div className="p-4 rounded-xl bg-slate-900/80 border border-slate-800 text-xs font-mono text-slate-400 space-y-1">
+                <div className="text-white font-semibold flex items-center gap-1.5">
+                  <ShieldCheck className="w-4 h-4 text-emerald-400" />
+                  <span>Technical Provenance Only</span>
+                </div>
+                <p className="text-[11px] leading-relaxed text-slate-400">
+                  Every listed component references AI health, repair history, or DPP blockchain records.
+                </p>
+              </div>
             </div>
           </div>
+
+          {/* Platform Metrics Bar */}
+          {stats && (
+            <div className="mt-10 pt-8 border-t border-slate-800 grid grid-cols-2 md:grid-cols-4 gap-4 text-xs font-mono">
+              <div className="p-3 bg-slate-900/60 rounded-xl border border-slate-800">
+                <div className="text-slate-400 text-[11px]">ACTIVE LISTINGS</div>
+                <div className="font-heading font-extrabold text-xl text-white mt-1">
+                  {stats.activeListings}
+                </div>
+              </div>
+              <div className="p-3 bg-slate-900/60 rounded-xl border border-slate-800">
+                <div className="text-slate-400 text-[11px]">COMPONENTS CIRCULATED</div>
+                <div className="font-heading font-extrabold text-xl text-emerald-400 mt-1">
+                  {stats.componentsReused} Units
+                </div>
+              </div>
+              <div className="p-3 bg-slate-900/60 rounded-xl border border-slate-800">
+                <div className="text-slate-400 text-[11px]">PASSPORT VERIFIED</div>
+                <div className="font-heading font-extrabold text-xl text-blue-400 mt-1">
+                  {stats.verifiedPassports}
+                </div>
+              </div>
+              <div className="p-3 bg-slate-900/60 rounded-xl border border-slate-800">
+                <div className="text-slate-400 text-[11px]">PARTICIPATING ORGS</div>
+                <div className="font-heading font-extrabold text-xl text-purple-400 mt-1">
+                  {stats.totalOrganizations}
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </section>
 
-      {/* Search & Listings Grid */}
-      <section className="py-16">
+      {/* Main Content Area */}
+      <section className="py-10 flex-1">
         <div className="max-w-7xl mx-auto px-4 sm:px-8 space-y-8">
+          {/* Search and Filters Bar */}
+          <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+            <form onSubmit={handleSearchSubmit} className="flex flex-col sm:flex-row gap-3">
+              <div className="relative flex-1">
+                <Search className="w-4 h-4 text-slate-400 absolute left-4 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  placeholder="Search by part number (e.g. STM32, ATmega), category, manufacturer, or title..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full pl-11 pr-4 py-2.5 rounded-xl border border-slate-200 text-xs font-mono focus:outline-none focus:border-blue-500 bg-slate-50"
+                />
+              </div>
+              <button
+                type="submit"
+                className="px-6 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-mono font-bold transition-colors cursor-pointer"
+              >
+                Search
+              </button>
+            </form>
 
-          {/* Search Bar */}
-          <div className="glass-panel p-4 flex flex-col sm:flex-row gap-4 items-center justify-between">
-            <div className="relative flex-1 w-full">
-              <Search className="w-4 h-4 text-[#64748B] absolute left-4 top-1/2 -translate-y-1/2" />
-              <input
-                type="text"
-                placeholder="Search microchips, ICs, capacitors, or Passport IDs..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-11 pr-4 py-3 rounded-full bg-white border border-[#E2E8F0] text-xs font-mono focus:outline-none focus:border-[#2563EB]"
-              />
+            {/* Filter Selects */}
+            <div className="flex items-center justify-between flex-wrap gap-3 pt-3 border-t border-slate-100 text-xs font-mono">
+              <div className="flex items-center flex-wrap gap-2">
+                <span className="text-slate-400 text-[11px] font-semibold flex items-center gap-1">
+                  <SlidersHorizontal className="w-3.5 h-3.5" />
+                  FILTERS:
+                </span>
+
+                {/* Condition Filter */}
+                <select
+                  value={selectedCondition}
+                  onChange={(e) => setSelectedCondition(e.target.value)}
+                  className="px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-700 text-xs font-mono focus:outline-none focus:border-blue-500"
+                >
+                  <option value="ALL">All Conditions</option>
+                  <option value="USED_TESTED">USED — TESTED</option>
+                  <option value="REFURBISHED">REFURBISHED</option>
+                  <option value="REPAIRED">REPAIRED</option>
+                  <option value="USED_UNTESTED">USED — UNTESTED</option>
+                  <option value="MATERIAL_RECOVERY">MATERIAL RECOVERY</option>
+                  <option value="FOR_PARTS">FOR PARTS</option>
+                </select>
+
+                {/* Verification Status */}
+                <select
+                  value={selectedVerification}
+                  onChange={(e) => setSelectedVerification(e.target.value)}
+                  className="px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-700 text-xs font-mono focus:outline-none focus:border-blue-500"
+                >
+                  <option value="ALL">All Verification</option>
+                  <option value="PASSPORT_VERIFIED">PASSPORT VERIFIED</option>
+                  <option value="TECHNICALLY_ASSESSED">TECHNICALLY ASSESSED</option>
+                  <option value="SELLER_DECLARED">SELLER DECLARED</option>
+                  <option value="DEMO">DEMO</option>
+                </select>
+
+                {/* In stock toggle */}
+                <label className="flex items-center gap-1.5 text-slate-600 cursor-pointer ml-2">
+                  <input
+                    type="checkbox"
+                    checked={inStockOnly}
+                    onChange={(e) => setInStockOnly(e.target.checked)}
+                    className="rounded border-slate-300 text-blue-600 focus:ring-0"
+                  />
+                  <span>In Stock Only</span>
+                </label>
+              </div>
+
+              {/* Sort Selector */}
+              <div className="flex items-center gap-2">
+                <span className="text-slate-400 text-[11px]">SORT BY:</span>
+                <select
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value)}
+                  className="px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-700 text-xs font-mono focus:outline-none focus:border-blue-500"
+                >
+                  <option value="NEWEST">Newest First</option>
+                  <option value="HEALTH_DESC">Highest Health</option>
+                  <option value="RUL_DESC">Longest RUL</option>
+                  <option value="QUANTITY_DESC">Highest Quantity</option>
+                  <option value="PRICE_ASC">Lowest Price</option>
+                  <option value="PRICE_DESC">Highest Price</option>
+                </select>
+              </div>
             </div>
-            <div className="flex items-center gap-2 text-xs font-mono text-[#64748B]">
-              <span className="font-bold text-[#0F172A]">{filteredListings.length}</span> Active Listings
+          </div>
+
+          {/* Category Quick Chips */}
+          <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-none text-xs font-mono">
+            <button
+              onClick={() => setSelectedCategory("ALL")}
+              className={`px-3.5 py-1.5 rounded-full border transition-colors whitespace-nowrap cursor-pointer ${
+                selectedCategory === "ALL"
+                  ? "bg-slate-900 text-white border-slate-900"
+                  : "bg-white text-slate-600 border-slate-200 hover:border-slate-300"
+              }`}
+            >
+              All Categories
+            </button>
+            {(PRODUCT_CATEGORIES as readonly string[]).slice(0, 10).map((cat: string) => (
+              <button
+                key={cat}
+                onClick={() => setSelectedCategory(cat)}
+                className={`px-3.5 py-1.5 rounded-full border transition-colors whitespace-nowrap cursor-pointer ${
+                  selectedCategory === cat
+                    ? "bg-slate-900 text-white border-slate-900"
+                    : "bg-white text-slate-600 border-slate-200 hover:border-slate-300"
+                }`}
+              >
+                {cat}
+              </button>
+            ))}
+          </div>
+
+          {/* Results Summary */}
+          <div className="flex items-center justify-between text-xs font-mono text-slate-500">
+            <div>
+              Showing <span className="font-bold text-slate-900">{listings.length}</span> verified component listings
             </div>
+            <button
+              onClick={fetchListings}
+              className="hover:text-blue-600 flex items-center gap-1 cursor-pointer"
+            >
+              <RefreshCw className="w-3.5 h-3.5" />
+              <span>Refresh</span>
+            </button>
           </div>
 
           {/* Loading Skeleton */}
           {isLoading && (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {[1, 2, 3].map((i) => (
-                <div key={i} className="bg-white rounded-3xl border border-[#E2E8F0] p-7 space-y-4 animate-pulse">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+              {[1, 2, 3, 4, 5, 6].map((i) => (
+                <div
+                  key={i}
+                  className="bg-white rounded-2xl border border-slate-200 p-6 space-y-4 animate-pulse"
+                >
                   <div className="h-4 bg-slate-100 rounded w-1/3" />
-                  <div className="h-6 bg-slate-100 rounded w-3/4" />
-                  <div className="h-24 bg-slate-50 rounded" />
+                  <div className="h-5 bg-slate-100 rounded w-3/4" />
+                  <div className="h-20 bg-slate-50 rounded" />
                 </div>
               ))}
             </div>
           )}
 
           {/* Listings Grid */}
-          {!isLoading && (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {filteredListings.map((item) => (
-                <div
-                  key={item.id || item.listingId}
-                  className="glass-card-interactive p-7 flex flex-col justify-between space-y-6 hover:shadow-lg transition-shadow bg-white rounded-3xl border border-[#E2E8F0]"
-                >
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <TechBadge label={item.badge || "VERIFIED PASSPORT"} variant="green" />
-                      <span className="font-mono text-xs font-bold text-[#2563EB] truncate max-w-[140px]">
-                        #{item.polygonToken || item.passportId || "PASSPORT"}
-                      </span>
-                    </div>
-
-                    <h3 className="font-heading text-lg font-bold text-[#0F172A] leading-snug">
-                      {item.title}
-                    </h3>
-
-                    <div className="space-y-2 pt-2 border-t border-slate-100">
-                      <div className="flex justify-between text-xs font-mono">
-                        <span className="text-[#64748B]">Certified Health</span>
-                        <span className="font-bold text-[#16A34A]">{item.health}</span>
-                      </div>
-                      <div className="flex justify-between text-xs font-mono">
-                        <span className="text-[#64748B]">Lifespan Baseline</span>
-                        <span className="font-bold text-[#2563EB]">{item.rul}</span>
-                      </div>
-                      <div className="flex justify-between text-xs font-mono">
-                        <span className="text-[#64748B]">Facility</span>
-                        <span className="font-bold text-[#0F172A] truncate max-w-[150px]">{item.seller}</span>
-                      </div>
-                      {item.quantity && (
-                        <div className="flex justify-between text-xs font-mono">
-                          <span className="text-[#64748B]">Available Quantity</span>
-                          <span className="font-bold text-[#0F172A]">{item.quantity} Units</span>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="pt-4 border-t border-slate-200 flex items-center justify-between">
-                    <span className="font-mono font-extrabold text-xl text-[#0F172A]">
-                      {item.price?.startsWith("₹")
-                        ? item.price
-                        : item.priceUSD
-                        ? `₹${Math.round(item.priceUSD < 500 ? item.priceUSD * 86.5 : item.priceUSD).toLocaleString("en-IN")}`
-                        : item.price?.replace("$", "₹") || "₹1,450"}
-                    </span>
-                    <button className="px-5 py-2.5 rounded-full bg-[#0F172A] hover:bg-[#1E293B] text-white text-xs font-mono font-bold inline-flex items-center gap-2 transition-colors cursor-pointer">
-                      <span>Buy Capsule</span>
-                      <ArrowRight className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                </div>
+          {!isLoading && listings.length > 0 && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+              {listings.map((item) => (
+                <ProductCard key={item.listingId || item._id} listing={item} />
               ))}
             </div>
           )}
 
+          {/* Empty State */}
+          {!isLoading && listings.length === 0 && (
+            <div className="bg-white rounded-2xl border border-slate-200 p-12 text-center space-y-4">
+              <div className="w-12 h-12 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center mx-auto">
+                <Cpu className="w-6 h-6" />
+              </div>
+              <h3 className="font-heading text-lg font-bold text-slate-800">
+                No matching components found
+              </h3>
+              <p className="text-slate-500 text-xs font-mono max-w-md mx-auto">
+                Try adjusting your search filters, or list a recovered component directly from an existing analysis session.
+              </p>
+              <div className="pt-2">
+                <Link
+                  href="/marketplace/create"
+                  className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-mono font-bold inline-flex items-center gap-2 transition-all cursor-pointer"
+                >
+                  <PlusCircle className="w-4 h-4" />
+                  <span>List New Component</span>
+                </Link>
+              </div>
+            </div>
+          )}
         </div>
       </section>
 

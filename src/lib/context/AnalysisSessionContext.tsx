@@ -164,6 +164,8 @@ export function AnalysisSessionProvider({ children }: { children: React.ReactNod
   const selectSampleDraft = (sampleId: string) => {
     const dataset =
       SAMPLE_DATASETS[sampleId] ||
+      SAMPLE_DATASETS[sampleId.replace(/_/g, "-")] ||
+      SAMPLE_DATASETS[sampleId.replace(/-/g, "_")] ||
       SAMPLE_DATASETS["router-board"] ||
       SAMPLE_DATASETS["laptop-motherboard"];
 
@@ -278,6 +280,8 @@ export function AnalysisSessionProvider({ children }: { children: React.ReactNod
   const loadSample = (sampleId: string) => {
     const dataset =
       SAMPLE_DATASETS[sampleId] ||
+      SAMPLE_DATASETS[sampleId.replace(/_/g, "-")] ||
+      SAMPLE_DATASETS[sampleId.replace(/-/g, "_")] ||
       SAMPLE_DATASETS["router-board"] ||
       SAMPLE_DATASETS["laptop-motherboard"];
     const newSession = convertSampleToSession(dataset, "COMPLETED");

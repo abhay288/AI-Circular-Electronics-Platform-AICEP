@@ -96,6 +96,34 @@ def analyze_image_quality(cv_image: np.ndarray) -> Dict[str, Any]:
     else:
         scores.append(0.95)
 
+    # 6. Surface Dust & Particulate Contamination Analysis
+    # In electronic waste, surface dust manifests as high-frequency particulate speckling
+    # coupled with local contrast suppression (gray dust layer over traces & IC packages).
+    med_filtered = cv2.medianBlur(gray, 3)
+    diff = cv2.absdiff(gray, med_filtered)
+    particulate_noise = float(np.mean(diff))
+
+    dust_index = round(float((particulate_noise / (contrast_std + 1e-5)) * (1.0 - (saturation_mean / 255.0))), 3)
+    
+    if dust_index >= 0.18:
+        dust_level = "HEAVY"
+        warnings.append("DUST_CONTAMINATION_HEAVY")
+        cleaning_recommendation = "Heavy particulate & dust contamination detected. Automated ultrasonic IPA wash required prior to component recovery or rework."
+        scores.append(0.65)
+    elif dust_index >= 0.14:
+        dust_level = "MODERATE"
+        warnings.append("DUST_CONTAMINATION_MODERATE")
+        cleaning_recommendation = "Surface dust accumulation detected. Compressed air de-dusting and surface isopropyl cleaning recommended."
+        scores.append(0.85)
+    elif dust_index >= 0.128:
+        dust_level = "LIGHT"
+        cleaning_recommendation = "Minor dust film present. Standard optical wipe recommended."
+        scores.append(0.95)
+    else:
+        dust_level = "CLEAN"
+        cleaning_recommendation = None
+        scores.append(1.0)
+
     # Aggregate composite score
     composite_score = round(float(np.mean(scores)), 2)
     
@@ -112,6 +140,9 @@ def analyze_image_quality(cv_image: np.ndarray) -> Dict[str, Any]:
         "quality": quality_label,
         "score": composite_score,
         "warnings": warnings,
+        "dustLevel": dust_level,
+        "dustScore": dust_index,
+        "cleaningRecommendation": cleaning_recommendation,
         "metrics": {
             "width": width,
             "height": height,
@@ -119,5 +150,7 @@ def analyze_image_quality(cv_image: np.ndarray) -> Dict[str, Any]:
             "meanBrightness": round(mean_brightness, 1),
             "contrastStd": round(contrast_std, 1),
             "edgeDensity": round(edge_density, 4),
+            "particulateNoise": round(particulate_noise, 2),
+            "dustIndex": dust_index,
         }
     }

@@ -1,77 +1,86 @@
 import { NextRequest } from "next/server";
 import { connectDB } from "@/lib/db";
-import { Report } from "@/models/Report";
+import { Report, ReportType } from "@/models/Report";
 import { AnalysisSession } from "@/models/AnalysisSession";
-import { generateReportId } from "@/lib/id-generator";
+import { ReportService } from "@/services/reporting/report.service";
+import { enqueueReportJob } from "@/queues/report.queue";
 import { successResponse, errorResponse } from "@/lib/api-response";
 
 export async function POST(req: NextRequest) {
   try {
     await connectDB();
     const body = await req.json().catch(() => ({}));
-    const { analysisId, format = "PDF" } = body;
+    const {
+      analysisId,
+      reportType = "ASSET",
+      format = "PDF",
+      organizationId = "org-default",
+      generatedBy = "system",
+      async = false,
+      branding,
+    } = body;
 
-    if (!analysisId) {
-      return errorResponse("ANALYSIS_ID_REQUIRED", "analysisId is required to generate a report", 400);
+    if (reportType !== "EXECUTIVE" && !analysisId) {
+      return errorResponse("ANALYSIS_ID_REQUIRED", "analysisId is required for this report type", 400);
     }
 
-    const session = await AnalysisSession.findOne({
-      $or: [{ analysisId }, { sessionId: analysisId }],
-    });
-
-    if (!session) {
-      return errorResponse("ANALYSIS_NOT_FOUND", `Analysis session '${analysisId}' was not found`, 404);
+    if (analysisId) {
+      const session = await AnalysisSession.findOne({
+        $or: [{ analysisId }, { sessionId: analysisId }],
+      });
+      if (!session) {
+        return errorResponse("ANALYSIS_NOT_FOUND", `Analysis session '${analysisId}' was not found`, 404);
+      }
     }
 
-    const reportId = generateReportId(session.analysisId);
-
-    const report = await Report.findOneAndUpdate(
-      { analysisId: session.analysisId },
-      {
-        reportId,
-        analysisId: session.analysisId,
-        status: "READY",
+    if (async) {
+      const enqueued = await enqueueReportJob({
+        analysisId,
+        organizationId,
+        reportType: reportType as ReportType,
         format,
-        fileUrl: `/api/reports?analysisId=${session.analysisId}`,
-        sections: [
-          "Executive Summary",
-          "Component Detection Breakdown",
-          "High-Frequency PCB Trace Topology",
-          "Degradation Physics & RUL Prediction",
-          "Precious Metal Spectrometry Recovery",
-          "Component Swap & Solder Refurbishment Plan",
-          "Polygon Digital Product Passport Verification",
-          "Scope 3 Avoided Carbon Footprint",
-        ],
-        summary: {
-          deviceName: session.deviceName,
-          overallHealthPercent: session.rulResult?.overallHealthScore || 90,
-          classification: "Circularity Grade A (Industrial High-Recovery)",
-          potentialValueUSD: session.metalResult?.totalEstimatedMarketValueUSD || 18.7,
-          potentialValueINR: session.metalResult?.totalEstimatedMarketValueINR || 1617,
-          estimatedRemainingLifeYears: session.rulResult?.predictedYears || 4.8,
-          componentsDetectedCount: session.detectionResult?.componentsCount || 24,
-          recommendedAction: session.repairResult?.recommendedAction || "refurbish",
-        },
-        version: "2.4.0",
-        generatedAt: new Date(),
-      },
-      { upsert: true, new: true }
-    );
+        generatedBy,
+      });
 
-    session.reportId = reportId;
-    session.status = "COMPLETED";
-    await session.save();
+      return successResponse({
+        status: "GENERATING",
+        message: "Report generation job queued successfully.",
+        jobId: enqueued.jobId,
+      });
+    }
+
+    // Direct synchronous generation via ReportService
+    let report;
+    switch (reportType) {
+      case "TECHNICAL":
+        report = await ReportService.generateTechnicalReport(analysisId, { organizationId, format, generatedBy, branding });
+        break;
+      case "CIRCULARITY":
+        report = await ReportService.generateCircularityReport(analysisId, { organizationId, format, generatedBy, branding });
+        break;
+      case "ENVIRONMENTAL":
+        report = await ReportService.generateEnvironmentalReport(analysisId, { organizationId, format, generatedBy, branding });
+        break;
+      case "EXECUTIVE":
+        report = await ReportService.generateExecutiveReport(organizationId, { format, generatedBy, branding });
+        break;
+      case "ASSET":
+      default:
+        report = await ReportService.generateAssetReport(analysisId, { organizationId, format, generatedBy, branding });
+        break;
+    }
 
     return successResponse({
       reportId: report.reportId,
       status: report.status,
       format: report.format,
+      version: report.version,
+      completeness: report.completeness,
       generatedAt: report.generatedAt,
       report,
     });
   } catch (error: any) {
-    console.error("[Report Generation Error]:", error);
+    console.error("[Report Generation API Error]:", error);
     return errorResponse("PROCESSING_FAILED", error.message || "Failed to generate report", 500);
   }
 }
@@ -81,19 +90,38 @@ export async function GET(req: NextRequest) {
     await connectDB();
     const { searchParams } = new URL(req.url);
     const analysisId = searchParams.get("analysisId");
+    const organizationId = searchParams.get("organizationId");
+    const reportType = searchParams.get("reportType");
+    const status = searchParams.get("status");
+    const page = Math.max(1, parseInt(searchParams.get("page") || "1", 10));
+    const limit = Math.max(1, Math.min(100, parseInt(searchParams.get("limit") || "20", 10)));
+    const skip = (page - 1) * limit;
 
-    if (!analysisId) {
-      const reports = await Report.find().sort({ generatedAt: -1 }).limit(20);
-      return successResponse({ reports });
-    }
+    const query: any = {};
+    if (analysisId) query.analysisId = analysisId;
+    if (organizationId && organizationId !== "all") query.organizationId = organizationId;
+    if (reportType && reportType !== "all") query.reportType = reportType;
+    if (status && status !== "all") query.status = status;
 
-    const report = await Report.findOne({ analysisId });
-    if (!report) {
-      return errorResponse("REPORT_NOT_FOUND", `Report for analysis '${analysisId}' was not found`, 404);
-    }
+    const [total, reports] = await Promise.all([
+      Report.countDocuments(query),
+      Report.find(query)
+        .sort({ generatedAt: -1, version: -1 })
+        .skip(skip)
+        .limit(limit)
+        .lean(),
+    ]);
 
-    return successResponse({ report });
+    return successResponse({
+      reports,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
+    });
   } catch (error: any) {
-    return errorResponse("INTERNAL_ERROR", error.message || "Failed to retrieve report", 500);
+    return errorResponse("INTERNAL_ERROR", error.message || "Failed to retrieve reports", 500);
   }
 }

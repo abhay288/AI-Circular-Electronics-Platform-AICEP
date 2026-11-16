@@ -4,3 +4,4 @@ export * from "./rul/rul.provider";
 export * from "./materials/materials.provider";
 export * from "./repair/repair.provider";
 export * from "./blockchain/blockchain.provider";
+export * from "./carbon/carbon.provider";

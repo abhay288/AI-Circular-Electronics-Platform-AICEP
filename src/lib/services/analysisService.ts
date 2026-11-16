@@ -316,7 +316,12 @@ export class AnalysisService {
     const newId = `ECI-2026-${randomSuffix}`;
 
     if (draft.sourceType === "sample" && draft.sampleId) {
-      const dataset = SAMPLE_DATASETS[draft.sampleId] || SAMPLE_DATASETS["router-board"];
+      const key = draft.sampleId;
+      const dataset =
+        SAMPLE_DATASETS[key] ||
+        SAMPLE_DATASETS[key.replace(/_/g, "-")] ||
+        SAMPLE_DATASETS[key.replace(/-/g, "_")] ||
+        SAMPLE_DATASETS["router-board"];
       const session = convertSampleToSession(dataset, "CAPTURED", newId);
       sessionCache.set(newId, session);
       return session;

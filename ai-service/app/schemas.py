@@ -34,6 +34,9 @@ class ImageQualityCheck(BaseModel):
     quality: str = "GOOD"  # EXCELLENT, GOOD, FAIR, POOR
     score: float = 0.9
     warnings: List[str] = []
+    dustLevel: Optional[str] = "CLEAN"  # CLEAN, LIGHT, MODERATE, HEAVY
+    dustScore: Optional[float] = 0.0
+    cleaningRecommendation: Optional[str] = None
 
 class DetectionResponse(BaseModel):
     success: bool = True

@@ -39,7 +39,63 @@ export default function RealPcbViewer({
   const [hoveredCompId, setHoveredCompId] = useState<string | null>(null);
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
 
+  // Hardware Condition State (supports testing actual device condition: clean, light, moderate, heavy)
+  const [activeCondition, setActiveCondition] = useState<"clean" | "light" | "moderate" | "heavy">("clean");
+
   const containerRef = useRef<HTMLDivElement>(null);
+
+  // Extract base sample key if applicable
+  const baseBoardMatch = (imageUrl || "").match(/(laptop_motherboard|laptop-motherboard|router_board|router-board|iot_controller|iot-controller|power_supply|power-supply|industrial_controller|industrial-controller|smartphone_pcb|smartphone-pcb)/i);
+  const baseName = baseBoardMatch ? baseBoardMatch[1].replace(/-/g, "_").toLowerCase() : null;
+
+  // Resolve current image URL based on selected actual condition
+  const effectiveImageUrl = React.useMemo(() => {
+    if (!baseName) return imageUrl || "/images/samples/router_board.jpg";
+    if (activeCondition === "clean") {
+      return `/images/samples/conditions/${baseName}_clean.jpg`;
+    }
+    if (activeCondition === "light") {
+      return `/images/samples/conditions/${baseName}_dust_light.jpg`;
+    }
+    if (activeCondition === "moderate") {
+      return `/images/samples/conditions/${baseName}_dust_moderate.jpg`;
+    }
+    if (activeCondition === "heavy") {
+      return `/images/samples/conditions/${baseName}_dust_heavy.jpg`;
+    }
+    return imageUrl || "/images/samples/router_board.jpg";
+  }, [baseName, activeCondition, imageUrl]);
+
+  const conditionMeta = {
+    clean: {
+      label: "Clean / Mint Condition",
+      badgeColor: "bg-[#DCFCE7] text-[#16A34A] border-emerald-300",
+      dotColor: "bg-[#16A34A]",
+      recommendation: "Pristine optical condition · Direct component desolder & reuse certified.",
+      dustIndex: "0.042 (Clean)",
+    },
+    light: {
+      label: "Light Dust Condition",
+      badgeColor: "bg-blue-50 text-blue-700 border-blue-200",
+      dotColor: "bg-blue-500",
+      recommendation: "Minor dust film present · Standard anti-static wipe recommended.",
+      dustIndex: "0.134 (Light Dust)",
+    },
+    moderate: {
+      label: "Moderate Dust Condition",
+      badgeColor: "bg-amber-50 text-amber-700 border-amber-300",
+      dotColor: "bg-amber-500",
+      recommendation: "Surface dust accumulation detected · Compressed air de-dusting required.",
+      dustIndex: "0.165 (Moderate Veil)",
+    },
+    heavy: {
+      label: "Heavy E-Waste Condition",
+      badgeColor: "bg-rose-50 text-rose-700 border-rose-300",
+      dotColor: "bg-rose-500",
+      recommendation: "Heavy particulate crust · Automated ultrasonic IPA bath mandatory prior to recovery.",
+      dustIndex: "0.228 (Heavy Contamination)",
+    },
+  }[activeCondition];
 
   // Zoom handlers
   const handleZoomIn = () => setZoom((prev) => Math.min(prev + 0.3, 3.5));
@@ -82,13 +138,52 @@ export default function RealPcbViewer({
       {/* Top Telemetry Header Overlay */}
       <div className="absolute top-3 left-3 z-20 flex flex-wrap items-center gap-2 pointer-events-none">
         <span className="px-2.5 py-1 rounded-md bg-black/80 backdrop-blur-md border border-white/10 text-[10px] font-mono font-bold text-white flex items-center gap-1.5 shadow-sm">
-          <span className="w-2 h-2 rounded-full bg-[#16A34A] animate-pulse" />
+          <span className={`w-2 h-2 rounded-full ${conditionMeta.dotColor} animate-pulse`} />
           <span>Real Optical Scan</span>
         </span>
         <span className="px-2 py-0.5 rounded-md bg-blue-500/20 backdrop-blur-md border border-blue-500/40 text-[10px] font-mono text-[#60A5FA]">
           50-Micron Telemetry
         </span>
+        <span className={`px-2 py-0.5 rounded-md backdrop-blur-md border text-[10px] font-mono font-bold ${conditionMeta.badgeColor}`}>
+          {conditionMeta.label}
+        </span>
       </div>
+
+      {/* Actual Condition Switcher Bar for Real Hardware Devices */}
+      {baseName && (
+        <div className="absolute top-3 left-1/2 -translate-x-1/2 z-20 hidden sm:flex items-center gap-1 bg-black/85 backdrop-blur-md p-1 rounded-xl border border-white/10 shadow-lg">
+          <span className="text-[10px] font-mono text-slate-400 px-2 font-bold uppercase">Condition:</span>
+          {(["clean", "light", "moderate", "heavy"] as const).map((cond) => {
+            const isActive = activeCondition === cond;
+            const labels = {
+              clean: "Clean",
+              light: "Light Dust",
+              moderate: "Moderate",
+              heavy: "Heavy E-Waste",
+            };
+            return (
+              <button
+                key={cond}
+                type="button"
+                onClick={() => setActiveCondition(cond)}
+                className={`px-2.5 py-1 rounded-lg text-[10px] font-mono font-bold transition-all cursor-pointer ${
+                  isActive
+                    ? cond === "clean"
+                      ? "bg-emerald-600 text-white shadow-xs"
+                      : cond === "light"
+                      ? "bg-blue-600 text-white shadow-xs"
+                      : cond === "moderate"
+                      ? "bg-amber-600 text-white shadow-xs"
+                      : "bg-rose-600 text-white shadow-xs"
+                    : "text-slate-300 hover:text-white hover:bg-white/10"
+                }`}
+              >
+                {labels[cond]}
+              </button>
+            );
+          })}
+        </div>
+      )}
 
       {/* Floating Action Controls */}
       <div className="absolute top-3 right-3 z-20 flex items-center gap-1.5 bg-black/80 backdrop-blur-md p-1.5 rounded-xl border border-white/10 shadow-lg">
@@ -137,7 +232,7 @@ export default function RealPcbViewer({
         <div className="relative max-w-full max-h-full flex items-center justify-center">
           {/* Real PCB Photographic Scan */}
           <img
-            src={imageUrl || "/images/samples/router_board.jpg"}
+            src={effectiveImageUrl}
             alt="Real Optical Hardware Capture"
             className="max-h-[380px] w-auto object-contain rounded-lg shadow-2xl pointer-events-none"
           />
@@ -211,15 +306,22 @@ export default function RealPcbViewer({
       {/* Bottom Telemetry Bar */}
       <div className="absolute bottom-3 left-3 right-3 z-20 flex flex-wrap items-center justify-between gap-2 pointer-events-none">
         <div className="px-3 py-1 rounded-xl bg-black/80 backdrop-blur-md border border-white/10 text-[11px] font-mono text-slate-300 flex items-center gap-3">
-          <span>Click any bounding box to inspect component</span>
+          <span>Click box to inspect</span>
           <span className="text-slate-500">·</span>
           <span>Zoom: {Math.round(zoom * 100)}%</span>
+          <span className="text-slate-500">·</span>
+          <span className="text-slate-400">Dust Index: <strong className="text-slate-200">{conditionMeta.dustIndex}</strong></span>
         </div>
 
-        {selectedComponent && (
+        {selectedComponent ? (
           <div className="px-3 py-1 rounded-xl bg-[#0F172A]/90 backdrop-blur-md border border-[#38BDF8]/40 text-[11px] font-mono text-[#38BDF8] flex items-center gap-1.5 shadow-md">
             <Crosshair className="w-3 h-3 text-[#38BDF8]" />
             <span>Target: <strong>{selectedComponent.name}</strong> ({selectedComponent.package})</span>
+          </div>
+        ) : (
+          <div className="px-3 py-1 rounded-xl bg-black/80 backdrop-blur-md border border-white/10 text-[11px] font-mono text-slate-300 hidden md:flex items-center gap-1.5">
+            <span className="text-emerald-400">Action:</span>
+            <span>{conditionMeta.recommendation}</span>
           </div>
         )}
       </div>

@@ -37,3 +37,9 @@ Thumbs.db
 backend/venv/
 backend/__pycache__/
 *.pyc
+__pycache__/
+
+# ML training runs & cache
+runs/
+*.cache
+yolo11n.pt

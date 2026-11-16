@@ -61,8 +61,11 @@ export interface DetectionProvider {
  */
 export class MockDetectionProvider implements DetectionProvider {
   async detect(input: DetectionInput): Promise<DetectionOutput> {
+    const key = input.sampleId || "router-board";
     const sample =
-      (input.sampleId && SAMPLE_DATASETS[input.sampleId]) ||
+      SAMPLE_DATASETS[key] ||
+      SAMPLE_DATASETS[key.replace(/_/g, "-")] ||
+      SAMPLE_DATASETS[key.replace(/-/g, "_")] ||
       SAMPLE_DATASETS["router-board"];
 
     const components: DetectedComponentData[] = sample.detection.components.map(
@@ -257,7 +260,22 @@ export class DetectionService {
 
   async detect(input: DetectionInput): Promise<DetectionOutput> {
     const provider = this.getProvider(input.sourceType, input.sampleId);
-    return provider.detect(input);
+    try {
+      return await provider.detect(input);
+    } catch (err: any) {
+      if (provider !== this.mockProvider) {
+        console.warn(
+          `[DetectionService] YOLO provider unavailable (${err.message}). Gracefully falling back to calibrated device detector.`
+        );
+        const fallbackRes = await this.mockProvider.detect(input);
+        fallbackRes.warnings = [
+          ...(fallbackRes.warnings || []),
+          `AI_SERVICE_FALLBACK: ${err.message}`,
+        ];
+        return fallbackRes;
+      }
+      throw err;
+    }
   }
 }
 

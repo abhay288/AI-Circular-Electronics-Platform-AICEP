@@ -19,11 +19,21 @@ export const CANONICAL_COMPONENT_CLASSES = [
   "LED",
   "Fuse",
   "Transformer",
+  "Dust_Contamination",
 ] as const;
 
 export type CanonicalComponentType = typeof CANONICAL_COMPONENT_CLASSES[number] | "Other";
 
 const CLASS_ALIAS_MAP: Record<string, CanonicalComponentType> = {
+  // Dust & Surface Contamination
+  dust: "Dust_Contamination",
+  dust_contamination: "Dust_Contamination",
+  dirt: "Dust_Contamination",
+  grime: "Dust_Contamination",
+  debris: "Dust_Contamination",
+  particulate: "Dust_Contamination",
+  contamination: "Dust_Contamination",
+
   // IC & Chips
   ic: "IC",
   integrated_circuit: "IC",
@@ -33,8 +43,18 @@ const CLASS_ALIAS_MAP: Record<string, CanonicalComponentType> = {
   cpu: "IC",
   processor: "IC",
   soc: "IC",
+  cpu_soc: "IC",
   eeprom: "IC",
   flash_memory: "IC",
+  memory: "IC",
+  ram: "IC",
+  dram: "IC",
+  sram: "IC",
+  ddr: "IC",
+  microcontroller_rf: "IC",
+  interface_ic: "IC",
+  application_processor: "IC",
+  network_soc: "IC",
   op_amp: "IC",
   bga: "IC",
   sop: "IC",
@@ -50,6 +70,7 @@ const CLASS_ALIAS_MAP: Record<string, CanonicalComponentType> = {
   capacitor: "Capacitor",
   cap: "Capacitor",
   smd_capacitor: "Capacitor",
+  capacitor_array: "Capacitor",
   electrolytic_capacitor: "Capacitor",
   tantalum_capacitor: "Capacitor",
   ceramic_capacitor: "Capacitor",
@@ -59,12 +80,16 @@ const CLASS_ALIAS_MAP: Record<string, CanonicalComponentType> = {
   rectifier: "Diode",
   zener: "Diode",
   schottky: "Diode",
+  diode_bridge: "Diode",
+  bridge_rectifier: "Diode",
 
   // Transistors & MOSFETs
   transistor: "Transistor",
   bjt: "Transistor",
   mosfet: "MOSFET",
   fet: "MOSFET",
+  power_fet: "MOSFET",
+  trenchfet: "MOSFET",
   igbt: "MOSFET",
 
   // Inductors & Chokes
@@ -94,6 +119,7 @@ const CLASS_ALIAS_MAP: Record<string, CanonicalComponentType> = {
   accelerometer: "Sensor",
   gyroscope: "Sensor",
   hall_sensor: "Sensor",
+  optoisolator: "Sensor",
 
   // Relays
   relay: "Relay",
@@ -101,6 +127,7 @@ const CLASS_ALIAS_MAP: Record<string, CanonicalComponentType> = {
 
   // Regulators & Power ICs
   voltage_regulator: "Voltage_Regulator",
+  power_regulator: "Voltage_Regulator",
   regulator: "Voltage_Regulator",
   ldo: "Voltage_Regulator",
   buck_converter: "Voltage_Regulator",
@@ -121,6 +148,7 @@ const CLASS_ALIAS_MAP: Record<string, CanonicalComponentType> = {
   // Magnetics
   transformer: "Transformer",
   lan_transformer: "Transformer",
+  lan_magnetics: "Transformer",
   pulse_transformer: "Transformer",
 };
 
@@ -129,7 +157,7 @@ const CLASS_ALIAS_MAP: Record<string, CanonicalComponentType> = {
  */
 export function normalizeComponentType(rawLabel: string): CanonicalComponentType {
   if (!rawLabel) return "Other";
-  const cleaned = rawLabel.trim().toLowerCase().replace(/[\s-]+/g, "_");
+  const cleaned = rawLabel.trim().toLowerCase().replace(/[\s\/-]+/g, "_").replace(/^_+|_+$/g, "");
   
   if (CLASS_ALIAS_MAP[cleaned]) {
     return CLASS_ALIAS_MAP[cleaned];

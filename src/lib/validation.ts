@@ -76,3 +76,90 @@ export const RULScenarioSimulationSchema = z.object({
   componentAgeYears: z.number().min(0).max(50).optional(),
 });
 
+export const MaterialAnalyzeRequestSchema = z.object({
+  analysisId: z.string().min(1, "analysisId is required"),
+  boardMassGrams: z.number().positive("boardMassGrams must be positive").optional(),
+  boardAreaCm2: z.number().positive("boardAreaCm2 must be positive").optional(),
+  manufacturer: z.string().optional(),
+  partNumber: z.string().optional(),
+  additionalMetadata: z.record(z.string(), z.unknown()).optional(),
+});
+
+export const MaterialScenarioRequestSchema = z.object({
+  scenario: z.enum(["conservative", "typical", "optimistic"]).default("typical"),
+});
+
+export const CreatePassportSchema = z.object({
+  analysisId: z.string().min(1, "analysisId is required"),
+  assetType: z
+    .enum([
+      "PCB",
+      "ELECTRONIC_DEVICE",
+      "COMPONENT",
+      "RECOVERED_COMPONENT",
+      "REFURBISHED_DEVICE",
+      "REPAIRED_DEVICE",
+    ])
+    .default("PCB"),
+  assetName: z.string().optional(),
+  manufacturer: z.string().optional(),
+  model: z.string().optional(),
+  serialNumber: z.string().optional(),
+  partNumber: z.string().optional(),
+  boardRevision: z.string().optional(),
+  manufacturingDate: z.string().optional(),
+  countryOfOrigin: z.string().optional(),
+  notes: z.string().optional(),
+  autoAnchor: z.boolean().optional(),
+});
+
+export const AddPassportEventSchema = z.object({
+  eventType: z.enum([
+    "CREATED",
+    "ANALYZED",
+    "INSPECTED",
+    "REPAIRED",
+    "REFURBISHED",
+    "TRANSFERRED",
+    "LISTED",
+    "SOLD",
+    "RECOVERED",
+    "RECYCLED",
+    "REUSED",
+    "RETIRED",
+    "REVOKED",
+    "CORRECTION_ISSUED",
+  ]),
+  description: z.string().min(3, "Description must be at least 3 characters"),
+  location: z.string().optional(),
+  evidence: z.string().optional(),
+  metadata: z.record(z.string(), z.unknown()).optional(),
+});
+
+export const TransferPassportSchema = z.object({
+  newOwner: z.string().min(2, "newOwner is required"),
+  reason: z.string().optional(),
+});
+
+export const RevokePassportSchema = z.object({
+  reason: z.string().min(5, "Revocation reason must be at least 5 characters"),
+});
+
+export const AddPassportDocumentSchema = z.object({
+  documentName: z.string().min(2, "documentName is required"),
+  documentType: z.enum([
+    "INSPECTION_REPORT",
+    "REPAIR_REPORT",
+    "MATERIAL_REPORT",
+    "MANUFACTURER_DOC",
+    "DATASHEET",
+    "CERTIFICATE",
+    "IMAGE_EVIDENCE",
+    "OTHER",
+  ]),
+  storageReference: z.string().min(1, "storageReference is required"),
+  documentContentOrHash: z.string().min(1, "documentContentOrHash is required"),
+});
+
+
+

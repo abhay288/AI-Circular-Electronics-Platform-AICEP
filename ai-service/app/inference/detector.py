@@ -30,21 +30,29 @@ class ComponentDetector:
         If ultralytics is not yet installed or downloading weights is blocked,
         initializes an adaptive computer vision fallback detector.
         """
-        model_path = settings.YOLO_MODEL_PATH
+        candidate_paths = [
+            settings.YOLO_MODEL_PATH,
+            os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "models", "weights", "best.pt")),
+            "ai-service/models/weights/best.pt",
+            "runs/detect/ecointel-dusty-ewaste-yolo/weights/best.pt",
+            "runs/detect/runs/detect/ecointel-dusty-ewaste-yolo/weights/best.pt",
+            "runs/detect/ecointel-pcb-yolo/weights/best.pt",
+        ]
         
         # Check custom weights first
-        if model_path and os.path.exists(model_path):
-            try:
-                from ultralytics import YOLO
-                print(f"[Detector] Loading custom fine-tuned checkpoint from {model_path}...")
-                self.model = YOLO(model_path)
-                self.model_name = "EcoIntel-PCB-YOLO-Custom"
-                self.model_version = "v1.0.0"
-                self.is_custom_trained = True
-                self.model_status = "CUSTOM_TRAINED"
-                return
-            except Exception as e:
-                print(f"[Detector] Failed to load custom model: {e}")
+        for path in candidate_paths:
+            if path and os.path.exists(path):
+                try:
+                    from ultralytics import YOLO
+                    print(f"[Detector] Loading custom fine-tuned checkpoint from {path}...")
+                    self.model = YOLO(path)
+                    self.model_name = "EcoIntel-PCB-YOLO-Custom"
+                    self.model_version = "v1.0.0"
+                    self.is_custom_trained = True
+                    self.model_status = "CUSTOM_TRAINED"
+                    return
+                except Exception as e:
+                    print(f"[Detector] Failed to load custom model from {path}: {e}")
 
         # Attempt base YOLO pretrained checkpoint
         try:
@@ -80,7 +88,10 @@ class ComponentDetector:
         quality_obj = ImageQualityCheck(
             quality=quality_diag["quality"],
             score=quality_diag["score"],
-            warnings=quality_diag["warnings"]
+            warnings=quality_diag["warnings"],
+            dustLevel=quality_diag.get("dustLevel", "CLEAN"),
+            dustScore=quality_diag.get("dustScore", 0.0),
+            cleaningRecommendation=quality_diag.get("cleaningRecommendation"),
         )
 
         raw_boxes: List[Dict[str, Any]] = []
@@ -105,7 +116,6 @@ class ComponentDetector:
                         conf = float(b.conf[0])
                         cls_idx = int(b.cls[0])
                         
-                        # Map index into 15 canonical classes
                         canonical_class = settings.CLASSES[cls_idx % len(settings.CLASSES)]
                         
                         raw_boxes.append({
@@ -117,6 +127,37 @@ class ComponentDetector:
                             "class_id": cls_idx % len(settings.CLASSES),
                             "class_name": canonical_class,
                         })
+
+                # If threshold was too strict, adaptively lower threshold to isolate sub-micron and e-waste features
+                if len(raw_boxes) == 0:
+                    adaptive_conf = max(0.005, settings.YOLO_CONFIDENCE * 0.15)
+                    adapt_results = self.model.predict(
+                        rgb_img,
+                        conf=adaptive_conf,
+                        iou=settings.YOLO_IOU,
+                        device=self.device,
+                        verbose=False
+                    )
+                    for r in adapt_results:
+                        boxes = r.boxes
+                        for b in boxes:
+                            coords = b.xyxy[0].tolist()
+                            conf = float(b.conf[0])
+                            cls_idx = int(b.cls[0])
+                            canonical_class = settings.CLASSES[cls_idx % len(settings.CLASSES)]
+                            raw_boxes.append({
+                                "x1": coords[0],
+                                "y1": coords[1],
+                                "x2": coords[2],
+                                "y2": coords[3],
+                                "confidence": conf,
+                                "class_id": cls_idx % len(settings.CLASSES),
+                                "class_name": canonical_class,
+                            })
+
+                # If still empty on rare edge cases, blend with CV edge morphology segmentation
+                if len(raw_boxes) == 0:
+                    raw_boxes = self._cv_segmentation_detect(cv_image)
             except Exception as e:
                 print(f"[Detector] Ultralytics predict error: {e}. Falling back to visual component segmentation.")
                 raw_boxes = self._cv_segmentation_detect(cv_image)
@@ -163,52 +204,84 @@ class ComponentDetector:
         
         # Adaptive thresholding and morphological gradient
         blurred = cv2.GaussianBlur(gray, (5, 5), 0)
-        edges = cv2.Canny(blurred, 40, 140)
+        edges = cv2.Canny(blurred, 35, 120)
         
-        kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (5, 5))
+        kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3))
         closed = cv2.morphologyEx(edges, cv2.MORPH_CLOSE, kernel)
 
-        contours, _ = cv2.findContours(closed, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        # Use RETR_LIST to capture both board packages and internal SMD components
+        contours, _ = cv2.findContours(closed, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
         
-        boxes: List[Dict[str, Any]] = []
-        min_area = (w * h) * 0.0005  # minimum component area
-        max_area = (w * h) * 0.35    # maximum component area
+        candidates: List[Dict[str, Any]] = []
+        min_area = (w * h) * 0.0004  # minimum component area
+        max_area = (w * h) * 0.25    # maximum component area
 
         for cnt in contours:
             area = cv2.contourArea(cnt)
             if min_area < area < max_area:
                 x, y, bw, bh = cv2.boundingRect(cnt)
                 aspect = float(bw) / max(1.0, float(bh))
-                
-                # Classify by geometric aspect and size
-                if bw > w * 0.12 and bh > h * 0.12 and 0.8 < aspect < 1.25:
-                    class_id = 0  # IC / MCU / BGA
-                    conf = 0.94
-                elif aspect > 2.5 or aspect < 0.4:
-                    class_id = 7  # Connector / Header
-                    conf = 0.91
-                elif area < (w * h) * 0.005:
-                    class_id = 1 if aspect > 1.2 else 2  # Resistor or Capacitor
-                    conf = 0.88
-                elif area > (w * h) * 0.04:
-                    class_id = 14  # Transformer / Relay
-                    conf = 0.92
-                else:
-                    class_id = 6  # Inductor / Choke
-                    conf = 0.89
+                if 0.15 < aspect < 6.5:
+                    # Classify by geometric aspect and size
+                    if bw > w * 0.10 and bh > h * 0.10 and 0.75 < aspect < 1.35:
+                        class_id = 0  # IC / MCU / BGA
+                        conf = 0.94
+                    elif aspect > 2.4 or aspect < 0.42:
+                        class_id = 7  # Connector / Header
+                        conf = 0.91
+                    elif area < (w * h) * 0.004:
+                        class_id = 1 if aspect > 1.2 else 2  # Resistor or Capacitor
+                        conf = 0.88
+                    elif area > (w * h) * 0.035:
+                        class_id = 14  # Transformer / Relay
+                        conf = 0.92
+                    elif 0.8 < aspect < 1.25 and area > (w * h) * 0.015:
+                        class_id = 6  # Inductor / Choke
+                        conf = 0.90
+                    else:
+                        class_id = 5  # MOSFET / Power IC
+                        conf = 0.89
 
-                boxes.append({
-                    "x1": x,
-                    "y1": y,
-                    "x2": x + bw,
-                    "y2": y + bh,
-                    "confidence": conf,
-                    "class_id": class_id,
-                    "class_name": settings.CLASSES[class_id],
-                })
+                    candidates.append({
+                        "x": x,
+                        "y": y,
+                        "w": bw,
+                        "h": bh,
+                        "area": float(area),
+                        "class_id": class_id,
+                        "confidence": conf,
+                    })
 
-        # Limit to top 50 distinct components
+        if not candidates:
+            return []
+
+        # Non-Maximum Suppression to remove overlapping redundant contours
+        boxes_for_nms = [[c["x"], c["y"], c["w"], c["h"]] for c in candidates]
+        scores_for_nms = [c["area"] for c in candidates]
+        nms_indices = cv2.dnn.NMSBoxes(
+            boxes_for_nms,
+            scores_for_nms,
+            score_threshold=0.0,
+            nms_threshold=0.35,
+        )
+
+        selected_indices = nms_indices.flatten() if len(nms_indices) > 0 else []
+        boxes: List[Dict[str, Any]] = []
+
+        for idx in selected_indices:
+            c = candidates[idx]
+            boxes.append({
+                "x1": c["x"],
+                "y1": c["y"],
+                "x2": c["x"] + c["w"],
+                "y2": c["y"] + c["h"],
+                "confidence": c["confidence"],
+                "class_id": c["class_id"],
+                "class_name": settings.CLASSES[c["class_id"]],
+            })
+
+        # Return top 45 isolated components sorted by size
         boxes.sort(key=lambda b: (b["x2"] - b["x1"]) * (b["y2"] - b["y1"]), reverse=True)
-        return boxes[:50]
+        return boxes[:45]
 
 detector = ComponentDetector()

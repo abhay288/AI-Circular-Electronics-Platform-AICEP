@@ -14,7 +14,7 @@ class Settings(BaseModel):
     MAX_IMAGE_WIDTH: int = int(os.getenv("MAX_IMAGE_WIDTH", "4096"))
     MAX_IMAGE_HEIGHT: int = int(os.getenv("MAX_IMAGE_HEIGHT", "4096"))
     
-    # 15 Canonical PCB classes
+    # 16 Canonical PCB & E-Waste classes
     CLASSES: list[str] = [
         "IC",
         "Resistor",
@@ -30,7 +30,8 @@ class Settings(BaseModel):
         "Voltage_Regulator",
         "LED",
         "Fuse",
-        "Transformer"
+        "Transformer",
+        "Dust_Contamination",
     ]
 
 settings = Settings()

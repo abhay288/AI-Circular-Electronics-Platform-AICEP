@@ -1,5 +1,5 @@
 # EcoIntel Circular Electronics PCB Component Detection Dataset YAML
-path: datasets/pcb-components
+path: E:/AI Circular Electronics Platform (AICEP)/datasets/pcb-components
 train: images/train
 val: images/val
 test: images/test
@@ -20,3 +20,4 @@ names:
   12: LED
   13: Fuse
   14: Transformer
+  15: Dust_Contamination

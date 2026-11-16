@@ -14,9 +14,17 @@ export type AnalysisStatus =
   | "RUL_PROCESSING"
   | "RUL_COMPLETE"
   | "RUL_FAILED"
+  | "MATERIALS_QUEUED"
+  | "MATERIALS_PROCESSING"
+  | "MATERIALS_COMPLETE"
+  | "MATERIALS_FAILED"
   | "MATERIAL_COMPLETE"
   | "REPAIR_COMPLETE"
   | "PASSPORT_READY"
+  | "CARBON_QUEUED"
+  | "CARBON_PROCESSING"
+  | "CARBON_COMPLETE"
+  | "CARBON_FAILED"
   | "REPORT_READY"
   | "COMPLETED"
   | "FAILED";
@@ -115,9 +123,17 @@ const AnalysisSessionSchema = new Schema<IAnalysisSession>(
         "RUL_PROCESSING",
         "RUL_COMPLETE",
         "RUL_FAILED",
+        "MATERIALS_QUEUED",
+        "MATERIALS_PROCESSING",
+        "MATERIALS_COMPLETE",
+        "MATERIALS_FAILED",
         "MATERIAL_COMPLETE",
         "REPAIR_COMPLETE",
         "PASSPORT_READY",
+        "CARBON_QUEUED",
+        "CARBON_PROCESSING",
+        "CARBON_COMPLETE",
+        "CARBON_FAILED",
         "REPORT_READY",
         "COMPLETED",
         "FAILED",

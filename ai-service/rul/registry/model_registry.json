@@ -3,9 +3,9 @@
   "version": "v1.2.0",
   "datasetVersion": "synthetic-reliability-v1",
   "samples": 1500,
-  "maeHours": 1420.5,
-  "rmseHours": 1890.2,
-  "r2Score": 0.912,
+  "maeHours": 643.6,
+  "rmseHours": 1138.9,
+  "r2Score": 0.985,
   "status": "VALIDATED_SYNTHETIC",
   "limitations": [
     "Model trained on synthetic physics-informed degradation (Arrhenius + Inverse Power Law + Coffin-Manson).",

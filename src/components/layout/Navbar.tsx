@@ -16,6 +16,7 @@ import {
   Menu,
   X,
   Leaf,
+  Bell,
 } from "lucide-react";
 import PrimaryButton from "@/components/ui/PrimaryButton";
 
@@ -74,10 +75,11 @@ export default function Navbar() {
 
   const navLinks = [
     { name: "Home", href: "/" },
+    { name: "Dashboard", href: "/dashboard" },
+    { name: "Reports", href: "/reports" },
     { name: "Marketplace", href: "/marketplace" },
     { name: "Carbon Impact", href: "/impact" },
-    { name: "Research & Tech", href: "/research" },
-    { name: "About Us", href: "/about" },
+    { name: "Research", href: "/research" },
   ];
 
   return (
@@ -197,6 +199,13 @@ export default function Navbar() {
 
           {/* Action CTAs */}
           <div className="hidden md:flex items-center gap-3">
+            <Link
+              href="/notifications"
+              className="p-2 rounded-full text-slate-300 hover:text-white hover:bg-white/10 transition-colors"
+              title="Notifications"
+            >
+              <Bell className="w-4 h-4" />
+            </Link>
             <Link href="/console">
               <button className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-full bg-gradient-to-r from-[#2563EB] to-[#1D4ED8] text-white text-xs font-semibold tracking-tight transition-all duration-200 hover:shadow-lg hover:shadow-blue-500/25 cursor-pointer group shadow-sm">
                 <span>Launch Console</span>

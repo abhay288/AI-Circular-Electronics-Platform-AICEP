@@ -1,15 +1,20 @@
 import { NextRequest } from "next/server";
 import { connectDB } from "@/lib/db";
-import { MarketplaceListing } from "@/models/MarketplaceListing";
+import { MarketplaceListingService } from "@/services/marketplace/marketplaceListing.service";
+import { updateListingSchema } from "@/lib/marketplace/marketplaceValidation";
+import { getAuthUser } from "@/lib/auth";
 import { successResponse, errorResponse } from "@/lib/api-response";
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     await connectDB();
     const { id } = await params;
+    const authUser = await getAuthUser(req);
+    const isAdmin = authUser?.role === "ADMIN";
 
-    const listing = await MarketplaceListing.findOne({
-      $or: [{ listingId: id }, { _id: id.match(/^[0-9a-fA-F]{24}$/) ? id : null }],
+    const listing = await MarketplaceListingService.getListingById(id, {
+      requestingOrgId: authUser?.organizationId,
+      isAdmin,
     });
 
     if (!listing) {
@@ -18,7 +23,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 
     return successResponse({ listing });
   } catch (error: any) {
-    return errorResponse("INTERNAL_ERROR", error.message || "Failed to fetch listing", 500);
+    return errorResponse("FETCH_FAILED", error.message || "Failed to fetch listing", 500);
   }
 }
 
@@ -28,19 +33,34 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     const { id } = await params;
     const body = await req.json();
 
-    const listing = await MarketplaceListing.findOneAndUpdate(
-      { $or: [{ listingId: id }, { _id: id.match(/^[0-9a-fA-F]{24}$/) ? id : null }] },
-      { $set: body },
-      { new: true }
-    );
-
-    if (!listing) {
-      return errorResponse("LISTING_NOT_FOUND", `Listing '${id}' was not found`, 404);
+    const parsed = updateListingSchema.safeParse(body);
+    if (!parsed.success) {
+      return errorResponse(
+        "VALIDATION_ERROR",
+        parsed.error.issues.map((e: any) => `${e.path.join(".")}: ${e.message}`).join(", "),
+        400
+      );
     }
 
-    return successResponse({ listing });
+    const authUser = await getAuthUser(req);
+    const sellerOrganizationId =
+      authUser?.organizationId || (body.sellerOrganizationId as string) || "org_demo_circular";
+    const sellerUserId = authUser?.userId || (body.sellerUserId as string) || "user_demo_circular";
+    const isAdmin = authUser?.role === "ADMIN";
+
+    const updated = await MarketplaceListingService.updateDraft(
+      id,
+      parsed.data as any,
+      {
+        sellerOrganizationId,
+        sellerUserId,
+        isAdmin,
+      }
+    );
+
+    return successResponse({ listing: updated });
   } catch (error: any) {
-    return errorResponse("INTERNAL_ERROR", error.message || "Failed to update listing", 500);
+    return errorResponse("UPDATE_FAILED", error.message || "Failed to update listing", 400);
   }
 }
 
@@ -48,19 +68,19 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
   try {
     await connectDB();
     const { id } = await params;
+    const authUser = await getAuthUser(req);
+    const orgId = authUser?.organizationId || "org_demo_circular";
+    const userId = authUser?.userId || "user_demo_circular";
+    const isAdmin = authUser?.role === "ADMIN";
 
-    const listing = await MarketplaceListing.findOneAndUpdate(
-      { $or: [{ listingId: id }, { _id: id.match(/^[0-9a-fA-F]{24}$/) ? id : null }] },
-      { $set: { status: "UNLISTED" } },
-      { new: true }
-    );
+    const archived = await MarketplaceListingService.archiveListing(id, {
+      organizationId: orgId,
+      userId,
+      isAdmin,
+    });
 
-    if (!listing) {
-      return errorResponse("LISTING_NOT_FOUND", `Listing '${id}' was not found`, 404);
-    }
-
-    return successResponse({ message: `Listing '${id}' unlisted successfully`, listing });
+    return successResponse({ message: `Listing '${id}' archived successfully`, listing: archived });
   } catch (error: any) {
-    return errorResponse("INTERNAL_ERROR", error.message || "Failed to delete listing", 500);
+    return errorResponse("ARCHIVE_FAILED", error.message || "Failed to archive listing", 400);
   }
 }

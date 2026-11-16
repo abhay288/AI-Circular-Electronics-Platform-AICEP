@@ -1,6 +1,119 @@
 {
-  "activeModelId": "model-yolo-base-01",
+  "activeModelId": "model-ecointel-dusty-v1",
   "models": [
+    {
+      "modelId": "model-ecointel-dusty-v1",
+      "name": "EcoIntel-Dusty-EWaste-YOLO",
+      "version": "v1.1.0-dust-robust",
+      "provider": "EcoIntel Fine-Tuned PyTorch",
+      "status": "CUSTOM_TRAINED",
+      "isCustomTrained": true,
+      "trainingDate": "2026-11-16T10:23:36.472159",
+      "datasetVersion": "pcb-components-dusty-v2",
+      "classes": [
+        "IC",
+        "Resistor",
+        "Capacitor",
+        "Diode",
+        "Transistor",
+        "MOSFET",
+        "Inductor",
+        "Connector",
+        "Crystal",
+        "Sensor",
+        "Relay",
+        "Voltage_Regulator",
+        "LED",
+        "Fuse",
+        "Transformer",
+        "Dust_Contamination"
+      ],
+      "metrics": {
+        "mAP50": 0.1431,
+        "mAP50_95": 0.0965,
+        "precision": 0.8565,
+        "recall": 0.128
+      },
+      "checkpointPath": "ai-service\\models\\weights\\best.pt",
+      "active": true,
+      "createdAt": "2026-11-16T10:23:36.472171",
+      "notes": "Trained with 20 epochs on dust-augmented electronic waste dataset with particulate and clump simulations."
+    },
+    {
+      "modelId": "model-ecointel-dusty-v1",
+      "name": "EcoIntel-Dusty-EWaste-YOLO",
+      "version": "v1.1.0-dust-robust",
+      "provider": "EcoIntel Fine-Tuned PyTorch",
+      "status": "CUSTOM_TRAINED",
+      "isCustomTrained": true,
+      "trainingDate": "2026-10-08T23:39:02.912074",
+      "datasetVersion": "pcb-components-dusty-v2",
+      "classes": [
+        "IC",
+        "Resistor",
+        "Capacitor",
+        "Diode",
+        "Transistor",
+        "MOSFET",
+        "Inductor",
+        "Connector",
+        "Crystal",
+        "Sensor",
+        "Relay",
+        "Voltage_Regulator",
+        "LED",
+        "Fuse",
+        "Transformer",
+        "Dust_Contamination"
+      ],
+      "metrics": {
+        "mAP50": 0.1605,
+        "mAP50_95": 0.099,
+        "precision": 0.9172,
+        "recall": 0.125
+      },
+      "checkpointPath": "ai-service\\models\\weights\\best.pt",
+      "active": false,
+      "createdAt": "2026-10-08T23:39:02.912088",
+      "notes": "Trained with 15 epochs on dust-augmented electronic waste dataset with particulate and clump simulations."
+    },
+    {
+      "modelId": "model-ecointel-pcb-v1",
+      "name": "EcoIntel-PCB-YOLO-Trained",
+      "version": "v1.0.0",
+      "provider": "EcoIntel Fine-Tuned PyTorch",
+      "status": "CUSTOM_TRAINED",
+      "isCustomTrained": true,
+      "trainingDate": "2026-10-08T23:18:00.000Z",
+      "datasetVersion": "pcb-components-v1",
+      "classes": [
+        "IC",
+        "Resistor",
+        "Capacitor",
+        "Diode",
+        "Transistor",
+        "MOSFET",
+        "Inductor",
+        "Connector",
+        "Crystal",
+        "Sensor",
+        "Relay",
+        "Voltage_Regulator",
+        "LED",
+        "Fuse",
+        "Transformer"
+      ],
+      "metrics": {
+        "mAP50": 0.0,
+        "mAP50_95": 0.0,
+        "precision": 0.0,
+        "recall": 0.0
+      },
+      "checkpointPath": "ai-service/models/weights/best.pt",
+      "active": false,
+      "createdAt": "2026-10-08T23:18:00.000Z",
+      "notes": "Custom fine-tuned checkpoint trained on EcoIntel circular PCB component dataset (6 benchmark boards, 20 epochs)."
+    },
     {
       "modelId": "model-yolo-base-01",
       "name": "EcoIntel-PCB-YOLO",
@@ -34,46 +147,9 @@
         "recall": null
       },
       "checkpointPath": "yolo11n.pt",
-      "active": true,
+      "active": false,
       "createdAt": "2026-10-05T00:00:00.000Z",
       "notes": "Pretrained base architecture ready for domain fine-tuning on custom circular electronics dataset."
-    },
-    {
-      "modelId": "model-ecointel-pcb-v1",
-      "name": "EcoIntel-PCB-YOLO-Trained",
-      "version": "v1.0.0",
-      "provider": "EcoIntel Fine-Tuned PyTorch",
-      "status": "PENDING_TRAINING",
-      "isCustomTrained": true,
-      "trainingDate": null,
-      "datasetVersion": "pcb-components-v1",
-      "classes": [
-        "IC",
-        "Resistor",
-        "Capacitor",
-        "Diode",
-        "Transistor",
-        "MOSFET",
-        "Inductor",
-        "Connector",
-        "Crystal",
-        "Sensor",
-        "Relay",
-        "Voltage_Regulator",
-        "LED",
-        "Fuse",
-        "Transformer"
-      ],
-      "metrics": {
-        "mAP50": null,
-        "mAP50_95": null,
-        "precision": null,
-        "recall": null
-      },
-      "checkpointPath": "ai-service/models/weights/best.pt",
-      "active": false,
-      "createdAt": null,
-      "notes": "Reserved for custom training run output via scripts/train_detector.py"
     }
   ]
 }

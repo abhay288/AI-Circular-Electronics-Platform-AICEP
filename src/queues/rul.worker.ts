@@ -206,6 +206,18 @@ export async function runRULWorkerJob(payload: RULJobPayload) {
       },
     });
 
+    // Enqueue Phase 5 Material Recovery analysis
+    try {
+      const { enqueueMaterialJob } = await import("./material.queue");
+      await enqueueMaterialJob({
+        analysisId: session.analysisId,
+        sampleId: session.sampleId,
+        sourceType: session.sourceType as any,
+      });
+    } catch (enqueueErr: any) {
+      console.warn(`[RULWorker] Could not auto-enqueue material job: ${enqueueErr.message}`);
+    }
+
     return {
       success: true,
       rulPredictionId: rulDoc._id,

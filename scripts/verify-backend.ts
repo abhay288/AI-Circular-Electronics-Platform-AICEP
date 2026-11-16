@@ -138,14 +138,19 @@ async function runEndToEndVerification() {
   const completedSession = await analysisPipeline.runPipeline(analysisId);
 
   assert(
-    completedSession.status === "RUL_COMPLETE" || completedSession.status === "COMPLETED",
-    "Pipeline Status Progression to RUL_COMPLETE / COMPLETED",
+    completedSession.status === "MATERIAL_COMPLETE" ||
+      completedSession.status === "RUL_COMPLETE" ||
+      completedSession.status === "COMPLETED",
+    "Pipeline Status Progression to MATERIAL_COMPLETE / RUL_COMPLETE / COMPLETED",
     completedSession.status
   );
   assert(completedSession.progress >= 65, "Progress Metric Reached at least 65%", `${completedSession.progress}%`);
   assert(
-    completedSession.currentStage === "MATERIALS" || completedSession.currentStage === "COMPLETED",
-    "Phase 4 Stage Stopped at MATERIALS (Queued for Phase 5)",
+    completedSession.currentStage === "REPAIR" ||
+      completedSession.currentStage === "MATERIALS" ||
+      completedSession.currentStage === "REPORT" ||
+      completedSession.currentStage === "COMPLETED",
+    "Pipeline Stage Reached Completion (REPAIR / REPORT / COMPLETED)",
     completedSession.currentStage
   );
 
@@ -191,11 +196,14 @@ async function runEndToEndVerification() {
   const restoredSession = await AnalysisSession.findOne({ analysisId });
   assert(!!restoredSession, "Session Retrieved via Database by analysisId");
   assert(
-    restoredSession?.status === "RUL_COMPLETE" || restoredSession?.status === "COMPLETED",
-    "Session Retains RUL_COMPLETE State",
+    restoredSession?.status === "MATERIAL_COMPLETE" ||
+      restoredSession?.status === "RUL_COMPLETE" ||
+      restoredSession?.status === "COMPLETED",
+    "Session Retains MATERIAL_COMPLETE / RUL_COMPLETE State",
     restoredSession?.status
   );
   assert(!!restoredSession?.rulResult, "Embedded RUL Result Available");
+  assert(!!restoredSession?.metalResult, "Embedded Material Result Available");
 
   // 8. MARKETPLACE INTEGRATION TEST
   console.log("\n\x1b[36m[8/8] Testing Recovered Hardware Marketplace Listing...\x1b[0m");
@@ -207,16 +215,31 @@ async function runEndToEndVerification() {
     listingId,
     analysisId,
     componentId: String(eligibleComp?._id),
-    sellerId: String(testUser._id),
+    sellerUserId: String(testUser._id),
+    sellerOrganizationId: "org-circ-01",
+    assetType: "COMPONENT",
     title: `Recovered ${eligibleComp?.name} (${eligibleComp?.package})`,
+    description: "Tested circular electronics recovered component",
     category: "Semiconductors",
-    condition: "TESTED_WORKING",
-    priceINR: 450,
-    priceUSD: 5.20,
+    manufacturer: eligibleComp?.manufacturer || "MediaTek",
+    partNumber: eligibleComp?.partNumber || "MT7622",
+    packageType: eligibleComp?.package || "BGA",
     quantity: 1,
-    location: "Bangalore Circular Hub",
+    quantityAvailable: 1,
+    condition: "USED_TESTED",
+    verificationStatus: "PASSPORT_VERIFIED",
+    price: {
+      amount: 5.20,
+      currency: "USD",
+      pricingType: "FIXED_PRICE",
+    },
+    location: {
+      facilityName: "Bangalore Circular Hub",
+      country: "India",
+      region: "Karnataka",
+    },
     passportId: `DPP-${analysisId}`,
-    status: "ACTIVE",
+    status: "PUBLISHED",
   });
   assert(listing.analysisId === analysisId, "Marketplace Listing Linked to analysisId", listing.listingId);
   assert(listing.passportId === `DPP-${analysisId}`, "Marketplace Listing Linked to Digital Passport");

@@ -42,6 +42,10 @@ import { DetectedComponent } from "@/lib/types/analysis";
 import RealPcbViewer from "@/components/console/RealPcbViewer";
 import PcbIntelligenceWorkspace from "@/components/console/PcbIntelligenceWorkspace";
 import RulWorkspace from "@/components/console/RulWorkspace";
+import MaterialRecoveryWorkspace from "@/components/console/MaterialRecoveryWorkspace";
+import DigitalPassportWorkspace from "@/components/console/DigitalPassportWorkspace";
+import RepairWorkspace from "@/components/console/RepairWorkspace";
+import ImpactWorkspace from "@/components/console/ImpactWorkspace";
 
 const ProcessingPcb3D = dynamic(
   () => import("@/components/3d/ProcessingPcb3D"),
@@ -186,7 +190,7 @@ function ConsoleResultsContent() {
 
   const sessionIdParam = `?analysisId=${encodeURIComponent(effectiveAnalysisId)}`;
 
-  // The 7 Real Result Tabs
+  // The 8 Real Result Tabs
   const tabs = [
     { id: "overview", name: "Overview", icon: Sparkles },
     { id: "components", name: "Components", icon: Cpu },
@@ -194,8 +198,10 @@ function ConsoleResultsContent() {
     { id: "rul", name: "Health & RUL", icon: Activity },
     { id: "metals", name: "Material Recovery", icon: Coins },
     { id: "repair", name: "Repair Assessment", icon: Wrench },
+    { id: "passport", name: "Digital Passport", icon: ShieldCheck },
     { id: "impact", name: "Circular Impact", icon: Leaf },
   ];
+
 
   return (
     <div className="flex-1 py-6 px-4 sm:px-8 max-w-7xl mx-auto w-full space-y-8 text-[#0F172A]">
@@ -1134,34 +1140,25 @@ function ConsoleResultsContent() {
       )}
 
       {/* ─── TAB 4: MATERIAL RECOVERY INTELLIGENCE ──────────────── */}
-      {activeTab === "metals" && (
+      {(activeTab === "metals" || activeTab === "materials") && (
         <div className="space-y-6">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div>
-              <h2 className="font-heading text-xl font-extrabold text-[#0F172A]">
-                Material Recovery Intelligence
-              </h2>
-              <p className="text-xs text-[#64748B]">
-                Spectrometric precious metal yield estimation for urban mining and hydrometallurgical recycling.
-              </p>
-            </div>
+          <MaterialRecoveryWorkspace
+            analysisId={effectiveAnalysisId}
+            initialSessionData={session}
+            onSelectComponent={(comp) => {
+              setSelectedComponent(comp);
+            }}
+            selectedComponent={selectedComponent}
+          />
 
-            <div className="text-right">
-              <span className="text-xs font-mono text-[#64748B] block">Total Recovery Yield</span>
-              <span className="font-heading text-2xl font-bold text-[#B88900]">
-                ₹{Math.round((session.materialRecovery?.totalEstimatedMarketValueUSD || 18.70) * 86.5).toLocaleString("en-IN")} INR
-              </span>
-            </div>
-          </div>
-
-          {/* Realistic 3D Precious Metals Canvas */}
+          {/* 3D Precious Metals Canvas */}
           <div className="bg-white rounded-3xl border border-[#E2E8F0] shadow-sm p-6 space-y-4">
             <div className="flex items-center justify-between border-b border-[#E2E8F0] pb-3">
               <span className="font-mono text-xs font-bold text-[#0F172A]">
                 3D Precious Ingot Spectrometry Display
               </span>
               <span className="text-[10px] font-mono text-[#64748B]">
-                Live Commodity Rates · London Metal Exchange (LME)
+                Live Commodity Benchmark Reference · London Metal Exchange (LME)
               </span>
             </div>
 
@@ -1169,212 +1166,53 @@ function ConsoleResultsContent() {
               <PreciousMetals3D />
             </div>
           </div>
-
-          {/* Metal Cards Grid: Gold, Silver, Copper, Palladium, Tin, Aluminum */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {(session.materialRecovery?.yields || []).map((metal) => (
-              <div
-                key={metal.symbol}
-                className="p-6 rounded-3xl bg-white border border-[#E2E8F0] shadow-sm space-y-4 hover:shadow-md transition-shadow"
-              >
-                <div className="flex items-center justify-between border-b border-[#E2E8F0] pb-3">
-                  <div className="flex items-center gap-2.5">
-                    <div
-                      className="w-9 h-9 rounded-xl flex items-center justify-center font-bold text-white shadow-sm"
-                      style={{ backgroundColor: metal.color || "#2563EB" }}
-                    >
-                      {metal.symbol}
-                    </div>
-                    <div>
-                      <h4 className="font-heading text-sm font-bold text-[#0F172A]">{metal.metal}</h4>
-                      <span className="text-[10px] font-mono text-[#64748B]">
-                        Rate: ₹{Math.round(metal.marketRateUSD * 86.5).toLocaleString("en-IN")}/g
-                      </span>
-                    </div>
-                  </div>
-
-                  <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-[#F8FAFC] text-[#64748B] border border-[#E2E8F0]">
-                    {metal.sourceType || "Estimated"}
-                  </span>
-                </div>
-
-                <div className="grid grid-cols-2 gap-3 text-xs font-mono">
-                  <div className="p-3 rounded-xl bg-[#F8FAFC] border border-[#E2E8F0]">
-                    <span className="text-[10px] text-[#64748B] block">EST. QUANTITY</span>
-                    <strong className="text-base text-[#0F172A]">{metal.yieldGrams} g</strong>
-                  </div>
-                  <div className="p-3 rounded-xl bg-[#F8FAFC] border border-[#E2E8F0]">
-                    <span className="text-[10px] text-[#64748B] block">EST. VALUE</span>
-                    <strong className="text-base text-[#B88900]">₹{Math.round(metal.estimatedValueUSD * 86.5).toLocaleString("en-IN")}</strong>
-                  </div>
-                  <div className="p-3 rounded-xl bg-[#F8FAFC] border border-[#E2E8F0]">
-                    <span className="text-[10px] text-[#64748B] block">CONFIDENCE</span>
-                    <strong className="text-[#16A34A]">{metal.confidencePercent || 94}%</strong>
-                  </div>
-                  <div className="p-3 rounded-xl bg-[#F8FAFC] border border-[#E2E8F0]">
-                    <span className="text-[10px] text-[#64748B] block">RECOVERY POTENTIAL</span>
-                    <strong className="text-[#2563EB]">{metal.recoveryPotentialPercent || 96}%</strong>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-
-          {/* Methodology Transparency Statement */}
-          <div className="p-4 rounded-2xl bg-[#F8FAFC] border border-[#E2E8F0] text-xs font-mono text-[#64748B] leading-relaxed">
-            <strong>Calculation Basis:</strong> {session.materialRecovery?.calculationBasis} Laboratory spectrometry quantities are estimates extrapolated from standard layer counts, package pins, and PCB surface finish standards (ENIG/HASL).
-          </div>
         </div>
       )}
 
-      {/* ─── TAB 5: REPAIR ASSESSMENT ────────────────────────────── */}
+      {/* ─── TAB 5: REPAIR INTELLIGENCE & CIRCULARITY DECISION ─── */}
       {activeTab === "repair" && (
-        <div className="space-y-6">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div>
-              <h2 className="font-heading text-xl font-extrabold text-[#0F172A]">
-                AI Repair Assessment & Diagnostics
-              </h2>
-              <p className="text-xs text-[#64748B]">
-                Component-level anomaly isolation, feasibility analysis, and refurbishment routing.
-              </p>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-mono px-3 py-1 rounded-full bg-[#EFF6FF] text-[#2563EB] font-bold border border-[#BFDBFE]">
-                Recommended Action: {(session.repairAssessment?.recommendedAction || "REUSE").toUpperCase()}
-              </span>
-            </div>
-          </div>
-
-          {/* Fault Isolation Cards Grid */}
-          <div className="space-y-4">
-            {(session.repairAssessment?.issues || []).map((issue, idx) => (
-              <div
-                key={idx}
-                className="p-6 rounded-3xl bg-white border border-[#E2E8F0] shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-6"
-              >
-                <div className="space-y-2 max-w-xl">
-                  <div className="flex items-center gap-2">
-                    <span className="px-2.5 py-0.5 rounded-full bg-blue-50 text-[#2563EB] text-[10px] font-mono font-bold">
-                      {issue.action} Recommended
-                    </span>
-                    <span className="px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 text-[10px] font-mono font-bold">
-                      Severity: {issue.severity.toUpperCase()}
-                    </span>
-                    <span className="text-xs font-mono text-[#16A34A] font-bold">
-                      {issue.confidence}% Confidence
-                    </span>
-                  </div>
-
-                  <h4 className="font-heading text-base font-bold text-[#0F172A]">
-                    {issue.component}
-                  </h4>
-                  <p className="text-xs text-[#475569]">
-                    <strong>Detected Condition:</strong> {issue.condition || issue.issue}
-                  </p>
-                  <p className="text-xs text-[#64748B] leading-relaxed">
-                    <strong>Diagnostic Rationale:</strong> {issue.rationale}
-                  </p>
-                </div>
-
-                <div className="flex flex-col sm:flex-row items-center gap-3">
-                  <button
-                    onClick={() => openMarketplaceListing(selectedComponent)}
-                    className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-[#0F172A] hover:bg-[#1E293B] text-white text-xs font-mono font-bold transition-colors cursor-pointer"
-                  >
-                    Execute {issue.action}
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
+        <RepairWorkspace
+          analysisId={effectiveAnalysisId}
+          initialSessionData={session}
+          onSelectComponent={(comp) => {
+            const mappedComp: DetectedComponent = {
+              id: comp.componentId || comp.id,
+              name: comp.name || comp.componentName || comp.componentId,
+              type: comp.componentType || comp.type || "Component",
+              confidence: comp.confidence ? Math.round(comp.confidence > 1 ? comp.confidence : comp.confidence * 100) : 85,
+              health: comp.healthScore || 80,
+              remainingLifeHours: comp.rulHours || 35000,
+              remainingLifeYears: +( (comp.rulHours || 35000) / 8760 ).toFixed(1),
+              material: "Silicon Die / Solder Joints",
+              coordinates: comp.boundingBox || comp.bbox || { x: 10, y: 10, width: 20, height: 20 },
+              status: comp.healthStatus || "Operational",
+              manufacturer: comp.manufacturer || "Generic",
+              package: comp.package || "SMD",
+              passportId: `DPP-${comp.componentId || comp.id}`,
+              repairRecommendation: comp.recommendedAction || "INSPECT",
+            };
+            setSelectedComponent(mappedComp);
+          }}
+          selectedComponent={selectedComponent}
+        />
       )}
 
-      {/* ─── TAB 6: CIRCULAR IMPACT ──────────────────────────────── */}
+      {/* ─── TAB 6: DIGITAL PASSPORT ─────────────────────────────── */}
+      {activeTab === "passport" && (
+        <DigitalPassportWorkspace
+          analysisId={effectiveAnalysisId}
+          initialSessionData={session}
+          onOpen3D={() => setViewportMode("3d")}
+          onSelectComponent={setSelectedComponent}
+        />
+      )}
+
+      {/* ─── TAB 7: CIRCULAR IMPACT ──────────────────────────────── */}
       {activeTab === "impact" && (
-        <div className="space-y-6">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div>
-              <div className="text-[10px] font-mono text-[#16A34A] font-bold uppercase tracking-wider mb-1">
-                SCOPE 3 LIFE-CYCLE METHODOLOGY
-              </div>
-              <h2 className="font-heading text-xl font-extrabold text-[#0F172A]">
-                Circular Environmental Impact
-              </h2>
-              <p className="text-xs text-[#64748B]">
-                Calculated resource avoidance by diverting this electronic assembly from landfill or shredding.
-              </p>
-            </div>
-
-            <span className="text-xs font-mono px-3 py-1 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200 font-bold">
-              Status: ESG Reporting Estimate
-            </span>
-          </div>
-
-          {/* 6 Key Impact Cards */}
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
-            <div className="p-6 rounded-3xl bg-[#F0FDF4] border border-[#DCFCE7] space-y-1">
-              <span className="text-xs font-mono text-[#16A34A]">CO₂ Avoided</span>
-              <div className="font-heading text-3xl sm:text-4xl font-extrabold text-[#16A34A]">
-                {session.carbonImpact?.co2AvoidedKg || 22.1} kg
-              </div>
-              <span className="text-[10px] text-[#64748B] block">Emissions from fab avoided</span>
-            </div>
-
-            <div className="p-6 rounded-3xl bg-[#EFF6FF] border border-[#BFDBFE] space-y-1">
-              <span className="text-xs font-mono text-[#2563EB]">Energy Conserved</span>
-              <div className="font-heading text-3xl sm:text-4xl font-extrabold text-[#2563EB]">
-                {session.carbonImpact?.energySavedKWh || 54} kWh
-              </div>
-              <span className="text-[10px] text-[#64748B] block">Silicon crystallization energy</span>
-            </div>
-
-            <div className="p-6 rounded-3xl bg-[#F8FAFC] border border-[#E2E8F0] space-y-1">
-              <span className="text-xs font-mono text-[#0F172A]">Water Saved</span>
-              <div className="font-heading text-3xl sm:text-4xl font-extrabold text-[#0F172A]">
-                {session.carbonImpact?.waterSavedLiters || 180} L
-              </div>
-              <span className="text-[10px] text-[#64748B] block">Semiconductor ultrapure rinse</span>
-            </div>
-
-            <div className="p-6 rounded-3xl bg-[#FFFBEB] border border-[#FDE68A] space-y-1">
-              <span className="text-xs font-mono text-[#B88900]">E-Waste Diverted</span>
-              <div className="font-heading text-3xl sm:text-4xl font-extrabold text-[#B88900]">
-                {session.carbonImpact?.eWasteDivertedKg || 0.22} kg
-              </div>
-              <span className="text-[10px] text-[#64748B] block">Landfill toxicity prevention</span>
-            </div>
-
-            <div className="p-6 rounded-3xl bg-[#F8FAFC] border border-[#E2E8F0] space-y-1">
-              <span className="text-xs font-mono text-[#475569]">Material Recovered</span>
-              <div className="font-heading text-3xl sm:text-4xl font-extrabold text-[#0F172A]">
-                {session.materialRecovery?.recoveryEfficiencyPercent || 98.0}%
-              </div>
-              <span className="text-[10px] text-[#64748B] block">Hydrometallurgical yield</span>
-            </div>
-
-            <div className="p-6 rounded-3xl bg-[#EFF6FF] border border-[#BFDBFE] space-y-1">
-              <span className="text-xs font-mono text-[#2563EB]">Components Reused</span>
-              <div className="font-heading text-3xl sm:text-4xl font-extrabold text-[#2563EB]">
-                {session.detection?.componentsCount || 38} ICs
-              </div>
-              <span className="text-[10px] text-[#64748B] block">Ready for redistribution</span>
-            </div>
-          </div>
-
-          {/* Methodology Transparency Card */}
-          <div className="p-6 rounded-3xl bg-white border border-[#E2E8F0] shadow-sm space-y-2 text-xs font-mono text-[#475569] leading-relaxed">
-            <h4 className="font-bold text-[#0F172A]">Calculation Methodology & Basis:</h4>
-            <p>
-              Environmental calculations follow the Greenhouse Gas Protocol (GHG Protocol Scope 3 Technical Guidance). Baseline comparison models emissions associated with virgin silicon ingot smelting, gold leaching, and multi-layer FR-4 epoxy lamination against secondary redistribution and testing overhead.
-            </p>
-            <p className="text-[11px] text-[#64748B] pt-1">
-              Notice: All values are categorized as <strong>Calculated Estimates</strong> for internal ESG reporting and do not constitute independent ISO 14040/44 third-party certification.
-            </p>
-          </div>
-        </div>
+        <ImpactWorkspace
+          analysisId={effectiveAnalysisId}
+          initialSessionData={session}
+        />
       )}
 
       {/* ─── RECOMMENDATION & NEXT ACTIONS ────────────────────────── */}
