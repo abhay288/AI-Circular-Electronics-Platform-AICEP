@@ -313,52 +313,29 @@ export default function ConsoleHeader() {
                   Scientific Transparency Protocol
                 </h4>
                 <p>
-                  EcoIntel enforces strict transparency across all hardware
-                  assessments. Each data point is classified as either:
-                  <strong> Measured</strong>, <strong>Detected</strong>,{" "}
-                  <strong>Predicted</strong>, <strong>Estimated</strong>, or{" "}
-                  <strong>Simulated</strong>. Demo datasets are explicitly flagged
-                  to preserve industrial integrity without claiming laboratory
-                  chemical certification.
+                  EcoIntel enforces a strict image-only evidence policy. Every analysis
+                  result is based exclusively on features that can genuinely be observed,
+                  detected, or measured from the uploaded image. We do not use fabricated
+                  measurements, mock health scores, or speculative predictions.
                 </p>
               </div>
 
               <div>
                 <h4 className="font-bold text-[#0F172A] mb-1.5">
-                  The 8-Stage Intelligence Pipeline:
+                  Evidence-Based Inspection Pipeline:
                 </h4>
                 <ul className="space-y-2 list-disc pl-4 text-[11px]">
                   <li>
                     <strong>01 Capture:</strong> Optical ingest via camera stream
-                    or multi-spectrum image upload.
+                    or high-resolution hardware image upload.
                   </li>
                   <li>
-                    <strong>02 AI Detection:</strong> 50-micron sub-millimeter
-                    component classification and localization.
+                    <strong>02 AI Detection:</strong> Optical component detection,
+                    classification, and localized bounding box extraction.
                   </li>
                   <li>
-                    <strong>03 PCB Analysis:</strong> Trace continuity,
-                    topological netlist synthesis, and KiCad extraction.
-                  </li>
-                  <li>
-                    <strong>04 Health & RUL:</strong> Physics-informed thermal,
-                    voltage, and cycle lifespan predictions.
-                  </li>
-                  <li>
-                    <strong>05 Material Recovery:</strong> Gold, Silver, Copper,
-                    and Palladium spectrometry estimation.
-                  </li>
-                  <li>
-                    <strong>06 Repair Intelligence:</strong> Component-level
-                    reflow, reballing, or swap diagnostics.
-                  </li>
-                  <li>
-                    <strong>07 Digital Passport:</strong> Polygon ERC-721
-                    circular hardware pedigree token.
-                  </li>
-                  <li>
-                    <strong>08 Impact Report:</strong> ESG Scope 3 CO₂ avoidance
-                    and circularity accounting.
+                    <strong>03 Inspection Results:</strong> Multi-level component intelligence,
+                    resistor color band decoding, visible PCB structure mapping, and visual anomaly inspection.
                   </li>
                 </ul>
               </div>

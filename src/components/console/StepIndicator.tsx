@@ -10,11 +10,9 @@ export default function StepIndicator() {
   const { session, isNewAnalysis, setActiveStep } = useAnalysisSession();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const currentTab = searchParams.get("tab");
   const queryAnalysisId = searchParams.get("analysisId") || searchParams.get("sessionId");
 
   const effectiveAnalysisId = queryAnalysisId || (!isNewAnalysis ? session?.id : "");
-  const sessionParam = effectiveAnalysisId ? `&analysisId=${encodeURIComponent(effectiveAnalysisId)}` : "";
   const queryPrefix = effectiveAnalysisId ? `?analysisId=${encodeURIComponent(effectiveAnalysisId)}` : "";
 
   const steps = [
@@ -27,43 +25,9 @@ export default function StepIndicator() {
     },
     {
       num: "03",
-      name: "PCB Analysis",
+      name: "Inspection Results",
       path: "/console/results",
-      tab: "pcb",
-      href: `/console/results?tab=pcb${sessionParam}`,
-    },
-    {
-      num: "04",
-      name: "Health & RUL",
-      path: "/console/results",
-      tab: "rul",
-      href: `/console/results?tab=rul${sessionParam}`,
-    },
-    {
-      num: "05",
-      name: "Material Recovery",
-      path: "/console/results",
-      tab: "metals",
-      href: `/console/results?tab=metals${sessionParam}`,
-    },
-    {
-      num: "06",
-      name: "Repair Intelligence",
-      path: "/console/results",
-      tab: "repair",
-      href: `/console/results?tab=repair${sessionParam}`,
-    },
-    {
-      num: "07",
-      name: "Digital Passport",
-      path: "/console/passport",
-      href: `/console/passport${queryPrefix}`,
-    },
-    {
-      num: "08",
-      name: "Impact Report",
-      path: "/console/report",
-      href: `/console/report${queryPrefix}`,
+      href: `/console/results${queryPrefix}`,
     },
   ];
 
@@ -71,17 +35,8 @@ export default function StepIndicator() {
   const getActiveIndex = (): number => {
     if (pathname === "/console") return 0;
     if (pathname === "/console/processing") return 1;
-    if (pathname === "/console/passport") return 6;
-    if (pathname === "/console/report") return 7;
-    if (pathname === "/console/results") {
-      if (currentTab === "pcb") return 2;
-      if (currentTab === "rul") return 3;
-      if (currentTab === "metals") return 4;
-      if (currentTab === "repair") return 5;
-      if (currentTab === "components") return 2;
-      return 2; // default overview maps to step 2-3
-    }
-    return 0;
+    if (pathname.startsWith("/console/results")) return 2;
+    return 2;
   };
 
   const activeIdx = getActiveIndex();
@@ -97,63 +52,23 @@ export default function StepIndicator() {
       return idx === 0; // Only capture is complete while processing
     }
 
-    const status = session.status;
-    if (status === "COMPLETED") return true;
+    const status = session.status as string;
 
     switch (idx) {
       case 0:
         return status !== "DRAFT";
       case 1:
-        return [
-          "DETECTION_COMPLETE",
-          "PCB_COMPLETE",
-          "PCB_ANALYSIS_COMPLETE",
-          "RUL_COMPLETE",
-          "MATERIAL_ANALYSIS_COMPLETE",
-          "REPAIR_COMPLETE",
-          "PASSPORT_READY",
-          "REPORT_READY",
-          "COMPLETED",
-        ].includes(status);
+        return (
+          [
+            "DETECTION_COMPLETE",
+            "PCB_COMPLETE",
+            "PCB_ANALYSIS_COMPLETE",
+            "REPORT_READY",
+            "COMPLETED",
+          ].includes(status) || pathname.startsWith("/console/results")
+        );
       case 2:
-        return [
-          "PCB_COMPLETE",
-          "PCB_ANALYSIS_COMPLETE",
-          "RUL_COMPLETE",
-          "MATERIAL_ANALYSIS_COMPLETE",
-          "REPAIR_COMPLETE",
-          "PASSPORT_READY",
-          "REPORT_READY",
-          "COMPLETED",
-        ].includes(status);
-      case 3:
-        return [
-          "RUL_COMPLETE",
-          "MATERIAL_ANALYSIS_COMPLETE",
-          "REPAIR_COMPLETE",
-          "PASSPORT_READY",
-          "REPORT_READY",
-          "COMPLETED",
-        ].includes(status);
-      case 4:
-        return [
-          "MATERIAL_ANALYSIS_COMPLETE",
-          "REPAIR_COMPLETE",
-          "PASSPORT_READY",
-          "REPORT_READY",
-          "COMPLETED",
-        ].includes(status);
-      case 5:
-        return [
-          "REPAIR_COMPLETE",
-          "PASSPORT_READY",
-          "REPORT_READY",
-          "COMPLETED",
-        ].includes(status);
-      case 6:
-        return ["PASSPORT_READY", "REPORT_READY", "COMPLETED"].includes(status);
-      case 7:
-        return status === "REPORT_READY";
+        return status === "COMPLETED" || status === "REPORT_READY";
       default:
         return false;
     }
@@ -161,7 +76,7 @@ export default function StepIndicator() {
 
   return (
     <div className="w-full bg-white border-b border-[#E2E8F0] px-4 sm:px-8 py-2.5 overflow-x-auto scrollbar-none shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
-      <div className="max-w-7xl mx-auto flex items-center justify-between min-w-[840px]">
+      <div className="max-w-7xl mx-auto flex items-center gap-2 sm:gap-4">
         {steps.map((step, idx) => {
           const isActive = idx === activeIdx;
           const isDone = isStepCompleted(idx);
