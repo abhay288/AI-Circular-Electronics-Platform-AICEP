@@ -73,6 +73,20 @@ def run_tests():
     assert len(detections) <= 1, f"Expected at most 1 resistor detection, got {len(detections)}"
     if len(detections) == 1:
         assert detections[0]["className"] == "Resistor", f"Expected Resistor, got {detections[0]['className']}"
+        intel = detections[0].get("intelligence", {})
+        assert intel.get("subtype") == "Axial through-hole resistor", f"Expected Axial through-hole resistor, got {intel.get('subtype')}"
+        assert intel.get("mountingType") == "Through-Hole Technology (THT)", f"Expected THT, got {intel.get('mountingType')}"
+        assert intel.get("visibleTerminals") == 2, f"Expected 2 visible terminals, got {intel.get('visibleTerminals')}"
+        assert "Non-polarized" in intel.get("polarity", "")
+        
+        band_data = intel.get("colorBandData", {})
+        assert band_data.get("status") == "COMPLETED", f"Expected COMPLETED band status, got {band_data.get('status')}"
+        assert band_data.get("bandCount") == 4, f"Expected 4 bands, got {band_data.get('bandCount')}"
+        assert band_data.get("bandSequence") == ["Brown", "Black", "Red", "Gold"], f"Got bands: {band_data.get('bandSequence')}"
+        assert band_data.get("nominalResistanceOhms") == 1000.0, f"Expected 1000.0, got {band_data.get('nominalResistanceOhms')}"
+        assert band_data.get("tolerancePercent") == 5.0, f"Expected 5.0%, got {band_data.get('tolerancePercent')}"
+        assert band_data.get("minResistanceOhms") == 950.0
+        assert band_data.get("maxResistanceOhms") == 1050.0
 
     # Verify no PCB topology for isolated resistor:
     pcb_data = res_a.get("pcb", {})

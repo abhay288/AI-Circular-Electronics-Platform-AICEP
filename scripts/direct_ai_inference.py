@@ -28,6 +28,7 @@ from app.inference.pcb_analyzer import pcb_analyzer
 from app.inference.visual_condition import visual_condition_analyzer
 from app.inference.preprocessing import analyze_image_quality
 from app.inference.ocr_extractor import ocr_extractor
+from app.inference.component_intelligence import component_intelligence
 
 def load_image(image_input: str) -> np.ndarray:
     """Loads image from file path, base64 data URI, or text file."""
@@ -90,6 +91,8 @@ def main():
         # 3. Component Detection (Trained YOLO model + isolated component geometry)
         det_response = detector.detect(cv_img, image_type=image_type)
         detections = [d.model_dump() for d in det_response.detections]
+        for d in detections:
+            d["intelligence"] = component_intelligence.enrich_detection(d, cv_img, image_type=image_type)
 
         # 4. PCB Visual Structure (Conditioned on imageType)
         pcb_res = pcb_analyzer.analyze(cv_img, detections, analysis_id, image_type=image_type)
@@ -196,7 +199,16 @@ def main():
             "summary": evidence_summary,
         }
 
-        print(json.dumps(output))
+        def json_serialize(obj):
+            if isinstance(obj, (np.integer, np.int64, np.int32)):
+                return int(obj)
+            elif isinstance(obj, (np.floating, np.float64, np.float32)):
+                return float(obj)
+            elif isinstance(obj, np.ndarray):
+                return obj.tolist()
+            return str(obj)
+
+        print(json.dumps(output, default=json_serialize))
 
     except Exception as exc:
         import traceback

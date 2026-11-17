@@ -9,18 +9,34 @@ export interface ComponentIntelligence {
   name: string;
   type: string;
   category: string;
+  subtype?: string;
   manufacturer: string;
   partNumber: string;
   package: string;
+  mountingType?: string;
+  visibleTerminals?: number;
+  terminalDescription?: string;
+  polarity?: string;
   functionalRole: string;
   description: string;
   specifications: {
     pinCount: string;
-    mountingType: "Surface Mount Device (SMD)" | "Through-Hole Technology (THT)";
+    mountingType: "Surface Mount Device (SMD)" | "Through-Hole Technology (THT)" | string;
     voltageRating: string;
     dimensionsMm?: string;
-    operatingDomain: "Digital Processing" | "Memory & Storage" | "Power Regulation" | "Passives & Decoupling" | "Connectivity & I/O" | "Clock & Timing" | "Analog / Signal";
+    operatingDomain: "Digital Processing" | "Memory & Storage" | "Power Regulation" | "Passives & Decoupling" | "Connectivity & I/O" | "Clock & Timing" | "Analog / Signal" | string;
     commonApplications: string;
+  };
+  componentFunction?: {
+    primaryRole: string;
+    operatingPrinciple: string;
+    commonApplications: string;
+  };
+  acDcCompatibility?: {
+    generalCompatibility: string;
+    details: string;
+    polarity?: string;
+    operatingLimitDisclaimer: string;
   };
   datasheetUrl: string;
   webSearchQuery: string;
@@ -296,13 +312,57 @@ export function resolveComponentIntelligence(
     }
 
     case "resistor": {
+      const isAxial = (w / Math.max(1, h)) > 3.0 || (h / Math.max(1, w)) > 3.0 || area > 8000;
+      if (isAxial) {
+        return {
+          name: "Axial Leaded Resistor (Through-Hole)",
+          type: "Resistor",
+          category: "Passives & Decoupling",
+          subtype: "Axial through-hole resistor",
+          manufacturer: "Vishay / Yageo / Stackpole / KOA Speer",
+          partNumber: `R${seq}_AXIAL_THT`,
+          package: "Axial Leaded Cylindrical (Through-Hole)",
+          mountingType: "Through-Hole Technology (THT)",
+          visibleTerminals: 2,
+          terminalDescription: "2 Axial wire leads extending from opposing ends of cylindrical body",
+          polarity: "Non-polarized (bidirectional)",
+          functionalRole: "Limits electrical current flow, drops voltage in divider networks, and provides circuit biasing.",
+          description: "Cylindrical resistive body with axial metallic wire leads designed for through-hole PCB insertion or point-to-point wiring.",
+          specifications: {
+            pinCount: "2 Axial Leaded Wire Terminals",
+            mountingType: "Through-Hole Technology (THT)",
+            voltageRating: "Standard axial power rating (e.g., 0.25W / 0.5W, max ~250V)",
+            dimensionsMm: "6.5 mm Body Length x 2.3 mm Diameter",
+            operatingDomain: "Passives & Decoupling",
+            commonApplications: "Current limiting for LEDs/ICs, voltage division, pull-up/pull-down logic termination, analog RC filtering",
+          },
+          componentFunction: {
+            primaryRole: "Opposes and limits the flow of electrical current, produces voltage drops in divider networks, and provides biasing.",
+            operatingPrinciple: "Ohm's Law (V = I × R). Dissipates electrical energy as heat through resistive material (carbon film, metal film, or metal oxide).",
+            commonApplications: "Current limiting, voltage division, pull-up/pull-down networks, analog timing, feedback dividers.",
+          },
+          acDcCompatibility: {
+            generalCompatibility: "AC & DC Compatible",
+            details: "Standard non-polarized fixed resistors operate equally in both AC and DC circuits within their voltage, power, and thermal ratings.",
+            polarity: "Non-polarized (bidirectional current flow)",
+            operatingLimitDisclaimer: "Working voltage rating, power dissipation rating (e.g., 1/8W, 1/4W, 1/2W), and temperature rating cannot be confirmed from photography alone. Verify with circuit schematics or component dimensions.",
+          },
+          datasheetUrl: `https://octopart.com/search?q=axial+through-hole+resistor`,
+          webSearchQuery: "axial through-hole resistor specifications datasheet",
+        };
+      }
       return {
         name: "Thick Film Chip Resistor",
         type: "Resistor",
         category: "Passives & Decoupling",
+        subtype: "SMD chip resistor",
         manufacturer: "Yageo / Vishay / Panasonic / Walsin",
         partNumber: `R${seq}_0805_CHIP`,
         package: "0805 SMD (Imperial) / 2012 (Metric)",
+        mountingType: "Surface Mount Device (SMD)",
+        visibleTerminals: 2,
+        terminalDescription: "2 Metallized end-cap terminations for surface solder pads",
+        polarity: "Non-polarized (bidirectional)",
         functionalRole: "Current limiting, logic pull-up/pull-down, and precision voltage division.",
         description: "Metal glaze thick film resistive element on high-grade alumina ceramic substrate with nickel barrier terminations.",
         specifications: {
@@ -312,6 +372,17 @@ export function resolveComponentIntelligence(
           dimensionsMm: "2.0 x 1.25 x 0.5 mm",
           operatingDomain: "Passives & Decoupling",
           commonApplications: "I2C/SPI bus pull-up, LED current limit, feedback dividers in buck regulators",
+        },
+        componentFunction: {
+          primaryRole: "Limits electrical current flow, drops voltage in divider networks, and provides circuit biasing.",
+          operatingPrinciple: "Ohm's Law (V = I × R). Dissipates electrical energy as heat through resistive thick-film layer.",
+          commonApplications: "I2C/SPI bus pull-up, LED current limit, feedback dividers in buck regulators.",
+        },
+        acDcCompatibility: {
+          generalCompatibility: "AC & DC Compatible",
+          details: "Standard non-polarized chip resistors operate in both AC and DC circuits within rated power and voltage limits.",
+          polarity: "Non-polarized (bidirectional current flow)",
+          operatingLimitDisclaimer: "Continuous power dissipation (1/8W) and working voltage (150V) must not be exceeded. Cannot be verified from photograph alone.",
         },
         datasheetUrl: `https://octopart.com/search?q=0805+thick+film+chip+resistor`,
         webSearchQuery: "0805 chip resistor specifications datasheet",

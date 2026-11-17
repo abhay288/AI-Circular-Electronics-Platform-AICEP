@@ -280,18 +280,35 @@ export class YOLODetectionProvider implements DetectionProvider {
           idx + 1
         );
 
+        const pyIntel = (d as any).intelligence || {};
+        const pyColorBands = pyIntel.colorBandData || null;
+
         return {
           componentId: compId,
           type: compCategory,
-          name: intel.name,
-          category: intel.category,
+          name: pyIntel.subtype || intel.name,
+          category: pyIntel.category || intel.category,
+          subtype: pyIntel.subtype || intel.subtype || compCategory,
+          package: pyIntel.package || intel.package,
+          mountingType: pyIntel.mountingType || intel.mountingType || intel.specifications?.mountingType,
+          visibleTerminals: pyIntel.visibleTerminals ?? intel.visibleTerminals ?? 2,
+          terminalDescription: pyIntel.terminalDescription || intel.terminalDescription,
+          polarity: pyIntel.polarity || intel.polarity,
           manufacturer: intel.manufacturer,
           partNumber: associatedMarking?.isReadable ? associatedMarking.text : intel.partNumber,
-          package: intel.package,
           functionalRole: intel.functionalRole,
           description: intel.description,
           specifications: intel.specifications,
+          componentFunction: pyIntel.componentFunction || intel.componentFunction,
+          acDcCompatibility: pyIntel.acDcCompatibility || intel.acDcCompatibility,
+          colorBandData: pyColorBands,
+          technicalIdentification: pyIntel.technicalIdentification || {
+            nominalValue: "Cannot determine from ordinary photography without printed markings",
+            packageFootprint: pyIntel.package || intel.package,
+          },
           datasheetUrl: intel.datasheetUrl,
+          datasheetReference: pyIntel.datasheetReference,
+          explanation: pyIntel.explanation,
           boundingBox: percentBox,
           bbox: percentBox,
           center: {

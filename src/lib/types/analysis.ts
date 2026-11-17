@@ -25,6 +25,11 @@ export interface DetectedComponent {
   name: string;
   type: string;
   category?: string;
+  subtype?: string;
+  mountingType?: string;
+  visibleTerminals?: number;
+  terminalDescription?: string;
+  polarity?: string;
   manufacturer: string;
   partNumber?: string;
   package: string;
@@ -46,7 +51,57 @@ export interface DetectedComponent {
     operatingDomain?: string;
     commonApplications?: string;
   };
+  componentFunction?: {
+    primaryRole: string;
+    operatingPrinciple: string;
+    commonApplications: string;
+  };
+  acDcCompatibility?: {
+    generalCompatibility: string;
+    details: string;
+    polarity?: string;
+    operatingLimitDisclaimer: string;
+  };
+  colorBandData?: {
+    status: "COMPLETED" | "UNREADABLE" | "NOT_APPLICABLE" | string;
+    bandCount?: number;
+    readingOrientation?: string;
+    nominalResistanceOhms?: number | null;
+    formattedResistance?: string;
+    tolerancePercent?: number | null;
+    minResistanceOhms?: number | null;
+    maxResistanceOhms?: number | null;
+    formattedRange?: string;
+    temperatureCoefficient?: number | null;
+    bandSequence?: string[];
+    bandDetails?: Array<{
+      index: number;
+      color: string;
+      hex: string;
+      role: string;
+      value: string;
+    }>;
+    confidence?: number;
+    disclaimer?: string;
+    message?: string;
+  };
+  technicalIdentification?: {
+    nominalResistance?: string;
+    tolerance?: string;
+    toleranceRange?: string;
+    bandSequence?: string[];
+    bandDetails?: any[];
+    readingOrientation?: string;
+    nominalValue?: string;
+    markings?: string;
+    packageFootprint?: string;
+  };
+  explanation?: string;
   datasheetUrl?: string;
+  datasheetReference?: {
+    searchUrl: string;
+    notes: string;
+  };
   health?: number;
   healthScore?: number;
   remainingLifeHours?: number;

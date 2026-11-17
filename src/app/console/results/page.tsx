@@ -31,6 +31,8 @@ import {
   Tag,
   AlertOctagon,
   Sparkles,
+  Zap,
+  Sliders,
 } from "lucide-react";
 import RealPcbViewer from "@/components/console/RealPcbViewer";
 import { DetectedComponent } from "@/lib/types/analysis";
@@ -487,39 +489,48 @@ function ConsoleResultsContent() {
                 </div>
               </div>
 
-              {/* Selected Component Technical Intelligence Inspector */}
+              {/* Selected Component Technical Intelligence & Inspection Suite */}
               {(() => {
-                const activeComp = selectedComp || (filteredComponents.length > 0 ? filteredComponents[0] : null);
+                const activeComp: any = selectedComp || (filteredComponents.length > 0 ? filteredComponents[0] : null);
                 if (!activeComp) return null;
-                const specs: any = (activeComp as any).specifications || {};
+                const specs: any = activeComp.specifications || {};
+                const colorBands = activeComp.colorBandData || null;
+                const compFunction = activeComp.componentFunction || null;
+                const acDc = activeComp.acDcCompatibility || null;
+                const techId = activeComp.technicalIdentification || {};
                 const searchQuery = `${activeComp.name} ${activeComp.partNumber || ""} ${activeComp.package || ""} datasheet specifications`;
+
                 return (
-                  <div className="mb-6 p-5 rounded-2xl bg-gradient-to-br from-slate-50 to-blue-50/40 border border-blue-200/80 shadow-sm">
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200/80 pb-3.5 mb-4">
+                  <div className="mb-6 rounded-2xl bg-gradient-to-br from-slate-50 via-white to-blue-50/30 border border-blue-200 shadow-sm overflow-hidden">
+                    {/* Header bar */}
+                    <div className="p-5 border-b border-slate-200/80 bg-white/70 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-blue-600 text-white flex items-center justify-center font-bold text-sm shadow-md shadow-blue-500/20">
-                          <Cpu className="w-5 h-5" />
+                        <div className="w-11 h-11 rounded-xl bg-blue-600 text-white flex items-center justify-center font-bold text-sm shadow-md shadow-blue-500/20">
+                          <Cpu className="w-6 h-6" />
                         </div>
                         <div>
-                          <div className="flex items-center gap-2">
-                            <h4 className="text-sm font-bold text-[#0F172A] font-mono">{activeComp.name}</h4>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <h4 className="text-base font-bold text-[#0F172A] font-mono">{activeComp.name}</h4>
                             <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-blue-100 text-blue-800 border border-blue-200">
                               {activeComp.id}
+                            </span>
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">
+                              {activeComp.subtype || activeComp.type}
                             </span>
                             <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-emerald-100 text-emerald-800">
                               {activeComp.confidence}% Confidence
                             </span>
                           </div>
-                          <p className="text-xs text-[#64748B] mt-0.5 font-mono">
-                            {activeComp.package} · {(activeComp as any).category || "Electronic Component"}
+                          <p className="text-xs text-[#64748B] mt-1 font-mono">
+                            Form Factor: <strong className="text-slate-700">{activeComp.package}</strong> · Category: <strong className="text-slate-700">{activeComp.category || "Electronic Component"}</strong>
                           </p>
                         </div>
                       </div>
 
                       <div className="flex items-center gap-2 shrink-0">
-                        {(activeComp as any).datasheetUrl && (
+                        {activeComp.datasheetUrl && (
                           <a
-                            href={(activeComp as any).datasheetUrl}
+                            href={activeComp.datasheetUrl}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold font-mono shadow-sm transition-colors"
@@ -540,42 +551,215 @@ function ConsoleResultsContent() {
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 text-xs font-mono">
-                      <div className="p-3 rounded-xl bg-white/90 border border-slate-200/70">
-                        <span className="text-[#64748B] block text-[10px] uppercase font-bold">Manufacturer / Code</span>
-                        <strong className="text-[#0F172A] block mt-0.5 font-semibold">{activeComp.manufacturer}</strong>
-                        <span className="text-slate-500 text-[11px] block mt-0.5">Part: {activeComp.partNumber || "Standard SMD"}</span>
+                    <div className="p-5 space-y-5">
+                      {/* 1. Component Identity & Multi-Level Taxonomy Grid */}
+                      <div>
+                        <h5 className="text-[11px] font-mono font-bold text-slate-500 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                          <Tag className="w-3.5 h-3.5 text-blue-600" />
+                          <span>1. Multi-Level Physical Component Identity</span>
+                        </h5>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs font-mono">
+                          <div className="p-3 rounded-xl bg-white border border-slate-200">
+                            <span className="text-[#64748B] block text-[10px] uppercase font-bold">Specific Subtype</span>
+                            <strong className="text-blue-900 block mt-0.5 font-semibold text-sm">
+                              {activeComp.subtype || activeComp.name}
+                            </strong>
+                            <span className="text-slate-500 text-[11px] block mt-0.5">Category: {activeComp.category || activeComp.type}</span>
+                          </div>
+
+                          <div className="p-3 rounded-xl bg-white border border-slate-200">
+                            <span className="text-[#64748B] block text-[10px] uppercase font-bold">Package & Mounting</span>
+                            <strong className="text-slate-900 block mt-0.5 font-semibold">{activeComp.package}</strong>
+                            <span className="text-blue-700 text-[11px] font-bold block mt-0.5">
+                              {activeComp.mountingType || specs.mountingType || "Through-Hole / SMD"}
+                            </span>
+                          </div>
+
+                          <div className="p-3 rounded-xl bg-white border border-slate-200">
+                            <span className="text-[#64748B] block text-[10px] uppercase font-bold">Terminals & Leads</span>
+                            <strong className="text-slate-900 block mt-0.5 font-semibold">
+                              {activeComp.visibleTerminals ? `${activeComp.visibleTerminals} Visible Terminals` : (specs.pinCount || "2 Terminals")}
+                            </strong>
+                            <span className="text-slate-500 text-[11px] block mt-0.5 truncate">
+                              {activeComp.terminalDescription || specs.pinCount || "Conductive terminations"}
+                            </span>
+                          </div>
+
+                          <div className="p-3 rounded-xl bg-white border border-slate-200">
+                            <span className="text-[#64748B] block text-[10px] uppercase font-bold">Polarity Orientation</span>
+                            <strong className="text-slate-900 block mt-0.5 font-semibold">
+                              {activeComp.polarity || "Non-polarized"}
+                            </strong>
+                            <span className={`text-[11px] font-semibold block mt-0.5 ${activeComp.condition === "NORMAL" ? "text-emerald-700" : "text-amber-700"}`}>
+                              Condition: {activeComp.condition || "NORMAL"}
+                            </span>
+                          </div>
+                        </div>
                       </div>
 
-                      <div className="p-3 rounded-xl bg-white/90 border border-slate-200/70">
-                        <span className="text-[#64748B] block text-[10px] uppercase font-bold">Package & Footprint</span>
-                        <strong className="text-blue-700 block mt-0.5 font-semibold">{activeComp.package}</strong>
-                        <span className="text-slate-500 text-[11px] block mt-0.5">{specs.pinCount || "Multi-lead"} · {specs.mountingType || "Surface Mount"}</span>
-                      </div>
+                      {/* 2. Resistor Colour Band Recognition & Mathematical Decoder */}
+                      {colorBands && colorBands.status === "COMPLETED" && (
+                        <div className="p-4 rounded-xl bg-white border border-blue-200 shadow-sm">
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-200 pb-3 mb-3.5">
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <Sliders className="w-4 h-4 text-blue-600" />
+                                <h5 className="text-xs font-mono font-bold text-[#0F172A] uppercase tracking-wide">
+                                  Resistor Colour-Band Recognition & Exact Mathematical Decoder
+                                </h5>
+                                <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-blue-100 text-blue-800 border border-blue-200">
+                                  IEC 60062 / EIA-RS-279
+                                </span>
+                              </div>
+                              <p className="text-[11px] text-[#64748B] font-mono mt-0.5">
+                                Decoded from original pixels · {colorBands.bandCount}-band code · Reading orientation: <strong>{colorBands.readingOrientation}</strong>
+                              </p>
+                            </div>
 
-                      <div className="p-3 rounded-xl bg-white/90 border border-slate-200/70">
-                        <span className="text-[#64748B] block text-[10px] uppercase font-bold">Voltage & Domain</span>
-                        <strong className="text-[#0F172A] block mt-0.5 font-semibold">{specs.voltageRating || "Standard Logic DC Rail"}</strong>
-                        <span className="text-slate-500 text-[11px] block mt-0.5">{specs.operatingDomain || "Digital Processing"}</span>
-                      </div>
+                            <div className="flex items-center gap-3">
+                              <div className="text-right">
+                                <span className="text-[10px] font-mono text-[#64748B] block uppercase">Calculated Resistance</span>
+                                <strong className="text-base font-mono font-extrabold text-blue-700 block">
+                                  {colorBands.formattedResistance}
+                                </strong>
+                              </div>
+                            </div>
+                          </div>
 
-                      <div className="p-3 rounded-xl bg-white/90 border border-slate-200/70">
-                        <span className="text-[#64748B] block text-[10px] uppercase font-bold">Optical Surface State</span>
-                        <strong className={`block mt-0.5 font-semibold ${activeComp.condition === "NORMAL" ? "text-emerald-700" : "text-amber-700"}`}>
-                          {activeComp.condition || "NORMAL"}
-                        </strong>
-                        <span className="text-slate-500 text-[11px] block mt-0.5 truncate">{(activeComp as any).visibleMarking || "Optical surface clear"}</span>
-                      </div>
+                          {/* Resistor Body Visual Representation */}
+                          <div className="py-3 px-4 mb-3.5 bg-slate-50/80 rounded-xl border border-slate-200/80 flex flex-col items-center justify-center">
+                            <span className="text-[10px] font-mono text-slate-500 uppercase tracking-wider mb-2 font-semibold">
+                              Optical Colour-Band Distribution along Cylindrical Body:
+                            </span>
+
+                            {/* SVG Resistor Body with Bands */}
+                            <div className="w-full max-w-md h-12 flex items-center justify-center relative">
+                              {/* Left Wire Lead */}
+                              <div className="h-1 flex-1 bg-slate-400 rounded-l shadow-inner" />
+
+                              {/* Cylindrical Resistor Body */}
+                              <div className="h-10 w-48 bg-[#F0E6D2] rounded-lg border-2 border-[#D8C7A5] relative flex items-center justify-around px-3 shadow-md">
+                                {colorBands.bandDetails && colorBands.bandDetails.map((b: any, idx: number) => (
+                                  <div
+                                    key={idx}
+                                    title={`Band ${b.index}: ${b.color} (${b.role} = ${b.value})`}
+                                    className="h-full w-3.5 shadow-sm rounded-sm transition-transform hover:scale-110 flex items-center justify-center text-[8px] font-bold text-white border border-black/20"
+                                    style={{ backgroundColor: b.hex }}
+                                  />
+                                ))}
+                              </div>
+
+                              {/* Right Wire Lead */}
+                              <div className="h-1 flex-1 bg-slate-400 rounded-r shadow-inner" />
+                            </div>
+
+                            <div className="flex items-center gap-4 mt-2 text-[11px] font-mono text-slate-600">
+                              <span>Tolerance Range: <strong className="text-slate-900">{colorBands.formattedRange}</strong></span>
+                              <span>·</span>
+                              <span>Confidence: <strong className="text-emerald-700">{Math.round((colorBands.confidence || 0.95) * 100)}%</strong></span>
+                            </div>
+                          </div>
+
+                          {/* Band-by-Band Breakdown Table */}
+                          <div className="overflow-x-auto">
+                            <table className="w-full text-left text-xs font-mono border-collapse">
+                              <thead>
+                                <tr className="border-b border-slate-200 text-slate-500 text-[10px] uppercase bg-slate-50">
+                                  <th className="py-1.5 px-3">Band Position</th>
+                                  <th className="py-1.5 px-3">Colour Detected</th>
+                                  <th className="py-1.5 px-3">Standard Swatch</th>
+                                  <th className="py-1.5 px-3">Function / Role</th>
+                                  <th className="py-1.5 px-3">Numerical Value</th>
+                                </tr>
+                              </thead>
+                              <tbody className="divide-y divide-slate-100">
+                                {colorBands.bandDetails && colorBands.bandDetails.map((b: any, i: number) => (
+                                  <tr key={i} className="hover:bg-blue-50/30">
+                                    <td className="py-1.5 px-3 font-semibold text-slate-700">Band {b.index}</td>
+                                    <td className="py-1.5 px-3 font-bold text-slate-900">{b.color}</td>
+                                    <td className="py-1.5 px-3">
+                                      <div className="flex items-center gap-1.5">
+                                        <span
+                                          className="w-4 h-4 rounded border border-black/20 inline-block shadow-sm"
+                                          style={{ backgroundColor: b.hex }}
+                                        />
+                                        <span className="text-[10px] text-slate-500">{b.hex}</span>
+                                      </div>
+                                    </td>
+                                    <td className="py-1.5 px-3 text-slate-600">{b.role}</td>
+                                    <td className="py-1.5 px-3 font-bold text-blue-700">{b.value}</td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Unreadable Resistor Warning (Zero Fabrication Rule) */}
+                      {colorBands && colorBands.status === "UNREADABLE" && (
+                        <div className="p-3.5 rounded-xl bg-amber-50/80 border border-amber-200 text-xs font-mono text-amber-900 flex items-start gap-2.5">
+                          <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                          <div>
+                            <strong className="font-bold block">Resistor Colour Bands Unreadable from Photograph:</strong>
+                            <p className="text-amber-800 text-[11px] mt-0.5">
+                              {colorBands.message || "Colour bands could not be identified reliably. Please upload a clearer image."}
+                            </p>
+                            <span className="text-[10px] text-amber-700 mt-1 block">
+                              EcoIntel Image-Only Policy: Values are strictly never guessed or substituted with arbitrary demo defaults.
+                            </span>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* 3. Component Function & Educational Technical Knowledge */}
+                      {compFunction && (
+                        <div className="p-4 rounded-xl bg-white border border-slate-200">
+                          <h5 className="text-[11px] font-mono font-bold text-slate-500 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                            <Info className="w-3.5 h-3.5 text-blue-600" />
+                            <span>2. Component Function & Technical Intelligence</span>
+                          </h5>
+                          <div className="space-y-2 text-xs font-mono">
+                            <div>
+                              <strong className="text-slate-700 text-[11px] uppercase block">Primary Electronic Function:</strong>
+                              <p className="text-slate-900 mt-0.5 leading-relaxed">{compFunction.primaryRole}</p>
+                            </div>
+                            <div className="pt-2 border-t border-slate-100">
+                              <strong className="text-slate-700 text-[11px] uppercase block">Operating Principle:</strong>
+                              <p className="text-slate-800 mt-0.5 leading-relaxed">{compFunction.operatingPrinciple}</p>
+                            </div>
+                            <div className="pt-2 border-t border-slate-100">
+                              <strong className="text-slate-700 text-[11px] uppercase block">Common Circuit Applications:</strong>
+                              <p className="text-slate-800 mt-0.5 leading-relaxed">{compFunction.commonApplications}</p>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* 4. Dedicated AC/DC Compatibility Information Section */}
+                      {acDc && (
+                        <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 text-xs font-mono">
+                          <div className="flex items-center justify-between gap-2 border-b border-slate-200 pb-2 mb-2.5">
+                            <h5 className="text-[11px] font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
+                              <Zap className="w-3.5 h-3.5 text-amber-600" />
+                              <span>3. AC / DC Electrical Compatibility</span>
+                            </h5>
+                            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-900 border border-amber-300">
+                              {acDc.generalCompatibility}
+                            </span>
+                          </div>
+
+                          <p className="text-slate-800 leading-relaxed mb-2">
+                            {acDc.details}
+                          </p>
+
+                          <div className="p-2.5 rounded-lg bg-white border border-amber-200/70 text-[11px] text-amber-900">
+                            <span className="font-bold block text-[10px] uppercase text-amber-800 mb-0.5">Physical Optical Inspection Boundary:</span>
+                            {acDc.operatingLimitDisclaimer}
+                          </div>
+                        </div>
+                      )}
                     </div>
-
-                    {(activeComp as any).functionalRole && (
-                      <div className="mt-3.5 p-3 rounded-xl bg-white/80 border border-slate-200/60 text-xs">
-                        <span className="text-[10px] font-mono font-bold uppercase text-[#64748B] block">Circuit Functional Purpose:</span>
-                        <p className="text-slate-800 font-mono mt-0.5 leading-relaxed">
-                          {(activeComp as any).functionalRole} {(activeComp as any).description && `— ${(activeComp as any).description}`}
-                        </p>
-                      </div>
-                    )}
                   </div>
                 );
               })()}
@@ -586,10 +770,10 @@ function ConsoleResultsContent() {
                   <thead>
                     <tr className="border-b border-[#E2E8F0] text-[#64748B] text-[11px] bg-slate-50/50">
                       <th className="py-2.5 px-3 font-semibold">ID</th>
-                      <th className="py-2.5 px-3 font-semibold">IDENTIFIED COMPONENT & ROLE</th>
-                      <th className="py-2.5 px-3 font-semibold">PACKAGE / FOOTPRINT</th>
-                      <th className="py-2.5 px-3 font-semibold">MANUFACTURER / PART</th>
-                      <th className="py-2.5 px-3 font-semibold">BOUNDING BOX</th>
+                      <th className="py-2.5 px-3 font-semibold">IDENTIFIED COMPONENT & SUBTYPE</th>
+                      <th className="py-2.5 px-3 font-semibold">PACKAGE & MOUNTING</th>
+                      <th className="py-2.5 px-3 font-semibold">VALUE / SPECIFICATIONS</th>
+                      <th className="py-2.5 px-3 font-semibold">TERMINALS & POLARITY</th>
                       <th className="py-2.5 px-3 font-semibold">SURFACE STATE</th>
                       <th className="py-2.5 px-3 font-semibold">TECHNICAL SPECS</th>
                     </tr>
@@ -597,6 +781,7 @@ function ConsoleResultsContent() {
                   <tbody className="divide-y divide-[#F1F5F9]">
                     {filteredComponents.map((c: any) => {
                       const isNormal = c.condition === "NORMAL";
+                      const bandData = c.colorBandData;
                       return (
                         <tr
                           key={c.id}
@@ -606,20 +791,41 @@ function ConsoleResultsContent() {
                         >
                           <td className="py-2.5 px-3 font-bold text-[#0F172A]">{c.id}</td>
                           <td className="py-2.5 px-3">
-                            <strong className="text-blue-900 block font-semibold">{c.name}</strong>
-                            <span className="text-[11px] text-[#64748B] block truncate max-w-xs">{c.functionalRole || c.type}</span>
+                            <strong className="text-blue-900 block font-semibold">{c.subtype || c.name}</strong>
+                            <span className="text-[11px] text-[#64748B] block truncate max-w-xs">{c.category || c.type}</span>
                           </td>
                           <td className="py-2.5 px-3">
-                            <span className="px-2 py-0.5 rounded font-mono text-[11px] bg-slate-100 text-slate-800 border border-slate-200">
+                            <span className="px-2 py-0.5 rounded font-mono text-[11px] bg-slate-100 text-slate-800 border border-slate-200 block truncate max-w-xs">
                               {c.package}
+                            </span>
+                            <span className="text-[10px] text-blue-700 font-semibold block mt-0.5">
+                              {c.mountingType || "Surface Mount / THT"}
                             </span>
                           </td>
                           <td className="py-2.5 px-3 text-[#475569]">
-                            <span className="font-semibold text-slate-900 block">{c.manufacturer}</span>
-                            <span className="text-[11px] text-slate-500 font-mono">{c.partNumber}</span>
+                            {bandData && bandData.status === "COMPLETED" ? (
+                              <div>
+                                <span className="font-extrabold text-blue-800 text-xs block font-mono">
+                                  {bandData.formattedResistance}
+                                </span>
+                                <span className="text-[10px] text-slate-500 font-mono block">
+                                  Range: {bandData.formattedRange}
+                                </span>
+                              </div>
+                            ) : (
+                              <div>
+                                <span className="font-semibold text-slate-900 block">{c.manufacturer}</span>
+                                <span className="text-[11px] text-slate-500 font-mono">{c.partNumber || "Standard Passive"}</span>
+                              </div>
+                            )}
                           </td>
                           <td className="py-2.5 px-3 text-[#64748B]">
-                            {Math.round(c.coordinates.x)}%, {Math.round(c.coordinates.y)}%
+                            <span className="text-slate-800 font-medium block">
+                              {c.visibleTerminals ? `${c.visibleTerminals} Terminals` : "2 Terminals"}
+                            </span>
+                            <span className="text-[10px] text-slate-500 block truncate max-w-[130px]">
+                              {c.polarity || "Non-polarized"}
+                            </span>
                           </td>
                           <td className="py-2.5 px-3">
                             <span
