@@ -1,6 +1,20 @@
 {
-  "activeModelId": "model-ecointel-dusty-v1",
+  "activeModelId": "model-ecointel-unified-20261117-1143",
   "models": [
+    {
+      "modelId": "model-ecointel-unified-20261117-1143",
+      "name": "EcoIntel-PCB-YOLO-Unified",
+      "version": "v2.0.0",
+      "provider": "EcoIntel Fine-Tuned PyTorch",
+      "status": "CUSTOM_TRAINED",
+      "isCustomTrained": true,
+      "trainingDate": "2026-11-17T11:43:35.781127",
+      "datasetVersion": "unified-pcb-v2",
+      "checkpointPath": "ai-service\\models\\weights\\best.pt",
+      "active": true,
+      "createdAt": "2026-11-17T11:43:35.781134",
+      "notes": "Fine-tuned on 840 unified images (ElectroCom61 + PCB + isolated components). mAP50: 0.5204 (363% gain), Precision: 0.5679, Recall: 0.4579"
+    },
     {
       "modelId": "model-ecointel-dusty-v1",
       "name": "EcoIntel-Dusty-EWaste-YOLO",
@@ -35,7 +49,7 @@
         "recall": 0.128
       },
       "checkpointPath": "ai-service\\models\\weights\\best.pt",
-      "active": true,
+      "active": false,
       "createdAt": "2026-11-16T10:23:36.472171",
       "notes": "Trained with 20 epochs on dust-augmented electronic waste dataset with particulate and clump simulations."
     },

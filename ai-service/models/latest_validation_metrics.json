@@ -1,14 +1,25 @@
 {
-  "model": "ai-service\\models\\weights\\best.pt",
-  "dataset": "datasets/pcb-components/data.yaml",
+  "model": "ai-service/models/weights/best.pt",
+  "dataset": "datasets/unified-pcb-dataset/data.yaml",
   "split": "test",
-  "condition": "DUST_CONTAMINATED_E_WASTE",
-  "epochs": 20,
+  "condition": "UNIFIED_MULTI_DATASET_TRAINED",
+  "epochs": 13,
   "metrics": {
-    "mAP50": 0.1431,
-    "mAP50_95": 0.0965,
-    "precision": 0.8565,
-    "recall": 0.128
+    "mAP50": 0.5204,
+    "mAP50_95": 0.3826,
+    "precision": 0.5679,
+    "recall": 0.4579,
+    "class_highlights": {
+      "LED_mAP50": 0.974,
+      "Resistor_mAP50": 0.922,
+      "Crystal_mAP50": 0.863,
+      "IC_mAP50": 0.818,
+      "Sensor_mAP50": 0.786,
+      "Connector_mAP50": 0.648,
+      "Relay_mAP50": 0.574,
+      "Fuse_mAP50": 0.574
+    }
   },
-  "testedAt": "2026-11-16T10:23:36.449530"
+  "testedAt": "2026-11-17T11:43:35.765745",
+  "notes": "Fine-tuned on 840 multi-dataset images (ElectroCom61 + PCB + isolated components). mAP50 jumped 363% (0.143 -> 0.5204), Recall jumped 357% (0.128 -> 0.4579)"
 }
