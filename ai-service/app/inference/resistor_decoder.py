@@ -99,7 +99,7 @@ class ResistorDecoder:
                 has_axial_leads = True
                 body_box = [int(b_start), 0, int(body_w), int(ch)]
 
-        if has_axial_leads or aspect_ratio >= 4.5:
+        if has_axial_leads or aspect_ratio >= 3.2:
             return {
                 "subtype": "Axial through-hole resistor",
                 "package": "Axial Leaded Cylindrical (Through-Hole)",

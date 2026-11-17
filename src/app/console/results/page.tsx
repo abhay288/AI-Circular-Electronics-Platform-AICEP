@@ -33,6 +33,8 @@ import {
   Sparkles,
   Zap,
   Sliders,
+  BookOpen,
+  ShieldCheck,
 } from "lucide-react";
 import RealPcbViewer from "@/components/console/RealPcbViewer";
 import { DetectedComponent } from "@/lib/types/analysis";
@@ -497,16 +499,46 @@ function ConsoleResultsContent() {
                 const colorBands = activeComp.colorBandData || null;
                 const compFunction = activeComp.componentFunction || null;
                 const acDc = activeComp.acDcCompatibility || null;
+                const techReport = activeComp.technicalReport || null;
                 const techId = activeComp.technicalIdentification || {};
                 const searchQuery = `${activeComp.name} ${activeComp.partNumber || ""} ${activeComp.package || ""} datasheet specifications`;
+
+                const isToroid =
+                  activeComp.name?.toLowerCase().includes("toroid") ||
+                  activeComp.subtype?.toLowerCase().includes("toroid") ||
+                  techReport?.componentIdentity?.subtype?.toLowerCase().includes("toroid");
+
+                const taxonomyTree: string[] =
+                  techReport?.componentIdentity?.taxonomyTree || [
+                    "Electronic Component",
+                    activeComp.category || "Component",
+                    activeComp.type || "Component",
+                    activeComp.subtype || activeComp.name,
+                  ];
+
+                const provenanceBadge = (prov: string) => {
+                  switch (prov) {
+                    case "IMAGE_OBSERVED":
+                      return "bg-emerald-100 text-emerald-800 border-emerald-300";
+                    case "OCR_EXTRACTED":
+                      return "bg-teal-100 text-teal-800 border-teal-300";
+                    case "VISUAL_INFERENCE":
+                      return "bg-blue-100 text-blue-800 border-blue-300";
+                    case "DATABASE_REFERENCE":
+                      return "bg-indigo-100 text-indigo-800 border-indigo-300";
+                    case "NOT_AVAILABLE":
+                    default:
+                      return "bg-amber-100 text-amber-800 border-amber-300";
+                  }
+                };
 
                 return (
                   <div className="mb-6 rounded-2xl bg-gradient-to-br from-slate-50 via-white to-blue-50/30 border border-blue-200 shadow-sm overflow-hidden">
                     {/* Header bar */}
-                    <div className="p-5 border-b border-slate-200/80 bg-white/70 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div className="p-5 border-b border-slate-200/80 bg-white/80 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                       <div className="flex items-center gap-3">
-                        <div className="w-11 h-11 rounded-xl bg-blue-600 text-white flex items-center justify-center font-bold text-sm shadow-md shadow-blue-500/20">
-                          <Cpu className="w-6 h-6" />
+                        <div className="w-12 h-12 rounded-xl bg-blue-600 text-white flex items-center justify-center font-bold text-sm shadow-md shadow-blue-500/20">
+                          {isToroid ? <RotateCcw className="w-6 h-6 stroke-[2.5]" /> : <Cpu className="w-6 h-6" />}
                         </div>
                         <div>
                           <div className="flex items-center gap-2 flex-wrap">
@@ -518,7 +550,7 @@ function ConsoleResultsContent() {
                               {activeComp.subtype || activeComp.type}
                             </span>
                             <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-emerald-100 text-emerald-800">
-                              {activeComp.confidence}% Confidence
+                              {Math.round(activeComp.confidence * 100)}% Confidence
                             </span>
                           </div>
                           <p className="text-xs text-[#64748B] mt-1 font-mono">
@@ -540,6 +572,15 @@ function ConsoleResultsContent() {
                           </a>
                         )}
                         <a
+                          href={`https://octopart.com/search?q=${encodeURIComponent(activeComp.subtype || activeComp.name)}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white hover:bg-slate-100 text-blue-700 border border-blue-300 text-xs font-semibold font-mono transition-colors"
+                        >
+                          <Search className="w-3.5 h-3.5 text-blue-600" />
+                          <span>Octopart</span>
+                        </a>
+                        <a
                           href={`https://www.google.com/search?q=${encodeURIComponent(searchQuery)}`}
                           target="_blank"
                           rel="noopener noreferrer"
@@ -551,12 +592,27 @@ function ConsoleResultsContent() {
                       </div>
                     </div>
 
-                    <div className="p-5 space-y-5">
-                      {/* 1. Component Identity & Multi-Level Taxonomy Grid */}
+                    {/* Hierarchical Taxonomy Breadcrumb Trail */}
+                    <div className="px-5 py-2.5 bg-slate-100/70 border-b border-slate-200 text-[11px] font-mono flex items-center gap-1.5 overflow-x-auto no-scrollbar">
+                      <span className="text-slate-500 uppercase font-bold text-[10px] tracking-wider shrink-0 mr-1">Taxonomy:</span>
+                      {taxonomyTree.map((node, i) => (
+                        <React.Fragment key={i}>
+                          <span className={`px-2 py-0.5 rounded-md whitespace-nowrap ${i === taxonomyTree.length - 1 ? "bg-blue-100 text-blue-900 font-bold border border-blue-200" : "text-slate-600 bg-white/80 border border-slate-200"}`}>
+                            {node}
+                          </span>
+                          {i < taxonomyTree.length - 1 && (
+                            <ChevronRight className="w-3 h-3 text-slate-400 shrink-0" />
+                          )}
+                        </React.Fragment>
+                      ))}
+                    </div>
+
+                    <div className="p-5 space-y-6">
+                      {/* SECTION 1: Multi-Level Component Identity */}
                       <div>
-                        <h5 className="text-[11px] font-mono font-bold text-slate-500 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                        <h5 className="text-[11px] font-mono font-bold text-slate-500 uppercase tracking-wider mb-2.5 flex items-center gap-1.5">
                           <Tag className="w-3.5 h-3.5 text-blue-600" />
-                          <span>1. Multi-Level Physical Component Identity</span>
+                          <span>1. Component Identity & Physical Classification</span>
                         </h5>
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs font-mono">
                           <div className="p-3 rounded-xl bg-white border border-slate-200">
@@ -564,7 +620,7 @@ function ConsoleResultsContent() {
                             <strong className="text-blue-900 block mt-0.5 font-semibold text-sm">
                               {activeComp.subtype || activeComp.name}
                             </strong>
-                            <span className="text-slate-500 text-[11px] block mt-0.5">Category: {activeComp.category || activeComp.type}</span>
+                            <span className="text-slate-500 text-[11px] block mt-0.5">Family: {activeComp.category || activeComp.type}</span>
                           </div>
 
                           <div className="p-3 rounded-xl bg-white border border-slate-200">
@@ -597,26 +653,168 @@ function ConsoleResultsContent() {
                         </div>
                       </div>
 
-                      {/* 2. Resistor Colour Band Recognition & Mathematical Decoder */}
-                      {colorBands && colorBands.status === "COMPLETED" && (
-                        <div className="p-4 rounded-xl bg-white border border-blue-200 shadow-sm">
-                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-200 pb-3 mb-3.5">
-                            <div>
-                              <div className="flex items-center gap-2">
-                                <Sliders className="w-4 h-4 text-blue-600" />
-                                <h5 className="text-xs font-mono font-bold text-[#0F172A] uppercase tracking-wide">
-                                  Resistor Colour-Band Recognition & Exact Mathematical Decoder
-                                </h5>
-                                <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-blue-100 text-blue-800 border border-blue-200">
-                                  IEC 60062 / EIA-RS-279
-                                </span>
-                              </div>
-                              <p className="text-[11px] text-[#64748B] font-mono mt-0.5">
-                                Decoded from original pixels · {colorBands.bandCount}-band code · Reading orientation: <strong>{colorBands.readingOrientation}</strong>
+                      {/* SECTION 2: Physical Construction & Observable Materials */}
+                      <div className="p-4 rounded-xl bg-white border border-slate-200">
+                        <h5 className="text-[11px] font-mono font-bold text-slate-500 uppercase tracking-wider mb-2.5 flex items-center gap-1.5">
+                          <Layers className="w-3.5 h-3.5 text-blue-600" />
+                          <span>2. Physical Construction & Observable Materials</span>
+                        </h5>
+
+                        <div className="space-y-3 text-xs font-mono">
+                          <div>
+                            <span className="text-[#64748B] block text-[10px] uppercase font-bold">Body Construction:</span>
+                            <p className="text-slate-900 mt-0.5 leading-relaxed">
+                              {techReport?.constructionAndMaterials?.bodyConstruction ||
+                                activeComp.description ||
+                                "Solid-state electronic component packaging with conductive termination contacts."}
+                            </p>
+                          </div>
+
+                          {techReport?.constructionAndMaterials?.coreSubstrate && (
+                            <div className="pt-2 border-t border-slate-100">
+                              <span className="text-[#64748B] block text-[10px] uppercase font-bold">Core / Substrate Composition:</span>
+                              <p className="text-slate-800 mt-0.5 leading-relaxed">
+                                {techReport.constructionAndMaterials.coreSubstrate}
                               </p>
                             </div>
+                          )}
 
-                            <div className="flex items-center gap-3">
+                          {/* Observable Materials Chips */}
+                          <div className="pt-2 border-t border-slate-100">
+                            <span className="text-[#64748B] block text-[10px] uppercase font-bold mb-1.5">Visibly Identifiable Materials:</span>
+                            <div className="flex flex-wrap gap-1.5">
+                              {(techReport?.constructionAndMaterials?.observableMaterials || [
+                                "Conductive Metallic Terminals",
+                                "Insulating Encapsulant / Solder Resist",
+                                "Silicon Die or Ceramic Passives Substrate",
+                              ]).map((mat: string, idx: number) => (
+                                <span
+                                  key={idx}
+                                  className="px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-slate-100 text-slate-800 border border-slate-200"
+                                >
+                                  {mat}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* SPECIALIZED MODULE A: Dedicated Toroidal Inductor Core & Winding Suite */}
+                        {isToroid && (
+                          <div className="mt-4 p-4 rounded-xl bg-gradient-to-br from-blue-50/70 to-slate-50 border border-blue-200">
+                            <div className="flex items-center justify-between gap-2 border-b border-blue-200/80 pb-2.5 mb-3">
+                              <div className="flex items-center gap-2">
+                                <RotateCcw className="w-4 h-4 text-blue-600" />
+                                <h6 className="text-xs font-bold text-blue-900 uppercase tracking-wide">
+                                  Toroidal Core & Winding Optical Analysis
+                                </h6>
+                              </div>
+                              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-100 text-blue-800 border border-blue-200">
+                                Continuous Magnetic Flux Ring
+                              </span>
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-center">
+                              {/* SVG Diagram of Toroidal Ring Core with Windings */}
+                              <div className="md:col-span-5 flex flex-col items-center justify-center p-3 bg-white rounded-xl border border-slate-200">
+                                <svg viewBox="0 0 160 160" className="w-36 h-36 drop-shadow-sm">
+                                  {/* Outer Ring */}
+                                  <circle cx="80" cy="80" r="65" fill="#D97706" opacity="0.25" />
+                                  <circle cx="80" cy="80" r="55" fill="#2563EB" opacity="0.85" />
+                                  {/* Inner Hole */}
+                                  <circle cx="80" cy="80" r="28" fill="#F8FAFC" stroke="#CBD5E1" strokeWidth="2" />
+                                  {/* Helical Copper Wire Windings */}
+                                  {[0, 30, 60, 90, 120, 150, 180, 210, 240, 270, 300, 330].map((deg, i) => {
+                                    const rad = (deg * Math.PI) / 180;
+                                    const x1 = 80 + 30 * Math.cos(rad);
+                                    const y1 = 80 + 30 * Math.sin(rad);
+                                    const x2 = 80 + 56 * Math.cos(rad);
+                                    const y2 = 80 + 56 * Math.sin(rad);
+                                    return (
+                                      <line
+                                        key={i}
+                                        x1={x1}
+                                        y1={y1}
+                                        x2={x2}
+                                        y2={y2}
+                                        stroke="#B45309"
+                                        strokeWidth="5"
+                                        strokeLinecap="round"
+                                      />
+                                    );
+                                  })}
+                                  {/* Lead Terminals extending downwards */}
+                                  <line x1="60" y1="135" x2="60" y2="158" stroke="#94A3B8" strokeWidth="3" strokeLinecap="round" />
+                                  <line x1="100" y1="135" x2="100" y2="158" stroke="#94A3B8" strokeWidth="3" strokeLinecap="round" />
+                                </svg>
+                                <span className="text-[10px] text-slate-500 font-mono mt-2 font-semibold">
+                                  Continuous Circular Magnetic Loop
+                                </span>
+                              </div>
+
+                              {/* Winding & Core Findings */}
+                              <div className="md:col-span-7 space-y-2.5 text-xs font-mono">
+                                <div>
+                                  <span className="text-slate-500 text-[10px] uppercase font-bold block">Winding Construction:</span>
+                                  <p className="text-slate-900 leading-relaxed">
+                                    {techReport?.constructionAndMaterials?.windingConstruction || "Helically wound enamelled copper magnet wire."}
+                                  </p>
+                                </div>
+                                <div className="p-2 rounded-lg bg-white border border-blue-100">
+                                  <span className="text-blue-900 text-[10px] uppercase font-bold block">Visible Turns Assessment:</span>
+                                  <p className="text-slate-800 text-[11px] mt-0.5">
+                                    {techReport?.constructionAndMaterials?.windingDetails?.displayTurns || "Turns cannot be individually verified from 2D angle."}
+                                  </p>
+                                </div>
+                                <div>
+                                  <span className="text-slate-500 text-[10px] uppercase font-bold block">Core Coating & Material Transparency:</span>
+                                  <p className="text-slate-800 text-[11px] leading-relaxed">
+                                    {techReport?.constructionAndMaterials?.coreCoatingObserved ? (
+                                      <>Observed coating: <strong>{techReport.constructionAndMaterials.coreCoatingObserved}</strong>. In industrial manufacturing, yellow/green coatings frequently indicate iron powder (e.g. Material -26) or high-permeability ferrite, but exact magnetic grade strictly requires manufacturer part documentation.</>
+                                    ) : (
+                                      "Coated ferromagnetic core. Exact magnetic grade cannot be determined without part stamping."
+                                    )}
+                                  </p>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Low Leakage Flux & EMI Characteristics */}
+                            {techReport?.emiCharacteristics && (
+                              <div className="mt-3 p-3 bg-white rounded-xl border border-blue-100 text-xs font-mono">
+                                <span className="text-blue-950 text-[10px] uppercase font-bold block mb-1">
+                                  Toroidal Magnetic Geometry & Low Leakage EMI Performance:
+                                </span>
+                                <p className="text-slate-800 text-[11px] leading-relaxed">
+                                  {techReport.emiCharacteristics.leakageFluxReduction}
+                                </p>
+                                <p className="text-amber-800 text-[10px] mt-1.5 italic">
+                                  {techReport.emiCharacteristics.emiPolicyDisclaimer}
+                                </p>
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        {/* SPECIALIZED MODULE B: Resistor Colour Band Recognition & Exact Decoder */}
+                        {colorBands && colorBands.status === "COMPLETED" && (
+                          <div className="mt-4 p-4 rounded-xl bg-white border border-blue-200 shadow-sm">
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-200 pb-3 mb-3.5">
+                              <div>
+                                <div className="flex items-center gap-2">
+                                  <Sliders className="w-4 h-4 text-blue-600" />
+                                  <h6 className="text-xs font-mono font-bold text-[#0F172A] uppercase tracking-wide">
+                                    Resistor Colour-Band Recognition & Exact Mathematical Decoder
+                                  </h6>
+                                  <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-blue-100 text-blue-800 border border-blue-200">
+                                    IEC 60062 / EIA-RS-279
+                                  </span>
+                                </div>
+                                <p className="text-[11px] text-[#64748B] font-mono mt-0.5">
+                                  Decoded from original pixels · {colorBands.bandCount}-band code · Reading orientation: <strong>{colorBands.readingOrientation}</strong>
+                                </p>
+                              </div>
+
                               <div className="text-right">
                                 <span className="text-[10px] font-mono text-[#64748B] block uppercase">Calculated Resistance</span>
                                 <strong className="text-base font-mono font-extrabold text-blue-700 block">
@@ -624,134 +822,180 @@ function ConsoleResultsContent() {
                                 </strong>
                               </div>
                             </div>
-                          </div>
 
-                          {/* Resistor Body Visual Representation */}
-                          <div className="py-3 px-4 mb-3.5 bg-slate-50/80 rounded-xl border border-slate-200/80 flex flex-col items-center justify-center">
-                            <span className="text-[10px] font-mono text-slate-500 uppercase tracking-wider mb-2 font-semibold">
-                              Optical Colour-Band Distribution along Cylindrical Body:
-                            </span>
+                            {/* Resistor Body Visual Representation */}
+                            <div className="py-3 px-4 mb-3.5 bg-slate-50/80 rounded-xl border border-slate-200/80 flex flex-col items-center justify-center">
+                              <span className="text-[10px] font-mono text-slate-500 uppercase tracking-wider mb-2 font-semibold">
+                                Optical Colour-Band Distribution along Cylindrical Body:
+                              </span>
 
-                            {/* SVG Resistor Body with Bands */}
-                            <div className="w-full max-w-md h-12 flex items-center justify-center relative">
-                              {/* Left Wire Lead */}
-                              <div className="h-1 flex-1 bg-slate-400 rounded-l shadow-inner" />
-
-                              {/* Cylindrical Resistor Body */}
-                              <div className="h-10 w-48 bg-[#F0E6D2] rounded-lg border-2 border-[#D8C7A5] relative flex items-center justify-around px-3 shadow-md">
-                                {colorBands.bandDetails && colorBands.bandDetails.map((b: any, idx: number) => (
-                                  <div
-                                    key={idx}
-                                    title={`Band ${b.index}: ${b.color} (${b.role} = ${b.value})`}
-                                    className="h-full w-3.5 shadow-sm rounded-sm transition-transform hover:scale-110 flex items-center justify-center text-[8px] font-bold text-white border border-black/20"
-                                    style={{ backgroundColor: b.hex }}
-                                  />
-                                ))}
+                              <div className="w-full max-w-md h-12 flex items-center justify-center relative">
+                                <div className="h-1 flex-1 bg-slate-400 rounded-l shadow-inner" />
+                                <div className="h-10 w-48 bg-[#F0E6D2] rounded-lg border-2 border-[#D8C7A5] relative flex items-center justify-around px-3 shadow-md">
+                                  {colorBands.bandDetails && colorBands.bandDetails.map((b: any, idx: number) => (
+                                    <div
+                                      key={idx}
+                                      title={`Band ${b.index}: ${b.color} (${b.role} = ${b.value})`}
+                                      className="h-full w-3.5 shadow-sm rounded-sm transition-transform hover:scale-110 flex items-center justify-center text-[8px] font-bold text-white border border-black/20"
+                                      style={{ backgroundColor: b.hex }}
+                                    />
+                                  ))}
+                                </div>
+                                <div className="h-1 flex-1 bg-slate-400 rounded-r shadow-inner" />
                               </div>
 
-                              {/* Right Wire Lead */}
-                              <div className="h-1 flex-1 bg-slate-400 rounded-r shadow-inner" />
+                              <div className="flex items-center gap-4 mt-2 text-[11px] font-mono text-slate-600">
+                                <span>Tolerance Range: <strong className="text-slate-900">{colorBands.formattedRange}</strong></span>
+                                <span>·</span>
+                                <span>Confidence: <strong className="text-emerald-700">{Math.round((colorBands.confidence || 0.95) * 100)}%</strong></span>
+                              </div>
                             </div>
 
-                            <div className="flex items-center gap-4 mt-2 text-[11px] font-mono text-slate-600">
-                              <span>Tolerance Range: <strong className="text-slate-900">{colorBands.formattedRange}</strong></span>
-                              <span>·</span>
-                              <span>Confidence: <strong className="text-emerald-700">{Math.round((colorBands.confidence || 0.95) * 100)}%</strong></span>
-                            </div>
-                          </div>
-
-                          {/* Band-by-Band Breakdown Table */}
-                          <div className="overflow-x-auto">
-                            <table className="w-full text-left text-xs font-mono border-collapse">
-                              <thead>
-                                <tr className="border-b border-slate-200 text-slate-500 text-[10px] uppercase bg-slate-50">
-                                  <th className="py-1.5 px-3">Band Position</th>
-                                  <th className="py-1.5 px-3">Colour Detected</th>
-                                  <th className="py-1.5 px-3">Standard Swatch</th>
-                                  <th className="py-1.5 px-3">Function / Role</th>
-                                  <th className="py-1.5 px-3">Numerical Value</th>
-                                </tr>
-                              </thead>
-                              <tbody className="divide-y divide-slate-100">
-                                {colorBands.bandDetails && colorBands.bandDetails.map((b: any, i: number) => (
-                                  <tr key={i} className="hover:bg-blue-50/30">
-                                    <td className="py-1.5 px-3 font-semibold text-slate-700">Band {b.index}</td>
-                                    <td className="py-1.5 px-3 font-bold text-slate-900">{b.color}</td>
-                                    <td className="py-1.5 px-3">
-                                      <div className="flex items-center gap-1.5">
-                                        <span
-                                          className="w-4 h-4 rounded border border-black/20 inline-block shadow-sm"
-                                          style={{ backgroundColor: b.hex }}
-                                        />
-                                        <span className="text-[10px] text-slate-500">{b.hex}</span>
-                                      </div>
-                                    </td>
-                                    <td className="py-1.5 px-3 text-slate-600">{b.role}</td>
-                                    <td className="py-1.5 px-3 font-bold text-blue-700">{b.value}</td>
+                            {/* Band-by-Band Breakdown Table */}
+                            <div className="overflow-x-auto">
+                              <table className="w-full text-left text-xs font-mono border-collapse">
+                                <thead>
+                                  <tr className="border-b border-slate-200 text-slate-500 text-[10px] uppercase bg-slate-50">
+                                    <th className="py-1.5 px-3">Band Position</th>
+                                    <th className="py-1.5 px-3">Colour Detected</th>
+                                    <th className="py-1.5 px-3">Standard Swatch</th>
+                                    <th className="py-1.5 px-3">Function / Role</th>
+                                    <th className="py-1.5 px-3">Numerical Value</th>
                                   </tr>
-                                ))}
-                              </tbody>
-                            </table>
+                                </thead>
+                                <tbody className="divide-y divide-slate-100">
+                                  {colorBands.bandDetails && colorBands.bandDetails.map((b: any, i: number) => (
+                                    <tr key={i} className="hover:bg-blue-50/30">
+                                      <td className="py-1.5 px-3 font-semibold text-slate-700">Band {b.index}</td>
+                                      <td className="py-1.5 px-3 font-bold text-slate-900">{b.color}</td>
+                                      <td className="py-1.5 px-3">
+                                        <div className="flex items-center gap-1.5">
+                                          <span
+                                            className="w-4 h-4 rounded border border-black/20 inline-block shadow-sm"
+                                            style={{ backgroundColor: b.hex }}
+                                          />
+                                          <span className="text-[10px] text-slate-500">{b.hex}</span>
+                                        </div>
+                                      </td>
+                                      <td className="py-1.5 px-3 text-slate-600">{b.role}</td>
+                                      <td className="py-1.5 px-3 font-bold text-blue-700">{b.value}</td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
                           </div>
-                        </div>
-                      )}
+                        )}
+                      </div>
 
-                      {/* Unreadable Resistor Warning (Zero Fabrication Rule) */}
-                      {colorBands && colorBands.status === "UNREADABLE" && (
-                        <div className="p-3.5 rounded-xl bg-amber-50/80 border border-amber-200 text-xs font-mono text-amber-900 flex items-start gap-2.5">
-                          <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
-                          <div>
-                            <strong className="font-bold block">Resistor Colour Bands Unreadable from Photograph:</strong>
-                            <p className="text-amber-800 text-[11px] mt-0.5">
-                              {colorBands.message || "Colour bands could not be identified reliably. Please upload a clearer image."}
-                            </p>
-                            <span className="text-[10px] text-amber-700 mt-1 block">
-                              EcoIntel Image-Only Policy: Values are strictly never guessed or substituted with arbitrary demo defaults.
-                            </span>
-                          </div>
-                        </div>
-                      )}
-
-                      {/* 3. Component Function & Educational Technical Knowledge */}
-                      {compFunction && (
-                        <div className="p-4 rounded-xl bg-white border border-slate-200">
-                          <h5 className="text-[11px] font-mono font-bold text-slate-500 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                            <Info className="w-3.5 h-3.5 text-blue-600" />
-                            <span>2. Component Function & Technical Intelligence</span>
+                      {/* SECTION 3: Working Principle ("How It Works") */}
+                      <div className="p-4 rounded-xl bg-white border border-slate-200">
+                        <div className="flex items-center justify-between gap-2 border-b border-slate-100 pb-2 mb-2.5">
+                          <h5 className="text-[11px] font-mono font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
+                            <Zap className="w-3.5 h-3.5 text-blue-600" />
+                            <span>3. Working Principle ("How It Works")</span>
                           </h5>
-                          <div className="space-y-2 text-xs font-mono">
-                            <div>
-                              <strong className="text-slate-700 text-[11px] uppercase block">Primary Electronic Function:</strong>
-                              <p className="text-slate-900 mt-0.5 leading-relaxed">{compFunction.primaryRole}</p>
-                            </div>
-                            <div className="pt-2 border-t border-slate-100">
-                              <strong className="text-slate-700 text-[11px] uppercase block">Operating Principle:</strong>
-                              <p className="text-slate-800 mt-0.5 leading-relaxed">{compFunction.operatingPrinciple}</p>
-                            </div>
-                            <div className="pt-2 border-t border-slate-100">
-                              <strong className="text-slate-700 text-[11px] uppercase block">Common Circuit Applications:</strong>
-                              <p className="text-slate-800 mt-0.5 leading-relaxed">{compFunction.commonApplications}</p>
-                            </div>
+                          <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">
+                            {techReport?.workingPrinciple?.governingLaw || "Electromagnetic & Semiconductor Principles"}
+                          </span>
+                        </div>
+
+                        <div className="space-y-2 text-xs font-mono">
+                          <div>
+                            <span className="text-slate-500 text-[10px] uppercase font-bold block">Fundamental Operation:</span>
+                            <p className="text-slate-900 mt-0.5 leading-relaxed font-semibold">
+                              {techReport?.workingPrinciple?.summary || compFunction?.operatingPrinciple || "Conducts electrical current according to circuit principles."}
+                            </p>
+                          </div>
+                          <div className="pt-2 border-t border-slate-100">
+                            <span className="text-slate-500 text-[10px] uppercase font-bold block">Detailed Electromagnetic / Solid-State Physics:</span>
+                            <p className="text-slate-800 mt-0.5 leading-relaxed">
+                              {techReport?.workingPrinciple?.detailedPhysics ||
+                                compFunction?.operatingPrinciple ||
+                                "Operates via solid-state charge transport or electromagnetic induction."}
+                            </p>
                           </div>
                         </div>
-                      )}
+                      </div>
 
-                      {/* 4. Dedicated AC/DC Compatibility Information Section */}
+                      {/* SECTION 4: Primary Functions & In-Circuit Roles */}
+                      <div className="p-4 rounded-xl bg-white border border-slate-200">
+                        <h5 className="text-[11px] font-mono font-bold text-slate-500 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                          <Info className="w-3.5 h-3.5 text-blue-600" />
+                          <span>4. Primary Functions & Circuit Roles</span>
+                        </h5>
+                        <ul className="space-y-1.5 text-xs font-mono">
+                          {(techReport?.primaryFunctions || [
+                            compFunction?.primaryRole || activeComp.functionalRole || "Electronic circuit functioning",
+                          ]).map((fn: string, i: number) => (
+                            <li key={i} className="flex items-start gap-2">
+                              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0 mt-0.5" />
+                              <span className="text-slate-800 leading-relaxed">{fn}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+
+                      {/* SECTION 5: Common Real-World Applications */}
+                      <div className="p-4 rounded-xl bg-white border border-slate-200 text-xs font-mono">
+                        <h5 className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                          <BookOpen className="w-3.5 h-3.5 text-blue-600" />
+                          <span>5. Common Real-World Applications</span>
+                        </h5>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-2">
+                          <div className="p-3 rounded-lg bg-slate-50 border border-slate-200">
+                            <span className="text-blue-900 font-bold text-[10px] uppercase block mb-1">General Component Family Applications:</span>
+                            <ul className="space-y-1 text-slate-700 text-[11px]">
+                              {(techReport?.commonApplications?.generalFamily || [
+                                "Consumer and Industrial Electronics",
+                                "Power Management Circuits",
+                                "Embedded Systems",
+                              ]).map((app: string, idx: number) => (
+                                <li key={idx}>• {app}</li>
+                              ))}
+                            </ul>
+                          </div>
+
+                          <div className="p-3 rounded-lg bg-blue-50/60 border border-blue-200">
+                            <span className="text-blue-900 font-bold text-[10px] uppercase block mb-1">Subtype-Specific Applications:</span>
+                            <ul className="space-y-1 text-slate-800 text-[11px]">
+                              {(techReport?.commonApplications?.subtypeSpecific || [
+                                compFunction?.commonApplications || specs.commonApplications || "Board-level electronics application",
+                              ]).map((app: string, idx: number) => (
+                                <li key={idx}>• {app}</li>
+                              ))}
+                            </ul>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* SECTION 6: Dedicated AC/DC Compatibility Information Section */}
                       {acDc && (
                         <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 text-xs font-mono">
                           <div className="flex items-center justify-between gap-2 border-b border-slate-200 pb-2 mb-2.5">
                             <h5 className="text-[11px] font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
                               <Zap className="w-3.5 h-3.5 text-amber-600" />
-                              <span>3. AC / DC Electrical Compatibility</span>
+                              <span>6. AC / DC Circuit Behavior & Compatibility</span>
                             </h5>
                             <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-900 border border-amber-300">
                               {acDc.generalCompatibility}
                             </span>
                           </div>
 
-                          <p className="text-slate-800 leading-relaxed mb-2">
-                            {acDc.details}
-                          </p>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-2.5">
+                            <div className="p-2.5 rounded-lg bg-white border border-slate-200">
+                              <span className="text-slate-500 text-[10px] uppercase font-bold block mb-0.5">Steady-State DC Behavior:</span>
+                              <p className="text-slate-800 text-[11px] leading-relaxed">
+                                {techReport?.acDcCompatibility?.dcBehavior || acDc.details}
+                              </p>
+                            </div>
+                            <div className="p-2.5 rounded-lg bg-white border border-slate-200">
+                              <span className="text-slate-500 text-[10px] uppercase font-bold block mb-0.5">Dynamic AC / Pulsed Behavior:</span>
+                              <p className="text-slate-800 text-[11px] leading-relaxed">
+                                {techReport?.acDcCompatibility?.acBehavior || acDc.details}
+                              </p>
+                            </div>
+                          </div>
 
                           <div className="p-2.5 rounded-lg bg-white border border-amber-200/70 text-[11px] text-amber-900">
                             <span className="font-bold block text-[10px] uppercase text-amber-800 mb-0.5">Physical Optical Inspection Boundary:</span>
@@ -759,6 +1003,113 @@ function ConsoleResultsContent() {
                           </div>
                         </div>
                       )}
+
+                      {/* SECTION 7: Technical Specifications Matrix with Strict Provenance Labels */}
+                      <div className="p-4 rounded-xl bg-white border border-slate-200">
+                        <div className="flex items-center justify-between gap-2 border-b border-slate-200 pb-2 mb-2.5">
+                          <h5 className="text-[11px] font-mono font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
+                            <Sliders className="w-3.5 h-3.5 text-blue-600" />
+                            <span>7. Electrical Specifications & Evidence Provenance</span>
+                          </h5>
+                          <span className="text-[10px] font-mono text-slate-500">
+                            Zero-Fabrication Policy: Numerical values never guessed
+                          </span>
+                        </div>
+
+                        <div className="overflow-x-auto">
+                          <table className="w-full text-left text-xs font-mono border-collapse">
+                            <thead>
+                              <tr className="border-b border-slate-200 text-slate-500 text-[10px] uppercase bg-slate-50">
+                                <th className="py-2 px-3">Parameter</th>
+                                <th className="py-2 px-3">Specification / Value</th>
+                                <th className="py-2 px-3">Data Provenance</th>
+                                <th className="py-2 px-3">Verification Notes</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-100">
+                              {(techReport?.technicalSpecifications || [
+                                { parameter: "Component Category", value: activeComp.category || activeComp.type, provenance: "IMAGE_OBSERVED", notes: "Identified via optical detection" },
+                                { parameter: "Subtype Classification", value: activeComp.subtype || activeComp.name, provenance: "VISUAL_INFERENCE", notes: "Form factor and morphology" },
+                                { parameter: "Package Footprint", value: activeComp.package, provenance: "IMAGE_OBSERVED", notes: "Physical packaging" },
+                                { parameter: "Terminal Count", value: `${activeComp.visibleTerminals || 2} Terminals`, provenance: "IMAGE_OBSERVED", notes: activeComp.terminalDescription || "Visible leads" },
+                                { parameter: "Nominal Rating", value: techId.nominalResistance || techId.nominalValue || "Cannot determine from image", provenance: "NOT_AVAILABLE", notes: "Requires multimeter or part datasheet" },
+                              ]).map((row: any, idx: number) => (
+                                <tr key={idx} className="hover:bg-blue-50/20">
+                                  <td className="py-2 px-3 font-semibold text-slate-900">{row.parameter}</td>
+                                  <td className="py-2 px-3 font-bold text-blue-900">{row.value}</td>
+                                  <td className="py-2 px-3">
+                                    <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold border ${provenanceBadge(row.provenance)}`}>
+                                      {row.provenance}
+                                    </span>
+                                  </td>
+                                  <td className="py-2 px-3 text-[11px] text-slate-500">{row.notes}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+
+                      {/* SECTION 8: Identification Evidence, Limitations & Engineering References */}
+                      <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 text-xs font-mono">
+                        <div className="flex items-center justify-between gap-2 border-b border-slate-200 pb-2 mb-2.5">
+                          <h5 className="text-[11px] font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
+                            <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
+                            <span>8. Identification Evidence, Limitations & Engineering References</span>
+                          </h5>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
+                          {/* Observable Supporting Features */}
+                          <div className="p-3 rounded-lg bg-white border border-slate-200">
+                            <span className="text-emerald-900 font-bold text-[10px] uppercase block mb-1">Observable Visual Features:</span>
+                            <ul className="space-y-1 text-slate-700 text-[11px]">
+                              {(techReport?.identificationEvidence?.supportingFeatures || [
+                                `Component bounding box: ${JSON.stringify(activeComp.coordinates || activeComp.boundingBox)}`,
+                                `Observed ${activeComp.visibleTerminals || 2} visible terminal contacts`,
+                                `Package footprint matching ${activeComp.package}`,
+                              ]).map((feat: string, i: number) => (
+                                <li key={i}>✓ {feat}</li>
+                              ))}
+                            </ul>
+                          </div>
+
+                          {/* Optical Limitations */}
+                          <div className="p-3 rounded-lg bg-white border border-amber-200">
+                            <span className="text-amber-900 font-bold text-[10px] uppercase block mb-1">Specifications Requiring Datasheet / Lab Test:</span>
+                            <ul className="space-y-1 text-amber-800 text-[11px]">
+                              {(techReport?.inspectionLimitations || [
+                                "Operating voltage breakdown and continuous current capacity require datasheet lookup.",
+                                "Internal silicon or dielectric integrity cannot be confirmed optically.",
+                                "Electrical continuity and dynamic frequency response require test instruments.",
+                              ]).map((lim: string, i: number) => (
+                                <li key={i}>⚠ {lim}</li>
+                              ))}
+                            </ul>
+                          </div>
+                        </div>
+
+                        {/* Verified Reference Standards */}
+                        {techReport?.verifiedReferences && (
+                          <div className="p-2.5 bg-white rounded-lg border border-slate-200">
+                            <span className="text-slate-500 text-[10px] uppercase font-bold block mb-1">Verified Engineering Standards & References:</span>
+                            <div className="space-y-1 text-[11px] text-slate-700">
+                              {techReport.verifiedReferences.map((ref: any, idx: number) => (
+                                <div key={idx} className="flex items-center gap-1.5">
+                                  <ExternalLink className="w-3 h-3 text-blue-600 shrink-0" />
+                                  <span className="font-semibold text-slate-900">{ref.standardOrDoc}</span>
+                                  {ref.organization && <span className="text-slate-400">({ref.organization})</span>}
+                                  {ref.url && (
+                                    <a href={ref.url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline ml-1">
+                                      Standard Link
+                                    </a>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
                 );

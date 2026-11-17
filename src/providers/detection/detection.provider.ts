@@ -38,6 +38,7 @@ export interface DetectedComponentData {
     commonApplications: string;
   };
   datasheetUrl?: string;
+  technicalReport?: any;
   marketplaceEligible?: boolean;
   healthScore?: number;
 }
@@ -308,6 +309,7 @@ export class YOLODetectionProvider implements DetectionProvider {
           },
           datasheetUrl: intel.datasheetUrl,
           datasheetReference: pyIntel.datasheetReference,
+          technicalReport: pyIntel.technicalReport || null,
           explanation: pyIntel.explanation,
           boundingBox: percentBox,
           bbox: percentBox,

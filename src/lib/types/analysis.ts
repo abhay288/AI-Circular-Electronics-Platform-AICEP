@@ -97,6 +97,7 @@ export interface DetectedComponent {
     packageFootprint?: string;
   };
   explanation?: string;
+  technicalReport?: any;
   datasheetUrl?: string;
   datasheetReference?: {
     searchUrl: string;

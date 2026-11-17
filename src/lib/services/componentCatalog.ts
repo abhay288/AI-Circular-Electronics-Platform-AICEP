@@ -390,13 +390,58 @@ export function resolveComponentIntelligence(
     }
 
     case "inductor": {
+      const isToroid = text.toLowerCase().includes("toroid") || (w / Math.max(1, h) >= 0.75 && w / Math.max(1, h) <= 1.35 && area > 2500);
+      if (isToroid) {
+        return {
+          name: "Toroidal Inductor / Choke",
+          type: "Inductor",
+          category: "Passives & Power Regulation",
+          subtype: "Toroidal Inductor (Wire-Wound Ring Core)",
+          manufacturer: "Micrometals / Bourns / Wurth Elektronik / Generic",
+          partNumber: `L${seq}_TOROID_CHOKE`,
+          package: "Toroidal Ring Core (Through-Hole Mounting)",
+          mountingType: "Through-Hole Technology (THT)",
+          visibleTerminals: 2,
+          terminalDescription: "2 Leaded wire terminals extending from bottom of ring core",
+          polarity: "Non-polarized (Single winding)",
+          functionalRole: "Magnetic energy storage in DC-DC converters, output smoothing, and differential EMI line filtering.",
+          description: "Helically wound enamelled copper magnet wire distributed radially around a continuous ferromagnetic ring core, confining magnetic flux and minimizing stray leakage.",
+          specifications: {
+            pinCount: "2 Axial Leaded Wire Terminals",
+            mountingType: "Through-Hole Technology (THT)",
+            voltageRating: "Inductance & Current rating require LCR meter / datasheet",
+            dimensionsMm: `${Math.round(w)} x ${Math.round(h)} px`,
+            operatingDomain: "Power Regulation",
+            commonApplications: "Switch-mode power supplies (SMPS) output chokes, DC-DC buck/boost converters, differential EMI filtration",
+          },
+          componentFunction: {
+            primaryRole: "Stores electrical energy in a closed continuous toroidal magnetic field; resists instantaneous current fluctuations.",
+            operatingPrinciple: "Faraday's & Lenz's Law (v = L · di/dt). Closed continuous circular core drastically minimizes external stray magnetic flux leakage.",
+            commonApplications: "DC-DC buck/boost converters, SMPS output filtering, differential line chokes, solar inverter filtering.",
+          },
+          acDcCompatibility: {
+            generalCompatibility: "AC & DC Compatible",
+            details: "Behaves as a low-resistance conductor in steady DC; provides frequency-dependent inductive reactance (X_L = 2πfL) in AC or pulsed DC switching.",
+            polarity: "Non-polarized",
+            operatingLimitDisclaimer: "Operating current must remain strictly below magnetic core saturation current (I_sat) and thermal limit (I_rms). Cannot be determined from photograph alone.",
+          },
+          datasheetUrl: `https://octopart.com/search?q=toroidal+power+inductor`,
+          webSearchQuery: "toroidal power inductor choke specifications datasheet",
+        };
+      }
+
       return {
         name: "Shielded SMD Power Inductor / Choke",
         type: "Inductor",
         category: "Power Regulation",
+        subtype: "Shielded SMD Power Inductor",
         manufacturer: "Coilcraft / Wurth Elektronik / TDK / Bourns",
         partNumber: `L${seq}_SMD_CHOKE`,
         package: "Shielded SMD (10 x 10 mm)",
+        mountingType: "Surface Mount Device (SMD)",
+        visibleTerminals: 2,
+        terminalDescription: "2 Metallized bottom solder pads",
+        polarity: "Non-polarized",
         functionalRole: "Magnetic energy storage in switch-mode buck/boost DC-DC converter.",
         description: "Ferrite-core wirewound shielded inductor minimizing electromagnetic interference (EMI) during high-frequency switching.",
         specifications: {
@@ -406,6 +451,17 @@ export function resolveComponentIntelligence(
           dimensionsMm: "10.0 x 10.0 x 4.5 mm",
           operatingDomain: "Power Regulation",
           commonApplications: "DC-DC buck converters, power supply LC filtering",
+        },
+        componentFunction: {
+          primaryRole: "High-frequency switch-mode energy storage and power rail ripple attenuation.",
+          operatingPrinciple: "Magnetic flux storage in enclosed ferrite core drum assembly.",
+          commonApplications: "Microprocessor core power rails, point-of-load DC-DC buck regulators.",
+        },
+        acDcCompatibility: {
+          generalCompatibility: "AC & DC Compatible",
+          details: "Passes DC current while filtering high-frequency PWM switching ripple.",
+          polarity: "Non-polarized",
+          operatingLimitDisclaimer: "Saturation current (Isat) and thermal rating (Irms) must not be exceeded.",
         },
         datasheetUrl: `https://octopart.com/search?q=shielded+power+inductor+SMD`,
         webSearchQuery: "shielded power inductor SMD datasheet",

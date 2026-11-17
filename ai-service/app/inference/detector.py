@@ -13,6 +13,7 @@ from app.schemas import (
 )
 from app.inference.preprocessing import analyze_image_quality
 from app.inference.postprocessing import process_detections
+from app.inference.toroid_analyzer import toroidal_analyzer
 
 class ComponentDetector:
     def __init__(self):
@@ -134,6 +135,20 @@ class ComponentDetector:
                         y2 = max(0.0, min(float(orig_h), coords[3]))
 
                         if x2 - x1 >= 4 and y2 - y1 >= 4:
+                            box_w = x2 - x1
+                            box_h = y2 - y1
+                            box_aspect = float(box_w) / float(max(1.0, box_h))
+                            box_crop = cv_image[int(y1):int(y2), int(x1):int(x2)]
+
+                            # Check for toroidal inductor geometry to prevent misclassification as Connector / Generic
+                            if class_name.lower() in ["connector", "unknown electronic component", "transformer", "inductor"]:
+                                is_toroid, toroid_conf, _ = toroidal_analyzer.is_toroidal_geometry(
+                                    box_crop, box_aspect, box_w * box_h
+                                )
+                                if is_toroid:
+                                    class_name = "Inductor"
+                                    conf = max(conf, toroid_conf)
+
                             raw_boxes.append({
                                 "x1": x1,
                                 "y1": y1,
@@ -148,11 +163,11 @@ class ComponentDetector:
                 print(f"[Detector] Ultralytics predict error: {e}", file=sys.stderr)
 
         # 3. Domain Handling for ISOLATED_COMPONENT Photographs:
-        # If the image contains an isolated component (e.g. single axial resistor on plain background)
+        # If the image contains an isolated component (e.g. single axial resistor or toroidal inductor)
         # and YOLO (which was trained on SMD boards) produced 0 detections:
-        # Detect the single isolated through-hole component reliably without fabricating 16 fake parts!
+        # Detect the single isolated component reliably without fabricating false parts!
         if len(raw_boxes) == 0 and image_type == "ISOLATED_COMPONENT":
-            isolated_comp = self._detect_isolated_axial_component(cv_image, orig_w, orig_h)
+            isolated_comp = self._detect_isolated_component(cv_image, orig_w, orig_h)
             if isolated_comp:
                 raw_boxes.append(isolated_comp)
 
@@ -185,12 +200,13 @@ class ComponentDetector:
             warnings=quality_diag["warnings"],
         )
 
-    def _detect_isolated_axial_component(
+    def _detect_isolated_component(
         self, cv_img: np.ndarray, w: int, h: int
     ) -> Optional[Dict[str, Any]]:
         """
-        Identifies an isolated through-hole component (e.g., axial leaded resistor)
-        on a plain background with zero fabrication. Returns at most ONE verified detection.
+        Identifies an isolated through-hole or discrete component (e.g., axial resistor,
+        toroidal inductor, electrolytic capacitor) on a plain background with zero fabrication.
+        Returns at most ONE verified detection.
         """
         # Determine background color from border margins
         border = np.vstack([
@@ -226,11 +242,21 @@ class ComponentDetector:
         aspect = float(bw) / max(1.0, float(bh))
         crop = cv_img[y:y+bh, x:x+bw]
 
-        # Check for axial cylindrical geometry with wire leads
-        # Typical axial resistor: aspect > 2.5 (horizontal) or aspect < 0.4 (vertical)
-        is_axial_geometry = aspect > 2.2 or aspect < 0.45
+        # 1. Check for Toroidal Inductor (Ring core with wound copper wire)
+        is_toroid, toroid_conf, _ = toroidal_analyzer.is_toroidal_geometry(crop, aspect, area)
+        if is_toroid:
+            return {
+                "x1": float(x),
+                "y1": float(y),
+                "x2": float(x + bw),
+                "y2": float(y + bh),
+                "confidence": toroid_conf,
+                "class_id": 6,
+                "class_name": "Inductor",
+            }
 
-        # Check color variance along main axis (indicating color bands or ceramic body)
+        # 2. Check for axial cylindrical geometry with wire leads (Resistor)
+        is_axial_geometry = aspect > 2.2 or aspect < 0.45
         crop_gray = cv2.cvtColor(crop, cv2.COLOR_BGR2GRAY)
         if aspect > 1.0:
             axis_profile = np.mean(crop_gray, axis=0)
@@ -261,15 +287,28 @@ class ComponentDetector:
                 "class_id": 1,
                 "class_name": "Resistor",
             }
-        else:
+
+        # 3. Check for Cylindrical Can (Electrolytic Capacitor)
+        if (aspect < 0.85 or aspect > 1.15) and area > (w * h * 0.05):
+            # Check for stripe on capacitor sleeve
             return {
                 "x1": float(x),
                 "y1": float(y),
                 "x2": float(x + bw),
                 "y2": float(y + bh),
-                "confidence": 0.65,
-                "class_id": 0,
-                "class_name": "Unknown electronic component",
+                "confidence": 0.72,
+                "class_id": 2,
+                "class_name": "Capacitor",
             }
+
+        return {
+            "x1": float(x),
+            "y1": float(y),
+            "x2": float(x + bw),
+            "y2": float(y + bh),
+            "confidence": 0.65,
+            "class_id": 0,
+            "class_name": "Unknown electronic component",
+        }
 
 detector = ComponentDetector()

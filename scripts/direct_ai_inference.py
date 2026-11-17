@@ -91,8 +91,6 @@ def main():
         # 3. Component Detection (Trained YOLO model + isolated component geometry)
         det_response = detector.detect(cv_img, image_type=image_type)
         detections = [d.model_dump() for d in det_response.detections]
-        for d in detections:
-            d["intelligence"] = component_intelligence.enrich_detection(d, cv_img, image_type=image_type)
 
         # 4. PCB Visual Structure (Conditioned on imageType)
         pcb_res = pcb_analyzer.analyze(cv_img, detections, analysis_id, image_type=image_type)
@@ -104,6 +102,14 @@ def main():
 
         # 6. Visible Text & Silkscreen Markings (OCR)
         ocr_res = ocr_extractor.extract_markings(cv_img, detections, image_type=image_type)
+        markings_by_comp = {m.get("componentId"): m.get("text", "") for m in ocr_res.get("markings", []) if m.get("componentId")}
+
+        # 7. Enrich detections with hierarchical component intelligence, OCR markings & technical reports
+        for d in detections:
+            comp_id = d.get("id")
+            if comp_id in markings_by_comp and markings_by_comp[comp_id]:
+                d["visibleMarking"] = markings_by_comp[comp_id]
+            d["intelligence"] = component_intelligence.enrich_detection(d, cv_img, image_type=image_type)
 
         # 7. Strict Evidence-Based Summary
         damage_items = [c for c in cond_res.get("conditions", []) if c.get("visualCondition") != "NORMAL"]
