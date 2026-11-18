@@ -61,8 +61,12 @@ export default function RootLayout({
     <html
       lang="en"
       className={`${inter.variable} ${spaceGrotesk.variable} ${ibmPlexMono.variable} scroll-smooth`}
+      suppressHydrationWarning
     >
-      <body className="bg-[#F8FAFC] text-[#0F172A] antialiased min-h-screen relative">
+      <body
+        className="bg-[#F8FAFC] text-[#0F172A] antialiased min-h-screen relative"
+        suppressHydrationWarning
+      >
         {children}
       </body>
     </html>
