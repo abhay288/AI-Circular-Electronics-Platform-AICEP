@@ -17,15 +17,15 @@ class VisualOCRExtractor:
     ) -> Dict[str, Any]:
         h, w = cv_image.shape[:2]
 
-        # For an isolated component (like an axial resistor), color bands or leads are not text
-        if image_type == "ISOLATED_COMPONENT":
+        # For an isolated component or non-electronic image, skip silkscreen OCR
+        if image_type in ["ISOLATED_COMPONENT", "SINGLE_COMPONENT", "NON_ELECTRONIC", "UNSUITABLE_IMAGE"]:
             return {
                 "totalMarkingsDetected": 0,
                 "readableMarkingsCount": 0,
                 "uncertainMarkingsCount": 0,
                 "markings": [],
                 "ocrEngine": "OpenCV Morphological Gradient Text Extractor",
-                "policy": "Strict Image-Only Policy. No printed silkscreen or IC package laser markings detected on isolated component.",
+                "policy": "Strict Image-Only Policy. Printed PCB silkscreen markings are not applicable.",
             }
 
         gray = cv2.cvtColor(cv_image, cv2.COLOR_BGR2GRAY)

@@ -6,6 +6,11 @@ import * as os from "os";
 export interface DirectInferenceResult {
   success: boolean;
   analysisId: string;
+  status?: string;
+  relevance?: string;
+  rejectionReason?: string;
+  rejectionCategory?: string;
+  rejectionRecommendation?: boolean;
   imageHash?: string;
   imageType?: string;
   imageClassification?: any;

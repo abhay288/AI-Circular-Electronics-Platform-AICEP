@@ -128,6 +128,7 @@ function ConsoleProcessingContent() {
         // Map backend stageStatuses to the 6 visible stages
         const backendStages = data.stageStatuses || {};
         const isCompleted = data.status === "COMPLETED";
+        const isRejected = data.status === "IMAGE_REJECTED" || data.status === "UNSUPPORTED_IMAGE";
         const isFailed = data.status === "FAILED";
 
         if (isFailed) {
@@ -136,7 +137,7 @@ function ConsoleProcessingContent() {
 
         const newStatuses: Record<string, StageStatus> = {
           quality: "completed",
-          detection: isCompleted
+          detection: (isCompleted || isRejected)
             ? "completed"
             : backendStages.detection === "completed"
             ? "completed"
@@ -168,7 +169,7 @@ function ConsoleProcessingContent() {
             : backendStages.detection === "completed"
             ? "processing"
             : "pending",
-          summary: isCompleted
+          summary: (isCompleted || isRejected)
             ? "completed"
             : backendStages.summary === "completed"
             ? "completed"
@@ -179,13 +180,13 @@ function ConsoleProcessingContent() {
 
         setStageStatuses(newStatuses);
 
-        // If complete, navigate to results page
-        if (isCompleted) {
+        // If complete or rejected by guardrail, navigate to results page
+        if (isCompleted || isRejected) {
           setTimeout(() => {
             if (isMounted) {
               router.push(`/console/results?analysisId=${encodeURIComponent(analysisId)}`);
             }
-          }, 800);
+          }, 600);
           return;
         }
 

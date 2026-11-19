@@ -19,7 +19,11 @@ class PCBTopologyAnalyzer:
         # 0. Strict Image-Type Boundary:
         # If the image is an isolated component photograph or non-PCB image,
         # never generate false board boundaries, fake copper traces, pads, or vias.
-        if image_type and image_type != "PCB_BOARD":
+        pcb_types = {
+            "FULL_PCB", "MOTHERBOARD", "MOBILE_PCB", "LAPTOP_PCB",
+            "DESKTOP_PCB", "POWER_SUPPLY_BOARD", "PCB_BOARD", "MIXED_ELECTRONIC_SCENE"
+        }
+        if image_type and image_type not in pcb_types:
             return {
                 "status": "UNSUPPORTED_IMAGE",
                 "message": (

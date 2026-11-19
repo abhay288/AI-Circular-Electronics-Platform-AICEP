@@ -103,7 +103,11 @@ class VisualConditionAnalyzer:
 
         # 2. Global PCB Surface Anomaly Scanning (Burn marks, corrosion crust)
         # Strictly run only when image is a confirmed PCB board
-        if image_type == "PCB_BOARD":
+        pcb_types = {
+            "FULL_PCB", "MOTHERBOARD", "MOBILE_PCB", "LAPTOP_PCB",
+            "DESKTOP_PCB", "POWER_SUPPLY_BOARD", "PCB_BOARD", "MIXED_ELECTRONIC_SCENE"
+        }
+        if image_type in pcb_types:
             surface_findings = self._scan_surface_anomalies(cv_image, gray, hsv, w, h, analysis_id)
             findings.extend(surface_findings)
 

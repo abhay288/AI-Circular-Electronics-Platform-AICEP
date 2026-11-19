@@ -108,8 +108,34 @@ async def detect_components(
         # Decode image and handle EXIF orientation
         cv_img, _ = load_image_from_bytes(image_bytes)
 
+        # Image relevance & domain guardrail check
+        from app.inference.image_classifier import image_classifier
+        image_type_info = image_classifier.classify(cv_img)
+        image_type = image_type_info.get("imageType", "UNKNOWN")
+
+        if image_type == "NON_ELECTRONIC":
+            rejection_reason = image_type_info.get(
+                "rejectionMessage",
+                "This image does not appear to contain electronic hardware or electronic components. Please upload a clear photograph of a PCB, motherboard, electronic device, or individual electronic component."
+            )
+            rejection_cat = image_type_info.get("category", "NON_ELECTRONIC")
+            return {
+                "success": True,
+                "status": "IMAGE_REJECTED",
+                "relevance": "NON_ELECTRONIC",
+                "imageType": "NON_ELECTRONIC",
+                "rejectionReason": rejection_reason,
+                "rejectionCategory": rejection_cat,
+                "rejectionRecommendation": True,
+                "detections": [],
+                "totalDetected": 0,
+                "confidenceAverage": 0.0,
+                "processingTimeMs": 10.0,
+                "warnings": ["IMAGE_REJECTED_NON_ELECTRONIC"],
+            }
+
         # Execute component detection
-        result = detector.detect(cv_img)
+        result = detector.detect(cv_img, image_type=image_type)
         return result.model_dump()
 
     except HTTPException:
@@ -166,12 +192,36 @@ async def analyze_pcb(
         if not image_bytes or len(image_bytes) == 0:
             raise HTTPException(status_code=400, detail="No valid image data provided for PCB analysis.")
 
+        from app.inference.image_classifier import image_classifier
         from app.inference.pcb_analyzer import pcb_analyzer
         cv_img, _ = load_image_from_bytes(image_bytes)
 
+        # Guardrail check
+        image_type_info = image_classifier.classify(cv_img)
+        image_type = image_type_info.get("imageType", "UNKNOWN")
+        if image_type == "NON_ELECTRONIC":
+            return {
+                "success": True,
+                "data": {
+                    "status": "NOT_APPLICABLE",
+                    "message": "PCB structure analysis halted: Image was rejected as non-electronic.",
+                    "board": None,
+                    "traces": [],
+                    "pads": [],
+                    "vias": [],
+                    "layers": None,
+                    "metrics": {
+                        "componentsDetected": 0,
+                        "visibleTraces": 0,
+                        "padsDetected": 0,
+                        "viasDetected": 0,
+                    },
+                }
+            }
+
         # If detections weren't passed in, run detector first
         if not detections:
-            det_result = detector.detect(cv_img)
+            det_result = detector.detect(cv_img, image_type=image_type)
             detections = [d.model_dump() for d in det_result.detections]
 
         analysis_result = pcb_analyzer.analyze(cv_img, detections, current_analysis_id)

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import {
   UploadCloud,
@@ -23,7 +23,11 @@ import {
   RefreshCw,
   Eye,
   Microscope,
+  Camera,
+  FolderOpen,
+  Smartphone,
 } from "lucide-react";
+import CameraScanModal from "@/components/console/CameraScanModal";
 
 interface CapabilityItem {
   num: string;
@@ -128,7 +132,7 @@ const CAPABILITIES: CapabilityItem[] = [
 ];
 
 const MAX_FILE_SIZE_BYTES = 15 * 1024 * 1024; // 15MB
-const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp"];
+const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp", "image/jpg", "image/pjpeg"];
 
 export default function LaunchConsolePage() {
   const router = useRouter();
@@ -140,8 +144,24 @@ export default function LaunchConsolePage() {
   const [validationError, setValidationError] = useState<string | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [activeCapabilityModal, setActiveCapabilityModal] = useState<CapabilityItem | null>(null);
+  const [isCameraModalOpen, setIsCameraModalOpen] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
+
+  // Detect mobile phone / tablet devices
+  useEffect(() => {
+    const checkMobile = () => {
+      const userAgent = navigator.userAgent || navigator.vendor || (window as any).opera;
+      const mobileRegex = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i;
+      const isTouch = typeof navigator !== "undefined" && navigator.maxTouchPoints > 0 && window.innerWidth < 768;
+      setIsMobile(mobileRegex.test(userAgent) || isTouch);
+    };
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+    return () => window.removeEventListener("resize", checkMobile);
+  }, []);
 
   const formatFileSize = (bytes: number): string => {
     if (bytes < 1024 * 1024) {
@@ -153,7 +173,13 @@ export default function LaunchConsolePage() {
   const validateAndSetFile = (file: File) => {
     setValidationError(null);
 
-    if (!ALLOWED_TYPES.includes(file.type)) {
+    const typeLower = (file.type || "").toLowerCase();
+    const isImage =
+      ALLOWED_TYPES.includes(typeLower) ||
+      typeLower.startsWith("image/") ||
+      /\.(jpe?g|png|webp)$/i.test(file.name);
+
+    if (!isImage) {
       setValidationError("Unsupported file format. Please upload a JPG, JPEG, PNG, or WEBP image.");
       return;
     }
@@ -183,6 +209,22 @@ export default function LaunchConsolePage() {
     };
     reader.readAsDataURL(file);
     setSelectedFile(file);
+  };
+
+  const handleCameraTrigger = (e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    if (isMobile) {
+      // On mobile / phone: launch native device camera popup directly
+      cameraInputRef.current?.click();
+    } else {
+      // On desktop / laptop: open optical webcam viewfinder scanner
+      setIsCameraModalOpen(true);
+    }
+  };
+
+  const handleBrowseTrigger = (e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    fileInputRef.current?.click();
   };
 
   const handleDrop = (e: React.DragEvent) => {
@@ -297,7 +339,7 @@ export default function LaunchConsolePage() {
   };
 
   return (
-    <div className="flex-1 py-10 px-4 sm:px-8 max-w-7xl mx-auto w-full space-y-12">
+    <div className="flex-1 py-6 sm:py-10 px-3 sm:px-8 max-w-7xl mx-auto w-full space-y-8 sm:space-y-12">
       {/* ─── INTRODUCTION ────────────────────────────────────────── */}
       <div className="text-center max-w-3xl mx-auto space-y-4">
         <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-[#EFF6FF] border border-[#BFDBFE] text-xs font-mono font-bold text-[#2563EB]">
@@ -305,12 +347,12 @@ export default function LaunchConsolePage() {
           <span>Industrial Electronics Intelligence</span>
         </div>
 
-        <h1 className="font-heading text-3xl sm:text-4xl md:text-5xl font-extrabold text-[#0F172A] tracking-tight leading-tight">
+        <h1 className="font-heading text-2xl sm:text-4xl md:text-5xl font-extrabold text-[#0F172A] tracking-tight leading-tight">
           Electronic Intelligence Workspace
         </h1>
 
-        <p className="text-base text-[#475569] leading-relaxed max-w-2xl mx-auto">
-          Upload a PCB or electronic component image to perform AI-powered component identification, visual condition assessment, PCB analysis, and material intelligence.
+        <p className="text-sm sm:text-base text-[#475569] leading-relaxed max-w-2xl mx-auto">
+          Upload or photograph a PCB or electronic component to perform AI-powered component identification, visual condition assessment, PCB analysis, and material intelligence.
         </p>
 
         {/* Image Quality Instructions Callout */}
@@ -323,26 +365,28 @@ export default function LaunchConsolePage() {
             <li>Supported formats: JPG, JPEG, PNG, WEBP (Max 15MB)</li>
             <li>Perpendicular top-down angle for accurate bounding boxes</li>
             <li>Diffuse, even lighting without high-reflectance glare</li>
-            <li>Minimum recommended resolution: 800×800 px for SMD pin identification</li>
+            <li>Hold camera steady with focus locked on the components</li>
           </ul>
         </div>
       </div>
 
-      {/* ─── IMAGE UPLOAD AREA ───────────────────────────────────── */}
+      {/* ─── IMAGE UPLOAD & CAMERA AREA ─────────────────────────── */}
       <div className="max-w-3xl mx-auto">
-        <div className="p-8 rounded-3xl bg-white border border-[#E2E8F0] shadow-sm hover:shadow-md transition-all space-y-6">
-          <div className="flex items-center justify-between border-b border-[#F1F5F9] pb-4">
+        <div className="p-5 sm:p-8 rounded-2xl sm:rounded-3xl bg-white border border-[#E2E8F0] shadow-sm hover:shadow-md transition-all space-y-5 sm:space-y-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-[#F1F5F9] pb-4">
             <div>
-              <h2 className="font-heading text-xl font-bold text-[#0F172A]">
+              <h2 className="font-heading text-lg sm:text-xl font-bold text-[#0F172A]">
                 Upload Hardware Image
               </h2>
               <p className="text-xs text-[#64748B]">
-                Public analysis — No sign-up or account required
+                Public analysis — Take photo with camera or choose local file
               </p>
             </div>
-            <span className="text-[11px] font-mono text-[#2563EB] bg-[#EFF6FF] px-3 py-1 rounded-full font-semibold border border-[#BFDBFE]">
-              Max 15MB · JPG / PNG / WEBP
-            </span>
+            <div className="flex items-center gap-2">
+              <span className="text-[11px] font-mono text-[#2563EB] bg-[#EFF6FF] px-3 py-1 rounded-full font-semibold border border-[#BFDBFE]">
+                Max 15MB · JPG / PNG / WEBP
+              </span>
+            </div>
           </div>
 
           {/* Validation Alert */}
@@ -359,6 +403,23 @@ export default function LaunchConsolePage() {
             </div>
           )}
 
+          {/* Hidden HTML5 Native File & Camera Inputs */}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/jpeg,image/png,image/webp,image/*"
+            className="hidden"
+            onChange={handleFileInputChange}
+          />
+          <input
+            ref={cameraInputRef}
+            type="file"
+            accept="image/*"
+            capture="environment"
+            className="hidden"
+            onChange={handleFileInputChange}
+          />
+
           {/* Upload Drop Zone / Staged Preview */}
           {!previewUrl ? (
             <div
@@ -368,48 +429,76 @@ export default function LaunchConsolePage() {
               }}
               onDragLeave={() => setDragOver(false)}
               onDrop={handleDrop}
-              onClick={() => fileInputRef.current?.click()}
-              className={`h-64 w-full rounded-2xl border-2 border-dashed transition-all flex flex-col items-center justify-center p-6 text-center cursor-pointer ${
+              onClick={() => {
+                if (isMobile) {
+                  // On mobile: default tap triggers native camera
+                  handleCameraTrigger();
+                } else {
+                  fileInputRef.current?.click();
+                }
+              }}
+              className={`min-h-[290px] sm:h-72 w-full rounded-2xl border-2 border-dashed transition-all flex flex-col items-center justify-center p-5 sm:p-8 text-center cursor-pointer ${
                 dragOver
                   ? "border-[#2563EB] bg-[#EFF6FF]"
                   : "border-[#CBD5E1] bg-[#F8FAFC] hover:border-[#2563EB]/70 hover:bg-[#F1F5F9]"
               }`}
             >
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/jpeg,image/png,image/webp"
-                className="hidden"
-                onChange={handleFileInputChange}
-              />
-
               <div className="w-14 h-14 rounded-2xl bg-[#EFF6FF] text-[#2563EB] mx-auto flex items-center justify-center mb-3">
                 <UploadCloud className="w-7 h-7" />
               </div>
 
-              <div className="space-y-1">
+              <div className="space-y-1 mb-5">
                 <p className="text-sm font-bold text-[#0F172A]">
-                  Drag and drop your PCB or component image here
+                  Capture or Upload Hardware Image
                 </p>
-                <p className="text-xs text-[#64748B]">
-                  or click to browse local files
+                <p className="text-xs text-[#64748B] max-w-sm">
+                  {isMobile
+                    ? "Tap below to take a photo directly with your camera or browse your gallery"
+                    : "Drag and drop your PCB image here, or select an option below"}
                 </p>
               </div>
 
+              {/* Action Buttons Strip */}
+              <div
+                className="flex flex-col sm:flex-row items-center justify-center gap-3 w-full max-w-md"
+                onClick={(e) => e.stopPropagation()}
+              >
+                {/* 1. Camera Trigger Button */}
+                <button
+                  type="button"
+                  onClick={handleCameraTrigger}
+                  className="w-full sm:w-auto flex-1 min-h-[46px] px-5 py-3 rounded-xl bg-[#2563EB] hover:bg-[#1D4ED8] active:scale-[0.98] text-white text-xs font-bold shadow-md shadow-blue-500/20 flex items-center justify-center gap-2.5 transition-all cursor-pointer"
+                >
+                  <Camera className="w-4 h-4 shrink-0" />
+                  <span>{isMobile ? "Take Photo (Camera)" : "Use Camera Scanner"}</span>
+                </button>
+
+                {/* 2. File / Gallery Browser Button */}
+                <button
+                  type="button"
+                  onClick={handleBrowseTrigger}
+                  className="w-full sm:w-auto flex-1 min-h-[46px] px-5 py-3 rounded-xl bg-white hover:bg-[#F8FAFC] active:scale-[0.98] border border-[#CBD5E1] text-[#0F172A] text-xs font-bold shadow-sm flex items-center justify-center gap-2.5 transition-all cursor-pointer"
+                >
+                  <FolderOpen className="w-4 h-4 text-[#64748B] shrink-0" />
+                  <span>{isMobile ? "Choose from Gallery" : "Browse Local Files"}</span>
+                </button>
+              </div>
+
+              {/* Context Hint */}
               <div className="pt-4 flex items-center gap-2 text-[11px] font-mono text-[#94A3B8]">
-                <span>Supported: JPG, JPEG, PNG, WEBP</span>
+                <span>Supported: JPG, PNG, WEBP</span>
                 <span>·</span>
                 <span>Max size: 15 MB</span>
               </div>
             </div>
           ) : (
             <div className="space-y-4">
-              <div className="p-4 rounded-2xl bg-[#F8FAFC] border border-[#E2E8F0] flex flex-col sm:flex-row items-center gap-5">
-                <div className="w-full sm:w-44 h-36 rounded-xl overflow-hidden bg-slate-900 border border-[#CBD5E1] flex-shrink-0 relative">
+              <div className="p-4 sm:p-5 rounded-2xl bg-[#F8FAFC] border border-[#E2E8F0] flex flex-col sm:flex-row items-center gap-5">
+                <div className="w-full sm:w-48 h-48 sm:h-36 rounded-xl overflow-hidden bg-slate-900 border border-[#CBD5E1] flex-shrink-0 relative">
                   <img
                     src={previewUrl}
                     alt="Uploaded preview"
-                    className="w-full h-full object-cover"
+                    className="w-full h-full object-contain sm:object-cover"
                   />
                   <span className="absolute bottom-1.5 left-1.5 px-2 py-0.5 rounded bg-black/75 text-white font-mono text-[9px] font-bold">
                     PREVIEW
@@ -418,10 +507,10 @@ export default function LaunchConsolePage() {
 
                 <div className="flex-1 min-w-0 space-y-2 text-left w-full">
                   <div className="flex items-center justify-between gap-2">
-                    <p className="font-bold text-sm text-[#0F172A] truncate">
+                    <p className="font-bold text-sm text-[#0F172A] truncate" title={selectedFile?.name}>
                       {selectedFile?.name}
                     </p>
-                    <span className="px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-mono font-bold flex items-center gap-1">
+                    <span className="px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-mono font-bold flex items-center gap-1 flex-shrink-0">
                       <Check className="w-3 h-3" /> Validated
                     </span>
                   </div>
@@ -440,41 +529,43 @@ export default function LaunchConsolePage() {
                   </div>
 
                   <p className="text-[11px] text-[#64748B]">
-                    Image validated. Ready for deep optical component segmentation and condition assessment.
+                    Image validated. Ready for optical component segmentation, package classification, and condition assessment.
                   </p>
                 </div>
               </div>
 
               {/* Action Buttons */}
-              <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2">
-                <div className="flex items-center gap-2 w-full sm:w-auto">
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-2">
+                <div className="grid grid-cols-3 sm:flex sm:items-center gap-2 w-full sm:w-auto">
                   <button
                     onClick={handleClearSelection}
                     disabled={isAnalyzing}
-                    className="px-4 py-2.5 rounded-xl border border-[#CBD5E1] text-xs font-semibold text-[#475569] hover:bg-[#F1F5F9] transition-colors cursor-pointer w-full sm:w-auto"
+                    className="min-h-[44px] px-3 sm:px-4 py-2.5 rounded-xl border border-[#CBD5E1] text-xs font-semibold text-[#475569] hover:bg-[#F1F5F9] transition-colors cursor-pointer text-center"
                   >
-                    Remove Image
+                    Remove
                   </button>
                   <button
-                    onClick={() => fileInputRef.current?.click()}
+                    onClick={handleCameraTrigger}
                     disabled={isAnalyzing}
-                    className="px-4 py-2.5 rounded-xl border border-[#CBD5E1] text-xs font-semibold text-[#2563EB] hover:bg-[#EFF6FF] transition-colors cursor-pointer w-full sm:w-auto"
+                    className="min-h-[44px] px-3 sm:px-4 py-2.5 rounded-xl border border-[#CBD5E1] text-xs font-semibold text-[#2563EB] hover:bg-[#EFF6FF] transition-colors cursor-pointer flex items-center justify-center gap-1.5"
+                    title="Retake photo using camera"
                   >
-                    Replace Image
+                    <Camera className="w-3.5 h-3.5 shrink-0" />
+                    <span>Retake</span>
                   </button>
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept="image/jpeg,image/png,image/webp"
-                    className="hidden"
-                    onChange={handleFileInputChange}
-                  />
+                  <button
+                    onClick={handleBrowseTrigger}
+                    disabled={isAnalyzing}
+                    className="min-h-[44px] px-3 sm:px-4 py-2.5 rounded-xl border border-[#CBD5E1] text-xs font-semibold text-[#475569] hover:bg-[#F1F5F9] transition-colors cursor-pointer text-center"
+                  >
+                    Replace
+                  </button>
                 </div>
 
                 <button
                   onClick={handleAnalyzeImage}
                   disabled={isAnalyzing}
-                  className="w-full sm:w-auto px-8 py-3 rounded-xl bg-[#2563EB] hover:bg-[#1D4ED8] text-white text-xs font-bold shadow-lg shadow-blue-500/25 flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-50"
+                  className="w-full sm:w-auto min-h-[44px] px-8 py-3 rounded-xl bg-[#2563EB] hover:bg-[#1D4ED8] text-white text-xs font-bold shadow-lg shadow-blue-500/25 flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-50"
                 >
                   {isAnalyzing ? (
                     <>
@@ -493,6 +584,16 @@ export default function LaunchConsolePage() {
           )}
         </div>
       </div>
+
+      {/* Optical Camera Viewfinder Modal (Desktop & Interactive Reticle) */}
+      <CameraScanModal
+        isOpen={isCameraModalOpen}
+        onClose={() => setIsCameraModalOpen(false)}
+        onCaptureFile={(file) => {
+          validateAndSetFile(file);
+          setIsCameraModalOpen(false);
+        }}
+      />
 
       {/* ─── ANALYSIS CAPABILITIES (8 DETAILED PILLARS) ──────────── */}
       <div className="space-y-6 pt-6">

@@ -486,7 +486,10 @@ export class VisionPCBProvider implements PCBProvider {
       }
     }
 
-    const isUnsupported = pcb.status === "UNSUPPORTED_IMAGE";
+    const isUnsupported =
+      pcb.status === "UNSUPPORTED_IMAGE" ||
+      pcb.status === "NOT_APPLICABLE" ||
+      !pcb.board;
 
     return {
       analysisId: input.analysisId,

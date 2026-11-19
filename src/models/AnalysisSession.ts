@@ -5,6 +5,14 @@ export type AnalysisMode = "LIVE" | "DEMO";
 export type AnalysisStatus =
   | "DRAFT"
   | "READY"
+  | "UPLOADED"
+  | "VALIDATING_IMAGE"
+  | "IMAGE_REJECTED"
+  | "CLASSIFYING_IMAGE"
+  | "DETECTING_COMPONENTS"
+  | "ANALYZING_PCB"
+  | "EXTRACTING_TEXT"
+  | "VALIDATING_FINDINGS"
   | "PROCESSING"
   | "DETECTION_COMPLETE"
   | "PCB_ANALYSIS_PROCESSING"
@@ -27,6 +35,10 @@ export type AnalysisStatus =
   | "CARBON_FAILED"
   | "REPORT_READY"
   | "COMPLETED"
+  | "PARTIALLY_COMPLETED"
+  | "UNSUPPORTED_IMAGE"
+  | "INSUFFICIENT_IMAGE_QUALITY"
+  | "MODEL_UNAVAILABLE"
   | "FAILED";
 
 export interface IAnalysisSession extends Document {
@@ -59,6 +71,11 @@ export interface IAnalysisSession extends Document {
 
   // Embedded payloads for rapid frontend hydration
   sampleId?: string;
+  relevanceResult?: Record<string, any>;
+  imageType?: string;
+  imageClassification?: Record<string, any>;
+  rejectionReason?: string;
+  rejectionCategory?: string;
   qualityResult?: Record<string, any>;
   detectionResult?: Record<string, any>;
   reconstructionResult?: Record<string, any>;
@@ -116,6 +133,14 @@ const AnalysisSessionSchema = new Schema<IAnalysisSession>(
       enum: [
         "DRAFT",
         "READY",
+        "UPLOADED",
+        "VALIDATING_IMAGE",
+        "IMAGE_REJECTED",
+        "CLASSIFYING_IMAGE",
+        "DETECTING_COMPONENTS",
+        "ANALYZING_PCB",
+        "EXTRACTING_TEXT",
+        "VALIDATING_FINDINGS",
         "PROCESSING",
         "DETECTION_COMPLETE",
         "PCB_ANALYSIS_PROCESSING",
@@ -138,6 +163,10 @@ const AnalysisSessionSchema = new Schema<IAnalysisSession>(
         "CARBON_FAILED",
         "REPORT_READY",
         "COMPLETED",
+        "PARTIALLY_COMPLETED",
+        "UNSUPPORTED_IMAGE",
+        "INSUFFICIENT_IMAGE_QUALITY",
+        "MODEL_UNAVAILABLE",
         "FAILED",
         // Lowercase tolerance
         "draft",
@@ -164,6 +193,11 @@ const AnalysisSessionSchema = new Schema<IAnalysisSession>(
     reportId: { type: String },
 
     sampleId: { type: String },
+    relevanceResult: { type: Schema.Types.Mixed },
+    imageType: { type: String },
+    imageClassification: { type: Schema.Types.Mixed },
+    rejectionReason: { type: String },
+    rejectionCategory: { type: String },
     qualityResult: { type: Schema.Types.Mixed },
     detectionResult: { type: Schema.Types.Mixed },
     reconstructionResult: { type: Schema.Types.Mixed },

@@ -1,5 +1,14 @@
 export type AnalysisStatus =
   | "DRAFT"
+  | "READY"
+  | "UPLOADED"
+  | "VALIDATING_IMAGE"
+  | "IMAGE_REJECTED"
+  | "CLASSIFYING_IMAGE"
+  | "DETECTING_COMPONENTS"
+  | "ANALYZING_PCB"
+  | "EXTRACTING_TEXT"
+  | "VALIDATING_FINDINGS"
   | "CAPTURED"
   | "PROCESSING"
   | "DETECTION_COMPLETE"
@@ -10,6 +19,10 @@ export type AnalysisStatus =
   | "PASSPORT_READY"
   | "REPORT_READY"
   | "COMPLETED"
+  | "PARTIALLY_COMPLETED"
+  | "UNSUPPORTED_IMAGE"
+  | "INSUFFICIENT_IMAGE_QUALITY"
+  | "MODEL_UNAVAILABLE"
   | "FAILED";
 
 export type DataClassification =

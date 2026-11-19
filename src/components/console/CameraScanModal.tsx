@@ -19,14 +19,28 @@ import { useRouter } from "next/navigation";
 interface CameraScanModalProps {
   isOpen: boolean;
   onClose: () => void;
+  onCaptureFile?: (file: File) => void;
 }
 
-export default function CameraScanModal({ isOpen, onClose }: CameraScanModalProps) {
+function dataURLtoFile(dataurl: string, filename: string): File {
+  const arr = dataurl.split(",");
+  const mime = arr[0].match(/:(.*?);/)?.[1] || "image/jpeg";
+  const bstr = atob(arr[1]);
+  let n = bstr.length;
+  const u8arr = new Uint8Array(n);
+  while (n--) {
+    u8arr[n] = bstr.charCodeAt(n);
+  }
+  return new File([u8arr], filename, { type: mime });
+}
+
+export default function CameraScanModal({ isOpen, onClose, onCaptureFile }: CameraScanModalProps) {
   const router = useRouter();
   const { setCameraDraft, startAnalysisFromDraft, setActiveStep } = useAnalysisSession();
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const nativeCameraInputRef = useRef<HTMLInputElement>(null);
 
   const [streamActive, setStreamActive] = useState(false);
   const [facingMode, setFacingMode] = useState<"environment" | "user">("environment");
@@ -126,6 +140,21 @@ export default function CameraScanModal({ isOpen, onClose }: CameraScanModalProp
   const handleUseImage = () => {
     if (!capturedImage) return;
 
+    if (onCaptureFile) {
+      if (capturedImage.startsWith("data:")) {
+        const file = dataURLtoFile(capturedImage, `optical_capture_${Date.now()}.jpg`);
+        onCaptureFile(file);
+      } else {
+        fetch(capturedImage)
+          .then((res) => res.blob())
+          .then((blob) => {
+            const file = new File([blob], `optical_capture_${Date.now()}.jpg`, { type: "image/jpeg" });
+            onCaptureFile(file);
+          })
+          .catch((err) => console.warn("Failed to convert captured image:", err));
+      }
+    }
+
     setCameraDraft(capturedImage, {
       quality: qualityGrade.toLowerCase() as any,
       resolution: "1920 x 1080 px",
@@ -141,6 +170,13 @@ export default function CameraScanModal({ isOpen, onClose }: CameraScanModalProp
   const handleStartAnalysisDirectly = async () => {
     if (!capturedImage) return;
 
+    if (onCaptureFile) {
+      if (capturedImage.startsWith("data:")) {
+        const file = dataURLtoFile(capturedImage, `optical_capture_${Date.now()}.jpg`);
+        onCaptureFile(file);
+      }
+    }
+
     setCameraDraft(capturedImage, {
       quality: qualityGrade.toLowerCase() as any,
       resolution: "1920 x 1080 px",
@@ -155,6 +191,24 @@ export default function CameraScanModal({ isOpen, onClose }: CameraScanModalProp
     setActiveStep(2);
     const newId = await startAnalysisFromDraft();
     router.push(`/console/processing?analysisId=${encodeURIComponent(newId)}`);
+  };
+
+  const handleNativeCameraInput = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      if (onCaptureFile) {
+        onCaptureFile(file);
+        stopCamera();
+        onClose();
+      } else {
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+          setCapturedImage(ev.target?.result as string);
+          evaluateQuality();
+        };
+        reader.readAsDataURL(file);
+      }
+    }
   };
 
   if (!isOpen) return null;
@@ -243,12 +297,21 @@ export default function CameraScanModal({ isOpen, onClose }: CameraScanModalProp
                   <p className="text-xs font-mono text-slate-300">
                     {cameraError || "Initializing optical sensor..."}
                   </p>
-                  <button
-                    onClick={takeSnapshot}
-                    className="px-4 py-2 rounded-xl bg-[#2563EB] text-white text-xs font-semibold hover:bg-blue-600 transition-colors"
-                  >
-                    Simulate Optical Capture
-                  </button>
+                  <div className="flex flex-wrap items-center justify-center gap-2 pt-2">
+                    <button
+                      onClick={() => nativeCameraInputRef.current?.click()}
+                      className="px-4 py-2 rounded-xl bg-[#2563EB] text-white text-xs font-semibold hover:bg-blue-600 transition-colors flex items-center gap-1.5"
+                    >
+                      <Camera className="w-3.5 h-3.5" />
+                      <span>Use Device Camera</span>
+                    </button>
+                    <button
+                      onClick={takeSnapshot}
+                      className="px-4 py-2 rounded-xl border border-slate-600 text-slate-300 text-xs font-semibold hover:bg-slate-800 transition-colors"
+                    >
+                      Simulate Optical Capture
+                    </button>
+                  </div>
                 </div>
               )}
 
@@ -273,6 +336,14 @@ export default function CameraScanModal({ isOpen, onClose }: CameraScanModalProp
           )}
 
           <canvas ref={canvasRef} className="hidden" />
+          <input
+            ref={nativeCameraInputRef}
+            type="file"
+            accept="image/*"
+            capture="environment"
+            className="hidden"
+            onChange={handleNativeCameraInput}
+          />
         </div>
 
         {/* Viewfinder Controls Footer */}

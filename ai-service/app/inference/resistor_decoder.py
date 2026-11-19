@@ -172,7 +172,13 @@ class ResistorDecoder:
             b_start, b_end = 0, cw
         else:
             b_start, b_end = body_idx[0], body_idx[-1]
-            body = crop[:, b_start:b_end]
+            # Vertical bounding of the isolated body to exclude background dilution
+            v_thick = np.sum(obj_mask[:, b_start:b_end], axis=1)
+            v_idx = np.where(v_thick > 0)[0]
+            if len(v_idx) > 10:
+                body = crop[v_idx[0]:v_idx[-1], b_start:b_end]
+            else:
+                body = crop[:, b_start:b_end]
 
         bh, bw = body.shape[:2]
         if bw < 25 or bh < 10:

@@ -90,6 +90,51 @@ export class AnalysisPipelineService {
       // 1. IMAGE QUALITY, COMPONENT DETECTION & OPTICAL OCR
       await this.runDetectionStage(sessionObj);
 
+      // Phase 2 Rejection Gate: If image is non-electronic, halt pipeline immediately
+      if (sessionObj.status === "IMAGE_REJECTED" || (sessionObj as any).imageType === "NON_ELECTRONIC") {
+        console.log(`[AnalysisPipeline] Image rejected as non-electronic for ${analysisId}. Halting downstream analysis.`);
+        const rejReason = (sessionObj as any).rejectionReason || "This image does not appear to contain electronic hardware or electronic components. Please upload a clear photograph of a PCB, motherboard, electronic device, or individual electronic component.";
+        const rejCat = (sessionObj as any).rejectionCategory || "NON_ELECTRONIC";
+
+        SessionStore.update(analysisId, {
+          status: "IMAGE_REJECTED",
+          currentStage: "IMAGE_REJECTED",
+          progress: 100,
+          imageType: "NON_ELECTRONIC",
+          rejectionReason: rejReason,
+          rejectionCategory: rejCat,
+          detectionResult: (sessionObj as any).detectionResult || {
+            componentsCount: 0,
+            components: [],
+            confidenceAvg: 0,
+            rejectionRecommendation: true,
+            rejectionReason: rejReason,
+            rejectionCategory: rejCat,
+          },
+          stageStatuses: {
+            quality: "completed",
+            detection: "failed",
+            pcb: "failed",
+            damage: "failed",
+            ocr: "failed",
+            summary: "completed",
+          },
+        });
+
+        if (mongoSession) {
+          mongoSession.status = "IMAGE_REJECTED";
+          mongoSession.currentStage = "IMAGE_REJECTED";
+          mongoSession.progress = 100;
+          mongoSession.rejectionReason = rejReason;
+          mongoSession.rejectionCategory = rejCat;
+          await mongoSession.save().catch(() => { });
+          await this.logAudit(mongoSession, "ANALYSIS_REJECTED", "AnalysisSession", analysisId, {
+            reason: rejReason,
+          }).catch(() => { });
+        }
+        return (mongoSession || SessionStore.get(analysisId)) as any;
+      }
+
       // 2. PCB VISUAL STRUCTURE & TRACE INSPECTION
       await this.runPCBStage(sessionObj);
 
@@ -186,6 +231,50 @@ export class AnalysisPipelineService {
       mode: session.mode,
       sourceType: session.sourceType,
     });
+
+    // Handle Strict Rejection for Non-Electronic Content
+    if (output.status === "IMAGE_REJECTED" || output.imageType === "NON_ELECTRONIC") {
+      session.status = "IMAGE_REJECTED";
+      session.currentStage = "IMAGE_REJECTED";
+      session.progress = 100;
+      session.stageStatuses = {
+        quality: "completed",
+        detection: "failed",
+        pcb: "failed",
+        damage: "failed",
+        ocr: "failed",
+        summary: "completed",
+      };
+      (session as any).imageType = "NON_ELECTRONIC";
+      (session as any).rejectionReason =
+        output.rejectionReason ||
+        "This image does not appear to contain electronic hardware or electronic components. Please upload a clear photograph of a PCB, motherboard, electronic device, or individual electronic component.";
+      (session as any).rejectionCategory = output.rejectionCategory || "NON_ELECTRONIC";
+      (session as any).evidenceSummary = output.summary;
+      (session as any).detectionResult = {
+        model: output.model,
+        componentsCount: 0,
+        components: [],
+        confidenceAvg: 0,
+      };
+
+      SessionStore.update(session.analysisId, {
+        status: "IMAGE_REJECTED",
+        currentStage: "IMAGE_REJECTED",
+        progress: 100,
+        imageType: "NON_ELECTRONIC",
+        rejectionReason: (session as any).rejectionReason,
+        rejectionCategory: (session as any).rejectionCategory,
+        evidenceSummary: output.summary,
+        detectionResult: (session as any).detectionResult,
+        stageStatuses: session.stageStatuses,
+      });
+
+      if (typeof session.save === "function") {
+        await session.save().catch(() => {});
+      }
+      return;
+    }
 
     // Idempotent upsert of DetectionResult if MongoDB is active
     let detectionDoc: any = null;
@@ -359,7 +448,11 @@ export class AnalysisPipelineService {
     }
 
     session.pcbAnalysisId = pcbDoc?._id;
-    const isUnsupportedPCB = pcbOutput.status === "UNSUPPORTED_IMAGE" || !pcbOutput.board;
+    const isUnsupportedPCB =
+      (pcbOutput.status as string) === "UNSUPPORTED_IMAGE" ||
+      (pcbOutput.status as string) === "NOT_APPLICABLE" ||
+      !pcbOutput.board ||
+      ["SINGLE_COMPONENT", "ISOLATED_COMPONENT"].includes((session as any).imageType);
 
     session.reconstructionResult = {
       pcbId: `PCB-${session.analysisId}`,

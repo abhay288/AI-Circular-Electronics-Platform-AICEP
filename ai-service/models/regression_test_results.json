@@ -1,0 +1,87 @@
+{
+  "suiteName": "EcoIntel Guardrail Regression Tests A-K",
+  "timestamp": "2026-11-19T17:09:41.724502",
+  "totalScenarios": 11,
+  "scenariosPassed": 11,
+  "scenariosFailed": 0,
+  "passRatePercent": 100.0,
+  "results": [
+    {
+      "scenario": "Scenario A: Food Image",
+      "passed": true,
+      "relevance": "NON_ELECTRONIC",
+      "imageType": "NON_ELECTRONIC",
+      "rejectionReason": "Image identifies food/organic dish without electronic circuitry or components."
+    },
+    {
+      "scenario": "Scenario B: Human Portrait",
+      "passed": true,
+      "relevance": "NON_ELECTRONIC",
+      "imageType": "NON_ELECTRONIC",
+      "rejectionReason": "Image contains a person, face, or portrait with no observable electronic hardware or circuit board."
+    },
+    {
+      "scenario": "Scenario C: Animal Photograph",
+      "passed": true,
+      "relevance": "NON_ELECTRONIC",
+      "imageType": "NON_ELECTRONIC",
+      "rejectionReason": "Image identifies food/organic dish without electronic circuitry or components."
+    },
+    {
+      "scenario": "Scenario D: Landscape / Nature",
+      "passed": true,
+      "relevance": "NON_ELECTRONIC",
+      "imageType": "NON_ELECTRONIC",
+      "rejectionReason": "Image identifies an animal with no electronic hardware present."
+    },
+    {
+      "scenario": "Scenario E: Single Axial Resistor",
+      "passed": true,
+      "relevance": "ELECTRONICS_RELATED",
+      "imageType": "SINGLE_COMPONENT",
+      "componentsCount": 1,
+      "pcbStatus": "UNSUPPORTED_IMAGE",
+      "resistorDecodedValue": "1 k\u03a9 \u00b15%"
+    },
+    {
+      "scenario": "Scenario F: Toroidal Inductor",
+      "passed": true,
+      "relevance": "ELECTRONICS_RELATED",
+      "imageType": "SINGLE_COMPONENT",
+      "subtype": null,
+      "pcbStatus": "UNSUPPORTED_IMAGE"
+    },
+    {
+      "scenario": "Scenario G: Motherboard Multi-Scale",
+      "passed": true,
+      "relevance": "ELECTRONICS_RELATED",
+      "imageType": "MOTHERBOARD",
+      "componentsDetected": 7,
+      "viasDetected": 20,
+      "tracesDetected": 33
+    },
+    {
+      "scenario": "Scenario H: Hand Holding PCB",
+      "passed": true,
+      "relevance": "MIXED_SCENE",
+      "hasHumanPresence": true,
+      "handBoxExcluded": true
+    },
+    {
+      "scenario": "Scenario I: Blurry Image Quality",
+      "passed": true,
+      "laplacianVariance": 1.85,
+      "qualityFlagged": true
+    },
+    {
+      "scenario": "Scenario J: Unsupported Electronics",
+      "passed": true,
+      "zeroFabrication": true
+    },
+    {
+      "scenario": "Scenario K: Missing Weights Safety",
+      "passed": true,
+      "status": "MODEL_UNAVAILABLE"
+    }
+  ]
+}

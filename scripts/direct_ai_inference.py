@@ -9,12 +9,17 @@ Strictly adheres to Image-Only Policy: zero fabrication, zero mock datasets.
 
 import sys
 import os
+import tempfile
 import json
 import base64
 import time
 import hashlib
 import cv2
 import numpy as np
+
+# Suppress Ultralytics config directory permission errors
+os.environ["YOLO_CONFIG_DIR"] = os.path.join(tempfile.gettempdir(), "ecointel_yolo_cfg")
+os.environ["YOLO_VERBOSE"] = "False"
 
 # Ensure ai-service is in sys.path
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -81,9 +86,98 @@ def main():
         _, encoded_img = cv2.imencode(".png", cv_img)
         image_hash = hashlib.sha256(encoded_img.tobytes()).hexdigest()
 
-        # 1. Image-Type Classification (ISOLATED_COMPONENT, PCB_BOARD, ELECTRONIC_DEVICE, etc.)
+        # 1. Image-Type & Relevance Classification
         image_type_info = image_classifier.classify(cv_img)
         image_type = image_type_info.get("imageType", "UNKNOWN")
+
+        # -----------------------------------------------------------------
+        # PHASE 2: STRICT IMAGE REJECTION FOR NON-ELECTRONIC CONTENT
+        # -----------------------------------------------------------------
+        if image_type == "NON_ELECTRONIC":
+            rejection_reason = image_type_info.get(
+                "rejectionMessage",
+                "This image does not appear to contain electronic hardware or electronic components. Please upload a clear photograph of a PCB, motherboard, electronic device, or individual electronic component."
+            )
+            rejection_cat = image_type_info.get("category", "NON_ELECTRONIC")
+
+            output = {
+                "success": True,
+                "analysisId": analysis_id,
+                "status": "IMAGE_REJECTED",
+                "relevance": "NON_ELECTRONIC",
+                "imageHash": image_hash,
+                "imageType": "NON_ELECTRONIC",
+                "imageClassification": image_type_info,
+                "rejectionReason": rejection_reason,
+                "rejectionCategory": rejection_cat,
+                "rejectionRecommendation": True,
+                "totalDetected": 0,
+                "confidenceAverage": 0.0,
+                "processingTimeMs": 20.0,
+                "detections": [],
+                "pcb": {
+                    "status": "NOT_APPLICABLE",
+                    "message": "PCB structure analysis halted: Image was rejected as non-electronic.",
+                    "board": None,
+                    "traces": [],
+                    "pads": [],
+                    "vias": [],
+                    "layers": None,
+                    "metrics": {
+                        "componentsDetected": 0,
+                        "visibleTraces": 0,
+                        "padsDetected": 0,
+                        "viasDetected": 0,
+                    },
+                },
+                "visualCondition": {
+                    "visualConditionScore": 0,
+                    "conditions": [],
+                    "message": "Damage inspection halted: Non-electronic image."
+                },
+                "ocr": {
+                    "totalMarkingsDetected": 0,
+                    "readableMarkingsCount": 0,
+                    "uncertainMarkingsCount": 0,
+                    "markings": []
+                },
+                "summary": {
+                    "classification": "Image Not Supported",
+                    "statement": rejection_reason,
+                    "findingsCount": 0,
+                    "damageFindings": [],
+                    "opticalLimitations": [
+                        "Image does not depict verified electronic circuitry or electronic components."
+                    ],
+                    "recommendedManualInspections": [
+                        "Upload a high-resolution top-down photograph of an authentic printed circuit board or discrete electronic component."
+                    ]
+                },
+                "modules": {
+                    "imageClassification": {
+                        "status": "COMPLETED",
+                        "imageType": "NON_ELECTRONIC",
+                        "confidence": image_type_info.get("confidence", 0.95),
+                        "reason": image_type_info.get("reason", "Out-of-domain image rejected by guardrails."),
+                    },
+                    "componentDetection": {"status": "SKIPPED_REJECTED", "count": 0},
+                    "visualCondition": {"status": "SKIPPED_REJECTED", "damageFindingsCount": 0},
+                    "pcbAnalysis": {"status": "SKIPPED_REJECTED", "reason": "Non-electronic image rejected."},
+                    "ocr": {"status": "SKIPPED_REJECTED", "markingsCount": 0},
+                }
+            }
+
+            def json_serialize(obj):
+                if isinstance(obj, (np.integer, np.int64, np.int32)):
+                    return int(obj)
+                elif isinstance(obj, (np.floating, np.float64, np.float32)):
+                    return float(obj)
+                elif isinstance(obj, np.ndarray):
+                    return obj.tolist()
+                return str(obj)
+
+            print(json.dumps(output, default=json_serialize))
+            return
 
         # 2. Image Quality & Optical Diagnostics
         quality = analyze_image_quality(cv_img)
@@ -128,7 +222,7 @@ def main():
         elif len(damage_items) > 0:
             overall_classification = "Minor visible surface damage."
             summary_statement = f"Observed minor visible surface irregularity ({damage_items[0].get('visualCondition')})."
-        elif image_type == "ISOLATED_COMPONENT":
+        elif image_type in ["ISOLATED_COMPONENT", "SINGLE_COMPONENT"]:
             comp_name = detections[0]["className"] if len(detections) > 0 else "Electronic component"
             overall_classification = "No obvious visible damage detected."
             summary_statement = f"Observed 1 isolated {comp_name} on clean background. No physical fracture, charring, or terminal severance detected. This does not confirm electrical functionality."
@@ -155,6 +249,10 @@ def main():
         }
 
         # Module statuses tracking
+        pcb_types = {
+            "FULL_PCB", "MOTHERBOARD", "MOBILE_PCB", "LAPTOP_PCB",
+            "DESKTOP_PCB", "POWER_SUPPLY_BOARD", "PCB_BOARD", "MIXED_ELECTRONIC_SCENE"
+        }
         modules = {
             "imageClassification": {
                 "status": "COMPLETED",
@@ -171,7 +269,7 @@ def main():
                 "damageFindingsCount": len(damage_items),
             },
             "pcbAnalysis": {
-                "status": "COMPLETED" if image_type == "PCB_BOARD" else "UNSUPPORTED_IMAGE",
+                "status": "COMPLETED" if image_type in pcb_types else "UNSUPPORTED_IMAGE",
                 "reason": pcb_res.get("message", "PCB structure mapped successfully."),
             },
             "ocr": {

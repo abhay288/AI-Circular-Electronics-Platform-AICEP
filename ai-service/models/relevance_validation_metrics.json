@@ -1,0 +1,149 @@
+{
+  "modelName": "EcoIntel-Relevance-Guardrail-v2",
+  "validationDate": "2026-11-19T17:05:28.418120",
+  "totalEvaluated": 14,
+  "truePositives": 7,
+  "trueNegatives": 7,
+  "falsePositives": 0,
+  "falseNegatives": 0,
+  "accuracy": 1.0,
+  "precision": 1.0,
+  "recall": 1.0,
+  "f1Score": 1.0,
+  "falseAcceptanceRate": 0.0,
+  "falseRejectionRate": 0.0,
+  "calibratedThresholds": {
+    "nonElectronicRejection": 0.65,
+    "electronicsAcceptance": 0.55,
+    "mixedSceneThreshold": 0.45,
+    "skinToleranceRatio": 0.38
+  },
+  "individualTestCases": [
+    {
+      "testName": "Food (Pizza slice)",
+      "expectedRelevance": "NON_ELECTRONIC",
+      "predictedRelevance": "NON_ELECTRONIC",
+      "confidence": 0.92,
+      "rejected": true,
+      "category": "FOOD_BEVERAGE",
+      "status": "PASS (Correctly Rejected)"
+    },
+    {
+      "testName": "Human Portrait",
+      "expectedRelevance": "NON_ELECTRONIC",
+      "predictedRelevance": "NON_ELECTRONIC",
+      "confidence": 0.94,
+      "rejected": true,
+      "category": "HUMAN_PORTRAIT",
+      "status": "PASS (Correctly Rejected)"
+    },
+    {
+      "testName": "Animal (Cat)",
+      "expectedRelevance": "NON_ELECTRONIC",
+      "predictedRelevance": "NON_ELECTRONIC",
+      "confidence": 0.92,
+      "rejected": true,
+      "category": "FOOD_BEVERAGE",
+      "status": "PASS (Correctly Rejected)"
+    },
+    {
+      "testName": "Landscape Nature",
+      "expectedRelevance": "NON_ELECTRONIC",
+      "predictedRelevance": "NON_ELECTRONIC",
+      "confidence": 0.92,
+      "rejected": true,
+      "category": "ANIMAL",
+      "status": "PASS (Correctly Rejected)"
+    },
+    {
+      "testName": "Vehicle (Car)",
+      "expectedRelevance": "NON_ELECTRONIC",
+      "predictedRelevance": "NON_ELECTRONIC",
+      "confidence": 0.91,
+      "rejected": true,
+      "category": "HOUSEHOLD_OBJECT",
+      "status": "PASS (Correctly Rejected)"
+    },
+    {
+      "testName": "Document / Text",
+      "expectedRelevance": "NON_ELECTRONIC",
+      "predictedRelevance": "NON_ELECTRONIC",
+      "confidence": 0.94,
+      "rejected": true,
+      "category": "DOCUMENT",
+      "status": "PASS (Correctly Rejected)"
+    },
+    {
+      "testName": "Household Furniture",
+      "expectedRelevance": "NON_ELECTRONIC",
+      "predictedRelevance": "NON_ELECTRONIC",
+      "confidence": 0.94,
+      "rejected": true,
+      "category": "HUMAN_PORTRAIT",
+      "status": "PASS (Correctly Rejected)"
+    },
+    {
+      "testName": "Router Board PCB",
+      "expectedRelevance": "ELECTRONICS_RELATED",
+      "predictedRelevance": "ELECTRONICS_RELATED",
+      "confidence": 0.96,
+      "rejected": false,
+      "category": "PCB_HARDWARE",
+      "status": "PASS (Correctly Accepted)"
+    },
+    {
+      "testName": "Laptop Motherboard",
+      "expectedRelevance": "ELECTRONICS_RELATED",
+      "predictedRelevance": "ELECTRONICS_RELATED",
+      "confidence": 0.96,
+      "rejected": false,
+      "category": "PCB_HARDWARE",
+      "status": "PASS (Correctly Accepted)"
+    },
+    {
+      "testName": "Power Supply Board",
+      "expectedRelevance": "ELECTRONICS_RELATED",
+      "predictedRelevance": "ELECTRONICS_RELATED",
+      "confidence": 0.96,
+      "rejected": false,
+      "category": "PCB_HARDWARE",
+      "status": "PASS (Correctly Accepted)"
+    },
+    {
+      "testName": "Smartphone PCB",
+      "expectedRelevance": "ELECTRONICS_RELATED",
+      "predictedRelevance": "ELECTRONICS_RELATED",
+      "confidence": 0.96,
+      "rejected": false,
+      "category": "PCB_HARDWARE",
+      "status": "PASS (Correctly Accepted)"
+    },
+    {
+      "testName": "Industrial Controller",
+      "expectedRelevance": "ELECTRONICS_RELATED",
+      "predictedRelevance": "ELECTRONICS_RELATED",
+      "confidence": 0.96,
+      "rejected": false,
+      "category": "PCB_HARDWARE",
+      "status": "PASS (Correctly Accepted)"
+    },
+    {
+      "testName": "Single Axial Resistor",
+      "expectedRelevance": "ELECTRONICS_RELATED",
+      "predictedRelevance": "ELECTRONICS_RELATED",
+      "confidence": 0.94,
+      "rejected": false,
+      "category": "DISCRETE_COMPONENT",
+      "status": "PASS (Correctly Accepted)"
+    },
+    {
+      "testName": "Mixed Scene: Hand Holding PCB",
+      "expectedRelevance": "MIXED_SCENE",
+      "predictedRelevance": "MIXED_SCENE",
+      "confidence": 0.93,
+      "rejected": false,
+      "category": "MIXED_HARDWARE_HUMAN",
+      "status": "PASS (Correctly Accepted)"
+    }
+  ]
+}

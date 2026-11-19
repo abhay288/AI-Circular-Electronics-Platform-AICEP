@@ -53,7 +53,11 @@ export interface DetectionOutput {
   version: string;
   datasetVersion?: string;
   provider: "MOCK" | "YOLO" | "RT-DETR";
-  status: "DEMO" | "PROD";
+  status: "DEMO" | "PROD" | "IMAGE_REJECTED";
+  relevance?: string;
+  rejectionReason?: string;
+  rejectionCategory?: string;
+  rejectionRecommendation?: boolean;
   imageHash?: string;
   imageType?: string;
   imageClassification?: any;
@@ -205,6 +209,11 @@ export class YOLODetectionProvider implements DetectionProvider {
         const directResult = await runDirectAIInference(input.imageUrl, input.analysisId);
         payload = {
           success: true,
+          status: directResult.status || (directResult.imageType === "NON_ELECTRONIC" ? "IMAGE_REJECTED" : "PROD"),
+          relevance: directResult.relevance,
+          rejectionReason: directResult.rejectionReason,
+          rejectionCategory: directResult.rejectionCategory,
+          rejectionRecommendation: directResult.rejectionRecommendation,
           imageHash: directResult.imageHash,
           imageType: directResult.imageType,
           imageClassification: directResult.imageClassification,
@@ -337,7 +346,11 @@ export class YOLODetectionProvider implements DetectionProvider {
       version: payload.model?.version || "v1.0.0",
       datasetVersion: "pcb-components-v1",
       provider: "YOLO",
-      status: "PROD",
+      status: payload.status || (payload.imageType === "NON_ELECTRONIC" ? "IMAGE_REJECTED" : "PROD"),
+      relevance: payload.relevance,
+      rejectionReason: payload.rejectionReason,
+      rejectionCategory: payload.rejectionCategory,
+      rejectionRecommendation: payload.rejectionRecommendation,
       imageHash: payload.imageHash,
       imageType: payload.imageType,
       imageClassification: payload.imageClassification,
